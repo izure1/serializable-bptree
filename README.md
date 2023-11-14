@@ -1,7 +1,7 @@
 # serializable-bptree
 
-[![](https://data.jsdelivr.com/v1/package/npm/serialiable-bptree/badge)](https://www.jsdelivr.com/package/npm/serialiable-bptree)
-![Node.js workflow](https://github.com/izure1/serialiable-bptree/actions/workflows/node.js.yml/badge.svg)
+[![](https://data.jsdelivr.com/v1/package/npm/serializable-bptree/badge)](https://www.jsdelivr.com/package/npm/serialiable-bptree)
+![Node.js workflow](https://github.com/izure1/serializable-bptree/actions/workflows/node.js.yml/badge.svg)
 
 This is a B+tree that's totally okay with duplicate values. If you need to keep track of the B+ tree's state, don't just leave it in memory - make sure you write it down.
 
