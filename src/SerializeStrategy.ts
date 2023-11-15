@@ -71,7 +71,7 @@ export class InMemoryStoreStrategy<K, V> extends SerializeStrategy<K, V> {
   }
 
   read(id: number): BPTreeNode<K, V> {
-    if (Object.prototype.hasOwnProperty.call(this.data, id)) {
+    if (!Object.prototype.hasOwnProperty.call(this.data.node, id)) {
       throw new Error(`The tree attempted to reference node '${id}', but couldn't find the corresponding node.`)
     }
     return this.data.node[id]
