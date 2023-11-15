@@ -39,7 +39,7 @@ export abstract class SerializeStrategy<K, V> {
    * It is called when a tree instance is created.  
    * This method should return the information needed to initialize the tree. This information refers to the values stored in the `writeHead` method.
    * 
-   * If it's the first creation and there are no saved root nodes, return `null`.
+   * If it is the initial creation and there is no stored head, it should return `null`.
    * In this case, the tree is created based on the order specified in the strategy instance constructor parameters.
    */
   abstract readHead(): SerializeStrategyHead|null

@@ -81,7 +81,7 @@ import { BPTree } from 'serializable-bptree'
 </script>
 ```
 
-## conceptualization
+## Conceptualization
 
 ### Value comparator
 
@@ -190,7 +190,7 @@ This kind of delay writing should ideally occur within a few milliseconds. If th
 
 #### readHead(): `SerializeStrategyHead`|`null`
 
-This method is called only once when the tree is created. It's a method to restore the saved tree information. If it's the first tree creation and there are no saved tree information, return `null`.
+This method is called only once when the tree is created. It's a method to restore the saved tree information. If it is the initial creation and there is no stored root node, it should return `null`.
 
 This method should return the value stored in the `writeHead` method.
 
@@ -199,7 +199,6 @@ This method should return the value stored in the `writeHead` method.
 This method is called whenever the head information of the tree changes, typically when the root node changes.
 
 As a parameter, it receives the header information of the tree. This value should be serialized and stored. Later, the `readHead` method should convert this serialized value into a json format and return it.
-
 
 ### The Default `ValueComparator` and `SerializeStrategy`
 

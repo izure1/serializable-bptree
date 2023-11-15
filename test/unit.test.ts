@@ -94,8 +94,6 @@ describe('unit-test', () => {
     tree.insert('h', 'we')
     tree.insert('i', 'use')
 
-    console.log(tree.where({ equal: 'cats' }))
-
     expect(tree.where({ equal: 'cats' })).toEqual([
       { key: 'c', value: 'cats' }
     ])
