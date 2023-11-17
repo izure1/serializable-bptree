@@ -41,7 +41,7 @@ class FileStoreStrategy extends SerializeStrategy<K, V> {
 
 const order = 5
 const tree = new BPTree(
-  new SerializeStrategy(order),
+  new FileStoreStrategy(order),
   new NumericComparator()
 )
 

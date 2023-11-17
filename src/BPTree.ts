@@ -485,7 +485,8 @@ export class BPTree<K, V> {
    */
   delete(key: K, value: V): void {
     const node = this._insertableNode(value)
-    for (let i = 0, len = node.values.length; i < len; i++) {
+    let i = node.values.length
+    while (i--) {
       const nValue = node.values[i]
       if (this.comparator.isSame(value, nValue)) {
         const keys = node.keys[i] as (K|BPTreeNode<K, V>)[]
