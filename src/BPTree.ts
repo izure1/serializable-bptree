@@ -303,6 +303,135 @@ export class BPTree<K, V> {
     )
   }
 
+  private _getKeysFromValue(value: V): Set<K> {
+    const keys = new Set<K>()
+    const node = this._insertableNode(value)
+    const [start, end] = this.search.range(node.values, value)
+    if (start === -1) {
+      return keys
+    }
+    for (let i = start; i < end; i++) {
+      const pairKeys = node.keys[i]
+      for (const key of pairKeys) {
+        keys.add(key)
+      }
+    }
+    return keys
+  }
+
+  private _getKeysFromNEValue(value: V): Set<K> {
+    const keys = new Set<K>()
+    let node = this.leftestNode()
+    let done = false
+    while (!done) {
+      for (let i = 0, len = node.values.length; i < len; i++) {
+        const nValue = node.values[i]
+        const pairKeys = node.keys[i]
+        if (this.comparator.isSame(nValue, value) === false) {
+          for (const key of pairKeys) {
+            keys.add(key)
+          }
+        }
+      }
+      if (!node.next) {
+        done = true
+        break
+      }
+      node = this.getNode(node.next) as BPTreeLeafNode<K, V>
+    }
+    return keys
+  }
+
+  private _getKeysFromRange(gt: V, lt: V): Set<K> {
+    const keys = new Set<K>()
+    let node = this._insertableNode(gt)
+    let done = false
+    let found = false
+    while (!done) {
+      for (let i = 0, len = node.values.length; i < len; i++) {
+        const nValue = node.values[i]
+        const localKeys = node.keys[i]
+        if (
+          this.comparator.isHigher(nValue, gt) &&
+          this.comparator.isLower(nValue, lt)
+        ) {
+          found = true
+          for (const key of localKeys) {
+            keys.add(key)
+          }
+        }
+        else if (found) {
+          done = true
+          break
+        }
+      }
+      if (!node.next) {
+        done = true
+        break
+      }
+      node = this.getNode(node.next) as BPTreeLeafNode<K, V>
+    }
+    return keys
+  }
+
+  private _getKeysFromGt(gt: V): Set<K> {
+    const keys = new Set<K>()
+    let node = this._insertableNode(gt)
+    let done = false
+    let found = false
+    while (!done) {
+      for (let i = 0, len = node.values.length; i < len; i++) {
+        const nValue = node.values[i]
+        const localKeys = node.keys[i]
+        if (this.comparator.isHigher(nValue, gt)) {
+          found = true
+          for (const key of localKeys) {
+            keys.add(key)
+          }
+        }
+        else if (found) {
+          done = true
+          break
+        }
+      }
+      if (!node.next) {
+        done = true
+        break
+      }
+      node = this.getNode(node.next) as BPTreeLeafNode<K, V>
+    }
+    return keys
+  }
+
+  private _getKeysFromLt(lt: V): Set<K> {
+    const keys = new Set<K>()
+    let node = this.leftestNode()
+    let done = false
+    let found = false
+    while (!done) {
+      for (let i = 0, len = node.values.length; i < len; i++) {
+        const nValue = node.values[i]
+        const localKeys = node.keys[i]
+        if (this.comparator.isLower(nValue, lt)) {
+          found = true
+          for (const key of localKeys) {
+            keys.add(key)
+          }
+        }
+        else if (found) {
+          done = true
+          break
+        }
+      }
+      if (!node.next) {
+        done = true
+        break
+      }
+      node = this.getNode(node.next) as BPTreeLeafNode<K, V>
+    }
+    return keys
+  }
+
   private _getPairsFromValue(value: V): BPTreePair<K, V>[] {
     const node = this._insertableNode(value)
     const [start, end] = this.search.range(node.values, value)
@@ -430,6 +559,34 @@ export class BPTree<K, V> {
       node = this.getNode(node.next) as BPTreeLeafNode<K, V>
     }
     return pairs
+  }
+
+  /**
+   * It searches for a key within the tree. The result is returned as an array sorted in ascending order based on the value.  
+   * The result is key set instance, and you can use the `gt`, `lt`, `equal`, `notEqual` condition statements.
+   * This method operates much faster than first searching with `where` and then retrieving only the key list.
+   * @param condition You can use the `gt`, `lt`, `equal`, `notEqual` condition statements.
+   */
+  keys(condition: BPTreeCondition<V>): Set<K> {
+    if (this._equalCondition(condition)) {
+      return this._getKeysFromValue(condition.equal)
+    }
+    else if (this._notEqualCondition(condition)) {
+      return this._getKeysFromNEValue(condition.notEqual)
+    }
+    else if (this._rangeCondition(condition)) {
+      const { gt, lt } = condition
+      return this._getKeysFromRange(gt, lt)
+    }
+    else if (this._onlyGtCondition(condition)) {
+      return this._getKeysFromGt(condition.gt)
+    }
+    else if (this._onlyLtCondition(condition)) {
+      return this._getKeysFromLt(condition.lt)
+    }
+    else {
+      throw new Error(`The 'condition' parameter is invalid.`)
+    }
   }
 
   /**

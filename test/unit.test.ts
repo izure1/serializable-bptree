@@ -77,6 +77,8 @@ describe('unit-test', () => {
       { key: 'ㅋ', value: 8 },
       { key: 'i', value: 9 },
     ])
+
+    console.log(tree.keys({ gt: 0, lt: 10 }))
   })
 
   test('insert:string', () => {
