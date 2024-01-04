@@ -265,6 +265,12 @@ describe('strategy-test', () => {
     tree.delete('g', 7)
     tree.delete('h', 8)
 
+    tree.setHeadData({
+      ...tree.getHeadData(),
+      count: (tree.getHeadData().count as number ?? 0)+1,
+      at: Date.now()
+    })
+
     expect(tree.where({ equal: 4 })).toEqual([])
     expect(tree.where({ equal: 7 })).toEqual([])
     expect(tree.where({ equal: 8 })).toEqual([])

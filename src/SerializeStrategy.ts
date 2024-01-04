@@ -1,8 +1,10 @@
 import { BPTreeNode } from './BPTree'
+import type { Json } from './utils/types'
 
 export interface SerializeStrategyHead {
   root: number
   order: number
+  data: Record<string, Json>
 }
 
 export abstract class SerializeStrategy<K, V> {

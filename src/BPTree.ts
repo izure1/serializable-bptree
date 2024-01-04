@@ -1,3 +1,4 @@
+import type { Json } from './utils/types'
 import { BinarySearch } from './utils/BinarySearch'
 import { ValueComparator } from './ValueComparator'
 import { SerializeStrategy, SerializeStrategyHead } from './SerializeStrategy'
@@ -5,6 +6,7 @@ import { SerializeStrategy, SerializeStrategyHead } from './SerializeStrategy'
 type BPTreeNodeKey<K> = number|K
 type BPTreeCondition<V> = { gt?: V, lt?: V }|{ equal: V }|{ notEqual: V}
 type BPTreePair<K, V> = { key: K, value: V }
+
 export type BPTreeUnknownNode<K, V> = BPTreeInternalNode<K, V>|BPTreeLeafNode<K, V>
 
 export interface BPTreeNode<K, V> {
@@ -32,6 +34,7 @@ export class BPTree<K, V> {
   protected readonly search: BinarySearch<V>
   protected readonly order: number
   protected readonly nodes: Map<number, BPTreeUnknownNode<K, V>>
+  protected data: Record<string, Json>
   protected root: BPTreeUnknownNode<K, V>
   private readonly _creates: Map<number, BPTreeUnknownNode<K, V>>
   private readonly _updates: Map<number, BPTreeUnknownNode<K, V>>
@@ -75,6 +78,7 @@ export class BPTree<K, V> {
     // first created
     if (head === null) {
       this.order = strategy.order
+      this.data = {}
       this.root = this._createNode([], [], true)
       this._setHeadUpdate(this._headState)
       this._setCreates(this.root)
@@ -83,8 +87,9 @@ export class BPTree<K, V> {
     }
     // loaded
     else {
-      const { root, order } = head
+      const { root, order, data } = head
       this.order = order
+      this.data = data ?? {}
       this.root = this.getNode(root)
     }
     if (this.order < 3) {
@@ -95,9 +100,11 @@ export class BPTree<K, V> {
   private get _headState(): SerializeStrategyHead {
     const root = this.root.id
     const order = this.order
+    const data = this.data
     return {
       root,
       order,
+      data,
     }
   }
 
@@ -888,5 +895,26 @@ export class BPTree<K, V> {
         }
       }
     }
+  }
+
+  /**
+   * Returns the user-defined data stored in the head of the tree.
+   * This value can be set using the `setHeadData` method. If no data has been previously inserted, the default value is returned, and the default value is `{}`.
+   * @returns User-defined data stored in the head of the tree.
+   */
+  getHeadData(): Record<string, Json> {
+    return this.data
+  }
+
+  /**
+   * Inserts user-defined data into the head of the tree.
+   * This feature is useful when you need to store separate, non-volatile information in the tree.
+   * For example, you can store information such as the last update time and the number of insertions.
+   * @param data User-defined data to be stored in the head of the tree.
+   */
+  setHeadData(data: Record<string, Json>): void {
+    this.data = data
+    this._updatedHead = this._headState
+    this._emitHeadUpdates()
   }
 }
