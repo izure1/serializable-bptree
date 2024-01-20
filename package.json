@@ -17,6 +17,7 @@
     "serializable-bptree",
     "b-plus-tree",
     "serialize",
+    "serialization",
     "store",
     "btree",
     "bptree",
