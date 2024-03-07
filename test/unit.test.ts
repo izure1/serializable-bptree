@@ -77,6 +77,30 @@ describe('unit-test', () => {
       { key: 'ㅋ', value: 8 },
       { key: 'i', value: 9 },
     ])
+    expect(tree.where({ gte: 5, lte: 10 })).toEqual([
+      { key: 'e', value: 5 },
+      { key: 'f', value: 6 },
+      { key: 'ㅌ', value: 6 },
+      { key: 'g', value: 7 },
+      { key: 'h', value: 8 },
+      { key: 'ㅋ', value: 8 },
+      { key: 'i', value: 9 },
+      { key: 'j', value: 10 },
+      { key: 'ㅊ', value: 10 },
+    ])
+    expect(tree.where({ gte: 5, lt: 10 })).toEqual([
+      { key: 'e', value: 5 },
+      { key: 'f', value: 6 },
+      { key: 'ㅌ', value: 6 },
+      { key: 'g', value: 7 },
+      { key: 'h', value: 8 },
+      { key: 'ㅋ', value: 8 },
+      { key: 'i', value: 9 },
+    ])
+    expect(tree.where({ gte: 5, lte: 10, equal: 6 })).toEqual([
+      { key: 'f', value: 6 },
+      { key: 'ㅌ', value: 6 },
+    ])
 
     console.log(tree.keys({ gt: 0, lt: 10 }))
   })
@@ -115,6 +139,15 @@ describe('unit-test', () => {
     expect(tree.where({ gt: 'p', lt: 'u' })).toEqual([
       { key: 'd', value: 'sit' },
       { key: 'f', value: 'the' },
+      { key: 'g', value: 'things' },
+    ])
+    expect(tree.where({ like: '%h%' })).toEqual([
+      { key: 'f', value: 'the' },
+      { key: 'g', value: 'things' },
+      { key: 'a', value: 'why' },
+    ])
+    expect(tree.where({ like: '%_s' })).toEqual([
+      { key: 'c', value: 'cats' },
       { key: 'g', value: 'things' },
     ])
   })
@@ -250,29 +283,34 @@ describe('strategy-test', () => {
       new FileIOStrategy(6, storageDirectory),
       new NumericComparator()
     )
-    tree.insert('a', 1)
-    tree.insert('b', 2)
-    tree.insert('c', 3)
-    tree.insert('d', 4)
-    tree.insert('e', 5)
-    tree.insert('f', 6)
-    tree.insert('g', 7)
-    tree.insert('h', 8)
-    tree.insert('i', 9)
-    tree.insert('j', 10)
 
-    tree.delete('d', 4)
-    tree.delete('g', 7)
-    tree.delete('h', 8)
+    const max = 50
+    for (let i = 1; i < max; i++) {
+      tree.insert(i.toString(), i)
+    }
+    for (let i = 1; i < max; i++) {
+      if (i%3 === 0) {
+        tree.delete(i.toString(), i)
+      }
+    }
 
     tree.setHeadData({
       ...tree.getHeadData(),
       count: (tree.getHeadData().count as number ?? 0)+1,
       at: Date.now()
     })
+    for (let i = 1; i < max; i++) {
+      const r = tree.where({ equal: i })
+      if (i%3 === 0) {
+        expect(r).toEqual([])
+      }
+      else {
+        expect(r).toEqual([{ key: i.toString(), value: i }])
+      }
+    }
 
-    expect(tree.where({ equal: 4 })).toEqual([])
-    expect(tree.where({ equal: 7 })).toEqual([])
-    expect(tree.where({ equal: 8 })).toEqual([])
+    // expect(tree.where({ equal: 4 })).toEqual([])
+    // expect(tree.where({ equal: 7 })).toEqual([])
+    // expect(tree.where({ equal: 8 })).toEqual([])
   })
 })
