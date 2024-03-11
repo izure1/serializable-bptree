@@ -276,6 +276,10 @@ describe('unit-test', () => {
       { key: 'c', value: 'cats' },
       { key: 'g', value: 'things' },
     ])
+    expect(tree.where({ like: 'th%' })).toEqual([
+      { key: 'f', value: 'the' },
+      { key: 'g', value: 'things' },
+    ])
   })
 
   test('insert:string:async', async () => {
@@ -322,6 +326,10 @@ describe('unit-test', () => {
     ])
     expect(await tree.where({ like: '%_s' })).toEqual([
       { key: 'c', value: 'cats' },
+      { key: 'g', value: 'things' },
+    ])
+    expect(await tree.where({ like: 'th%' })).toEqual([
+      { key: 'f', value: 'the' },
       { key: 'g', value: 'things' },
     ])
   })

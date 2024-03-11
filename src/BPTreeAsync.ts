@@ -501,7 +501,7 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
     lte: V
     equal: V
     notEqual: V
-    like: V
+    like: string
   }>): Promise<Set<K>> {
     let result: K[]|null = null
     for (const k in condition) {
@@ -509,9 +509,9 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
       const value = condition[key] as V
       const startNode   = await this.verifierStartNode[key](value) as BPTreeLeafNode<K, V>
       const direction   = this.verifierDirection[key]
-      const fullSearch  = this.verifierFullSearch[key]
+      const fullScan    = this.verifierFullScan[key]
       const comparator  = this.verifierMap[key]
-      const pairs = await this.getPairs(value, startNode, fullSearch, comparator, direction)
+      const pairs = await this.getPairs(value, startNode, fullScan, comparator, direction)
       if (result === null) {
         result = pairs.map((pair) => pair.key)
       }
@@ -529,7 +529,7 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
     lte: V
     equal: V
     notEqual: V
-    like: V
+    like: string
   }>): Promise<BPTreePair<K, V>[]> {
     let result: BPTreePair<K, V>[]|null = null
     for (const k in condition) {
@@ -537,9 +537,9 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
       const value = condition[key] as V
       const startNode   = await this.verifierStartNode[key](value) as BPTreeLeafNode<K, V>
       const direction   = this.verifierDirection[key]
-      const fullSearch  = this.verifierFullSearch[key]
+      const fullScan    = this.verifierFullScan[key]
       const comparator  = this.verifierMap[key]
-      const pairs = await this.getPairs(value, startNode, fullSearch, comparator, direction)
+      const pairs = await this.getPairs(value, startNode, fullScan, comparator, direction)
       if (result === null) {
         result = pairs
       }

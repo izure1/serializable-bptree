@@ -21,7 +21,7 @@ export type BPTreeCondition<V> = Partial<{
   /** Searches for pairs not equal to the given value. */
   notEqual: V
   /** Searches for values matching the given pattern. '%' matches zero or more characters, and '_' matches exactly one character. */
-  like: V
+  like: string
 }>
 export type BPTreePair<K, V> = { key: K, value: V }
 
@@ -88,7 +88,14 @@ export abstract class BPTree<K, V> {
     lte: (v) => this.insertableNode(v),
     equal: (v) => this.insertableNode(v),
     notEqual: (v) => this.leftestNode(),
-    like: (v) => this.leftestNode()
+    like: (v) => {
+      const value = (v as string).toString()
+      if (value.startsWith('%') || value.startsWith('_')) {
+        return this.leftestNode()
+      }
+      const tokens = value.split(/%|_/)
+      return this.insertableNode(tokens[0] as V)
+    }
   }
   
   protected readonly verifierDirection: Record<keyof BPTreeCondition<V>, -1|1> = {
@@ -101,7 +108,7 @@ export abstract class BPTree<K, V> {
     like: 1,
   }
 
-  protected readonly verifierFullSearch: Record<keyof BPTreeCondition<V>, boolean> = {
+  protected readonly verifierFullScan: Record<keyof BPTreeCondition<V>, boolean> = {
     gt: false,
     gte: false,
     lt: false,
