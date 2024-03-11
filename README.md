@@ -7,9 +7,13 @@ This is a B+tree that's totally okay with duplicate values. If you need to keep 
 
 ```typescript
 import { readFileSync, writeFileSync, existsSync } from 'fs'
-import { BPTree, SerializeStrategy, NumericComparator } from 'serializable-bptree'
+import {
+  BPTreeSync,
+  SerializeStrategySync,
+  NumericComparator
+} from 'serializable-bptree'
 
-class FileStoreStrategy extends SerializeStrategy<K, V> {
+class FileStoreStrategySync extends SerializeStrategySync<K, V> {
   id(): number {
     const random = Math.ceil(Math.random()*1000000)
     return random
@@ -40,11 +44,12 @@ class FileStoreStrategy extends SerializeStrategy<K, V> {
 }
 
 const order = 5
-const tree = new BPTree(
-  new FileStoreStrategy(order),
+const tree = new BPTreeSync(
+  new FileStoreStrategySync(order),
   new NumericComparator()
 )
 
+tree.init()
 tree.insert('a', 1)
 tree.insert('b', 2)
 tree.insert('c', 3)
@@ -61,6 +66,8 @@ tree.where({ gt: 0, lt: 4 }) // [{ key: 'a', value: 1 }, { key: 'c', value: 3 }]
 
 Firstly, in most cases, there is no need to use a B+tree in JavaScript. This is because there is a great alternative, the Map object. Nonetheless, if you need to retrieve values in a sorted order, a B+tree can be a good solution. These cases are often related to databases, and you may want to store this state not just in memory, but on a remote server or in a file. In this case, **serializable-bptree** can help you.
 
+Additionally, this library supports asynchronous operations. Please refer to the section below for instructions on using it asynchronously.
+
 ## How to use
 
 ### Node.js (cjs)
@@ -70,14 +77,29 @@ npm i serializable-bptree
 ```
 
 ```typescript
-import { BPTree } from 'serializable-bptree'
+import {
+  BPTreeSync,
+  BPTreeAsync,
+  SerializeStrategySync,
+  SerializeStrategyAsync,
+  NumericComparator,
+  StringComparator
+} from 'serializable-bptree'
 ```
 
 ### Browser (esm)
 
 ```html
 <script type="module">
-  import { BPTree, ValueComparator, NumericComparator, StringComparator, InMemoryStoreStrategy } from 'https://cdn.jsdelivr.net/npm/serializable-bptree@1.x.x/dist/esm/index.min.js'
+  import {
+    BPTreeSync,
+    BPTreeAsync,
+    InMemoryStoreStrategySync,
+    InMemoryStoreStrategyAsync,
+    ValueComparator,
+    NumericComparator,
+    StringComparator
+  } from 'https://cdn.jsdelivr.net/npm/serializable-bptree@3.x.x/dist/esm/index.min.js'
 </script>
 ```
 
@@ -119,9 +141,9 @@ A B+tree instance is made up of numerous nodes. You would want to store this val
 You need to construct a logic for input/output from the file by inheriting the SerializeStrategy class. Look at the class structure below:
 
 ```typescript
-import { SerializeStrategy } from 'serializable-bptree'
+import { SerializeStrategySync } from 'serializable-bptree'
 
-class MyFileIOStrategy extends SerializeStrategy {
+class MyFileIOStrategySync extends SerializeStrategySync {
   id(): number
   read(id: number): BPTreeNode<K, V>
   write(id: number, node: BPTreeNode<K, V>): void
@@ -227,13 +249,133 @@ import { StringComparator } from 'serializable-bptree'
 
 #### SerializeStrategy
 
-* `InMemoryStoreStrategy`
+* `InMemoryStoreStrategySync`
+* `InMemoryStoreStrategyAsync`
 
 As of now, the only class supported by default is the **InMemoryStoreStrategy**. This class is suitable for use when you prefer to operate the tree solely in-memory, similar to a typical B+ tree.
 
 ```typescript
-import { InMemoryStoreStrategy } from 'serializable-bptree'
+import {
+  InMemoryStoreStrategySync,
+  InMemoryStoreStrategyAsync
+} from 'serializable-bptree'
 ```
+
+## Data Query Condition Clause
+
+This library supports various conditional clauses. Currently, it supports **gte**, **gt**, **lte**, **lt**, **equal**, **notEqual**, and **like** conditions. Each condition is as follows:
+
+### `gte`
+
+Queries values that are greater than or equal to the given value.
+
+### `gt`
+
+Queries values that are greater than the given value.
+
+### `lte`
+
+Queries values that are less than or equal to the given value.
+
+### `lt`
+
+Queries values that are less than the given value.
+
+### `equal`
+
+Queries values that match the given value.
+
+### `notEqual`
+
+Queries values that do not match the given value.
+
+### `like`
+
+Queries values that contain the given value in a manner similar to regular expressions. Special characters such as % and _ can be used.
+
+**%** matches zero or more characters. For example, **%ada%** means all strings that contain "ada" anywhere in the string. **%ada** means strings that end with "ada". **ada%** means strings that start with **"ada"**.
+
+**_** matches exactly one character.
+Using **p_t**, it can match any string where the underscore is replaced by any character, such as "pit", "put", etc.
+
+You can obtain matching data by combining these condition clauses. If there are multiple conditions, an **AND** operation is used to retrieve only the data that satisfies all conditions.
+
+## Using Asynchronously
+
+Support for asynchronous trees has been available since version 3.0.0. Asynchronous is useful for operations with delays, such as file input/output and remote storage. Here is an example of how to use it:
+
+```typescript
+import { existsSync } from 'fs'
+import { readFile, writeFile } from 'fs/promises'
+import {
+  BPTreeAsync,
+  SerializeStrategyAsync,
+  NumericComparator,
+  StringComparator
+} from 'serializable-bptree'
+
+class FileStoreStrategyAsync extends SerializeStrategyAsync<K, V> {
+  async id(): Promise<number> {
+    const random = Math.ceil(Math.random()*1000000)
+    return random
+  }
+
+  async read(id: number): Promise<BPTreeNode<K, V>> {
+    const raw = await readFile(id.toString(), 'utf8')
+    return JSON.parse(raw)
+  }
+
+  async write(id: number, node: BPTreeNode<K, V>): Promise<void> {
+    const stringify = JSON.stringify(node)
+    await writeFile(id.toString(), stringify, 'utf8')
+  }
+
+  async readHead(): Promise<SerializeStrategyHead|null> {
+    if (!existsSync('head')) {
+      return null
+    }
+    const raw = await readFile('head', 'utf8')
+    return JSON.parse(raw)
+  }
+
+  async writeHead(head: SerializeStrategyHead): Promise<void> {
+    const stringify = JSON.stringify(head)
+    await writeFile('head', stringify, 'utf8')
+  }
+}
+
+const order = 5
+const tree = new BPTreeAsync(
+  new FileStoreStrategyAsync(order),
+  new NumericComparator()
+)
+
+await tree.init()
+await tree.insert('a', 1)
+await tree.insert('b', 2)
+await tree.insert('c', 3)
+
+await tree.delete('b', 2)
+
+await tree.where({ equal: 1 }) // [{ key: 'a', value: 1 }]
+await tree.where({ gt: 1 }) // [{ key: 'c', value: 3 }]
+await tree.where({ lt: 2 }) // [{ key: 'a', value: 1 }]
+await tree.where({ gt: 0, lt: 4 }) // [{ key: 'a', value: 1 }, { key: 'c', value: 3 }]
+```
+
+The implementation method for asynchronous operations is not significantly different. The **-Async** suffix is used instead of the **-Sync** suffix in the **BPTree** and **SerializeStrategy** classes. The only difference is that the methods become asynchronous. The **ValueComparator** class and similar value comparators do not use asynchronous operations.
+
+## Precautions for Use
+
+### Synchronization Issue
+
+The serializable-bptree minimizes file I/O by storing loaded nodes in-memory. This approach works well in situations where there is a 1:1 relationship between the remote storage and the client. However, in a 1:n scenario, where multiple clients read from and write to a single remote storage, data inconsistency between the remote storage and the clients can occur.
+
+To solve this issue, it's necessary to update the cached nodes. The forceUpdate method was created for this purpose. It allows for the update of specific nodes, but when updating a node ID, a signal must be sent to all clients connected to the remote storage, informing them that the node has been updated. Clients must receive this signal and call the forceUpdate method to update the node. This logic goes beyond the scope of the library, so it must be implemented directly.
+
+### Concurrency Issue in Asynchronous Trees
+
+This issue occurs only in asynchronous trees and can also occur in a 1:1 relationship between remote storage and client. During the process of inserting/removing data asynchronously, querying the data can result in inconsistent data. To prevent concurrency issues, do not query data while inserting/removing it.
 
 ## LICENSE
 

@@ -1,6 +1,6 @@
 {
   "name": "serializable-bptree",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "description": "Store the B+tree flexibly, not only in-memory.",
   "main": "dist/cjs/index.js",
   "module": "dist/esm/index.js",
@@ -23,6 +23,10 @@
     "bptree",
     "event"
   ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/izure1/serializable-bptree.git"
+  },
   "license": "MIT",
   "devDependencies": {
     "@types/jest": "^29.5.8",
