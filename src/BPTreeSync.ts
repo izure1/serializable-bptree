@@ -666,12 +666,13 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
     this.commitHeadBuffer()
   }
 
-  public forceUpdate(nodeId: number|null = null): number {
-    const ids = nodeId === null ? [...this.nodes.keys()] : [nodeId]
-    for (const id of ids) {
-      this.nodes.delete(id)
-      this.getNode(id)
+  public forceUpdate(): number {
+    const keys = [...this.nodes.keys()]
+    this.nodes.clear()
+    this.init()
+    for (const key of keys) {
+      this.getNode(key)
     }
-    return ids.length
+    return keys.length
   }
 }

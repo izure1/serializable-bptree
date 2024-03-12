@@ -635,12 +635,13 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
     await this.commitHeadBuffer()
   }
 
-  public async forceUpdate(nodeId: number|null = null): Promise<number> {
-    const ids = nodeId === null ? [...this.nodes.keys()] : [nodeId]
-    for (const id of ids) {
-      this.nodes.delete(id)
-      await this.getNode(id)
+  public async forceUpdate(): Promise<number> {
+    const keys = [...this.nodes.keys()]
+    this.nodes.clear()
+    await this.init()
+    for (const key of keys) {
+      await this.getNode(key)
     }
-    return ids.length
+    return keys.length
   }
 }

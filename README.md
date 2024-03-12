@@ -371,7 +371,7 @@ The implementation method for asynchronous operations is not significantly diffe
 
 The serializable-bptree minimizes file I/O by storing loaded nodes in-memory. This approach works well in situations where there is a 1:1 relationship between the remote storage and the client. However, in a 1:n scenario, where multiple clients read from and write to a single remote storage, data inconsistency between the remote storage and the clients can occur.
 
-To solve this issue, it's necessary to update the cached nodes. The forceUpdate method was created for this purpose. It allows for the update of specific nodes, but when updating a node ID, a signal must be sent to all clients connected to the remote storage, informing them that the node has been updated. Clients must receive this signal and call the forceUpdate method to update the node. This logic goes beyond the scope of the library, so it must be implemented directly.
+To solve this problem, it's necessary to update the cached nodes. The forceUpdate method was created for this purpose. It fetches the node data cached in the tree instance again. To use this feature, when you save data to the remote storage, you must send a signal to all clients connected to that remote storage indicating that the node has been updated. Clients must receive this signal and configure logic to call the **forceUpdate** method; however, this goes beyond the scope of the library, so you must implement it yourself.
 
 ### Concurrency Issue in Asynchronous Trees
 
