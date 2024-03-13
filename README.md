@@ -129,10 +129,44 @@ class AgeComparator extends ValueComparator<MyObject> {
   asc(a: MyObject, b: MyObject): number {
     return a.age - b.age
   }
+
+  match(value: MyObject): string {
+    return value.age
+  }
 }
 ```
 
+#### asc
+
 The **asc** method should return values in ascending order. If the return value is negative, it means that the parameter **a** is smaller than **b**. If the return value is positive, it means that **a** is greater than **b**. If the return value is **0**, it indicates that **a** and **b** are of the same size.
+
+#### match
+
+The `match` method is used for the **LIKE** operator. This method specifies which value to test against a regular expression. For example, if you have a tree with values of the structure `{ country: string, capital: number }`, and you want to perform a **LIKE** operation based on the **capital** value, the method should return **value.capital**. In this case, you **CANNOT** perform a **LIKE** operation based on the **country** attribute. The returned value must be a string.
+
+```typescript
+interface MyObject {
+  country: string
+  capital: string
+}
+
+class CompositeComparator extends ValueComparator<MyObject> {
+  ...
+  match(value: MyObject): string {
+    return value.capital
+  }
+}
+```
+
+For a tree with simple structure, without complex nesting, returning the value directly would be sufficient.
+
+```typescript
+class StringComparator extends ValueComparator<string> {
+  match(value: string): string {
+    return value
+  }
+}
+```
 
 ### Serialize strategy
 
