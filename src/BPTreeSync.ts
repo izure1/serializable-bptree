@@ -9,7 +9,7 @@ import {
   BPTreeInternalNode,
 } from './base/BPTree'
 import { SerializeStrategySync } from './SerializeStrategySync'
-import { ValueComparator } from './ValueComparator'
+import { ValueComparator } from './base/ValueComparator'
 
 export class BPTreeSync<K, V> extends BPTree<K, V> {
   declare protected readonly strategy: SerializeStrategySync<K, V>
@@ -525,15 +525,7 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
     this._nodeUpdateBuffer.clear()
   }
 
-  public keys(condition: Partial<{
-    gt: V
-    lt: V
-    gte: V
-    lte: V
-    equal: V
-    notEqual: V
-    like: string
-  }>): Set<K> {
+  public keys(condition: BPTreeCondition<V>): Set<K> {
     let result: K[]|null = null
     for (const k in condition) {
       const key = k as keyof BPTreeCondition<V>
@@ -553,15 +545,7 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
     return new Set<K>(result ?? [])
   }
 
-  public where(condition: Partial<{
-    gt: V
-    lt: V
-    gte: V
-    lte: V
-    equal: V
-    notEqual: V
-    like: string
-  }>): BPTreePair<K, V>[] {
+  public where(condition: BPTreeCondition<V>): BPTreePair<K, V>[] {
     let result: BPTreePair<K, V>[]|null = null
     for (const k in condition) {
       const key = k as keyof BPTreeCondition<V>

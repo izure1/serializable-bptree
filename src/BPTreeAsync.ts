@@ -9,7 +9,7 @@ import {
   BPTreeInternalNode,
 } from './base/BPTree'
 import { SerializeStrategyAsync } from './SerializeStrategyAsync'
-import { ValueComparator } from './ValueComparator'
+import { ValueComparator } from './base/ValueComparator'
 
 export class BPTreeAsync<K, V> extends BPTree<K, V> {
   declare protected readonly strategy: SerializeStrategyAsync<K, V>
@@ -494,15 +494,7 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
     this._nodeUpdateBuffer.clear()
   }
 
-  public async keys(condition: Partial<{
-    gt: V
-    lt: V
-    gte: V
-    lte: V
-    equal: V
-    notEqual: V
-    like: string
-  }>): Promise<Set<K>> {
+  public async keys(condition: BPTreeCondition<V>): Promise<Set<K>> {
     let result: K[]|null = null
     for (const k in condition) {
       const key = k as keyof BPTreeCondition<V>
@@ -522,15 +514,7 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
     return new Set<K>(result ?? [])
   }
 
-  public async where(condition: Partial<{
-    gt: V
-    lt: V
-    gte: V
-    lte: V
-    equal: V
-    notEqual: V
-    like: string
-  }>): Promise<BPTreePair<K, V>[]> {
+  public async where(condition: BPTreeCondition<V>): Promise<BPTreePair<K, V>[]> {
     let result: BPTreePair<K, V>[]|null = null
     for (const k in condition) {
       const key = k as keyof BPTreeCondition<V>

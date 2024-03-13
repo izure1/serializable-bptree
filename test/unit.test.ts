@@ -8,7 +8,8 @@ import {
   SerializeStrategySync,
   SerializeStrategyAsync,
   SerializeStrategyHead,
-  BPTreeNode
+  BPTreeNode,
+  ValueComparator
 } from '../'
 import {
   readFileSync,
@@ -585,6 +586,112 @@ class FileIOStrategyAsync extends SerializeStrategyAsync<string, number> {
     await writeFile(this._filePath('head'), stringify, 'utf8')
   }
 }
+
+interface CompositeValue {
+  name: string
+  capital: string
+}
+
+class CompositeValueComparator extends ValueComparator<CompositeValue> {
+  asc(a: CompositeValue, b: CompositeValue): number {
+    return a.name.localeCompare(b.name)
+  }
+  match(value: CompositeValue): string {
+    return value.name
+  }
+}
+
+describe('composite-value-test', () => {
+  test('like', () => {
+    const tree = new BPTreeSync<number, CompositeValue>(
+      new InMemoryStoreStrategySync(4),
+      new CompositeValueComparator()
+    )
+    tree.init()
+
+    const countries = [
+      { name: 'Argentina', capital: 'Buenos Aires' }, // 1
+      { name: 'Brazil', capital: 'Brasilia' }, // 2
+      { name: 'China', capital: 'Beijing' }, // 3
+      { name: 'Colombia', capital: 'Bogota' }, // 4
+      { name: 'France', capital: 'Paris' }, // 5
+      { name: 'Japan', capital: 'Tokyo' }, // 6
+      { name: 'Germany', capital: 'Berlin' }, // 7
+      { name: 'Italy', capital: 'Rome' }, // 8
+      { name: 'Korea', capital: 'Seoul' }, // 9
+      { name: 'Portugal', capital: 'Lisbon' }, // 10
+      { name: 'Spain', capital: 'Madrid' }, // 11
+      { name: 'United States', capital: 'Washington' }, // 12
+    ]
+
+    let i = 0
+    for (const country of countries) {
+      tree.insert(++i, country)
+    }
+
+    expect(tree.where({ like: { name: 'J%' } })).toEqual([
+      { key: 6, value: { name: 'Japan', capital: 'Tokyo' } },
+    ])
+    expect(tree.where({ like: { name: 'C%' } })).toEqual([
+      { key: 3, value: { name: 'China', capital: 'Beijing' } },
+      { key: 4, value: { name: 'Colombia', capital: 'Bogota' } },
+    ])
+    expect(tree.where({ like: { name: '%or%' } })).toEqual([
+      { key: 9, value: { name: 'Korea', capital: 'Seoul' } },
+      { key: 10, value: { name: 'Portugal', capital: 'Lisbon' } },
+    ])
+    expect(tree.where({ like: { name: '_r%' } })).toEqual([
+      { key: 1, value: { name: 'Argentina', capital: 'Buenos Aires' } },
+      { key: 2, value: { name: 'Brazil', capital: 'Brasilia' } },
+      { key: 5, value: { name: 'France', capital: 'Paris' } },
+    ])
+  })
+
+  test('like:async', async () => {
+    const tree = new BPTreeAsync<number, CompositeValue>(
+      new InMemoryStoreStrategyAsync(4),
+      new CompositeValueComparator()
+    )
+    await tree.init()
+
+    const countries = [
+      { name: 'Argentina', capital: 'Buenos Aires' }, // 1
+      { name: 'Brazil', capital: 'Brasilia' }, // 2
+      { name: 'China', capital: 'Beijing' }, // 3
+      { name: 'Colombia', capital: 'Bogota' }, // 4
+      { name: 'France', capital: 'Paris' }, // 5
+      { name: 'Japan', capital: 'Tokyo' }, // 6
+      { name: 'Germany', capital: 'Berlin' }, // 7
+      { name: 'Italy', capital: 'Rome' }, // 8
+      { name: 'Korea', capital: 'Seoul' }, // 9
+      { name: 'Portugal', capital: 'Lisbon' }, // 10
+      { name: 'Spain', capital: 'Madrid' }, // 11
+      { name: 'United States', capital: 'Washington' }, // 12
+    ]
+
+    let i = 0
+    for (const country of countries) {
+      await tree.insert(++i, country)
+    }
+
+    expect(await tree.where({ like: { name: 'J%' } })).toEqual([
+      { key: 6, value: { name: 'Japan', capital: 'Tokyo' } },
+    ])
+    expect(await tree.where({ like: { name: 'C%' } })).toEqual([
+      { key: 3, value: { name: 'China', capital: 'Beijing' } },
+      { key: 4, value: { name: 'Colombia', capital: 'Bogota' } },
+    ])
+    expect(await tree.where({ like: { name: '%or%' } })).toEqual([
+      { key: 9, value: { name: 'Korea', capital: 'Seoul' } },
+      { key: 10, value: { name: 'Portugal', capital: 'Lisbon' } },
+    ])
+    expect(await tree.where({ like: { name: '_r%' } })).toEqual([
+      { key: 1, value: { name: 'Argentina', capital: 'Buenos Aires' } },
+      { key: 2, value: { name: 'Brazil', capital: 'Brasilia' } },
+      { key: 5, value: { name: 'France', capital: 'Paris' } },
+    ])
+  })
+})
 
 describe('strategy-test', () => {
   test('strategy', () => {

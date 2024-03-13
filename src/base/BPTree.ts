@@ -1,5 +1,6 @@
+import { CacheStorage } from '../utils/CacheStorage'
 import type { Json } from '../utils/types'
-import { ValueComparator } from '../ValueComparator'
+import { ValueComparator } from './ValueComparator'
 import { SerializeStrategy, SerializeStrategyHead } from './SerializeStrategy'
 
 type Sync<T> = T
@@ -9,19 +10,19 @@ type Deferred<T> = Sync<T>|Async<T>
 export type BPTreeNodeKey<K> = number|K
 export type BPTreeCondition<V> = Partial<{
   /** Searches for pairs greater than the given value. */
-  gt: V
+  gt: Partial<V>
   /** Searches for pairs less than the given value. */
-  lt: V
+  lt: Partial<V>
   /** Searches for pairs greater than or equal to the given value. */
-  gte: V
+  gte: Partial<V>
   /** Searches for pairs less than or equal to the given value. */
-  lte: V
+  lte: Partial<V>
   /** "Searches for pairs equal to the given value. */
-  equal: V
+  equal: Partial<V>
   /** Searches for pairs not equal to the given value. */
-  notEqual: V
+  notEqual: Partial<V>
   /** Searches for values matching the given pattern. '%' matches zero or more characters, and '_' matches exactly one character. */
-  like: string
+  like: Partial<V>
 }>
 export type BPTreePair<K, V> = { key: K, value: V }
 
@@ -48,6 +49,8 @@ export interface BPTreeLeafNode<K, V> extends BPTreeNode<K, V> {
 }
 
 export abstract class BPTree<K, V> {
+  private readonly _regexpCache: CacheStorage<string, RegExp>
+
   protected readonly strategy: SerializeStrategy<K, V>
   protected readonly comparator: ValueComparator<V>
   protected readonly nodes: Map<number, BPTreeUnknownNode<K, V>>
@@ -70,11 +73,13 @@ export abstract class BPTree<K, V> {
     equal: (nv, v) => this.comparator.isSame(nv, v),
     notEqual: (nv, v) => this.comparator.isSame(nv, v) === false,
     like: (nv, v) => {
-      const nodeValue = (nv as any).toString()
-      const value = (v as any).toString()
-      const pattern = value.replace(/%/g, '.*').replace(/_/g, '.')
-      const regex = new RegExp(`^${pattern}$`, 'i')
-      return regex.test(nodeValue)
+      const nodeValue = this.comparator.match(nv)
+      const value = this.comparator.match(v)
+      const regexp = this._regexpCache.ensure(value, () => {
+        const pattern = value.replace(/%/g, '.*').replace(/_/g, '.')
+        return new RegExp(`^${pattern}$`, 'i')
+      })
+      return regexp.test(nodeValue)
     },
   }
 
@@ -88,14 +93,7 @@ export abstract class BPTree<K, V> {
     lte: (v) => this.insertableNode(v),
     equal: (v) => this.insertableNode(v),
     notEqual: (v) => this.leftestNode(),
-    like: (v) => {
-      const value = (v as string).toString()
-      if (value.startsWith('%') || value.startsWith('_')) {
-        return this.leftestNode()
-      }
-      const tokens = value.split(/%|_/)
-      return this.insertableNode(tokens[0] as V)
-    }
+    like: (v) => this.leftestNode(),
   }
   
   protected readonly verifierDirection: Record<keyof BPTreeCondition<V>, -1|1> = {
@@ -130,6 +128,7 @@ export abstract class BPTree<K, V> {
   }
 
   protected constructor(strategy: SerializeStrategy<K, V>, comparator: ValueComparator<V>) {
+    this._regexpCache = new CacheStorage()
     this._headBuffer = null
     this._nodeCreateBuffer = new Map()
     this._nodeUpdateBuffer = new Map()
