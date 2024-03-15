@@ -1,17 +1,25 @@
 import { BPTreeNode } from './BPTree'
 import type { Json } from '../utils/types'
 
+export type SerializableData = Record<string, Json>
+
 export interface SerializeStrategyHead {
   root: number
   order: number
-  data: Record<string, Json>
+  data: SerializableData
 }
 
 export abstract class SerializeStrategy<K, V> {
   readonly order: number
-
+  head: SerializeStrategyHead
   constructor(order: number) {
     this.order = order
+    this.head = {
+      order,
+      root: 0,
+      data: {
+      }
+    }
   }
 
   /**
@@ -52,4 +60,31 @@ export abstract class SerializeStrategy<K, V> {
    * @param head This is the current state of the tree.
    */
   abstract writeHead(head: SerializeStrategyHead): void|Promise<void>
+
+  /**
+   * Retrieves the data stored in the tree.
+   * If there are no values stored in the tree, it returns the `defaultValue`.
+   * @param key The key of the data stored in the tree.
+   */
+  abstract getHeadData(key: string, defaultValue: Json): Json|Promise<Json>
+
+  /**
+   * Stores data in the tree.
+   * This data is permanently stored in the head.
+   * The stored data can be retrieved later using the `getHeadData` method.
+   * @param key The key of the data to be stored in the tree.
+   * @param data The data to be stored in the tree.
+   */
+  abstract setHeadData(key: string, data: Json): void|Promise<void>
+
+  /**
+   * This method returns a numeric value and increments it by `1`, storing it in the tree's header.  
+   * Therefore, when called again, the value incremented by `+1` is returned.
+   * 
+   * This is a syntactic sugar for using the `setHeadData` and `getHeadData` methods.  
+   * It assists in simplifying the implementation of node ID generation in the `id` method.
+   * @param key The key of the data to be stored in the tree.
+   * @param defaultValue The data to be stored in the tree.
+   */
+  abstract autoIncrement(key: string, defaultValue: number): number|Promise<number>
 }

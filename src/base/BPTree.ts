@@ -1,7 +1,6 @@
 import { CacheStorage } from '../utils/CacheStorage'
-import type { Json } from '../utils/types'
 import { ValueComparator } from './ValueComparator'
-import { SerializeStrategy, SerializeStrategyHead } from './SerializeStrategy'
+import { SerializableData, SerializeStrategy, SerializeStrategyHead } from './SerializeStrategy'
 
 type Sync<T> = T
 type Async<T> = Promise<T>
@@ -55,7 +54,6 @@ export abstract class BPTree<K, V> {
   protected readonly comparator: ValueComparator<V>
   protected readonly nodes: Map<number, BPTreeUnknownNode<K, V>>
   protected order!: number
-  protected data!: Record<string, Json>
   protected root!: BPTreeUnknownNode<K, V>
 
   protected readonly _nodeCreateBuffer: Map<number, BPTreeUnknownNode<K, V>>
@@ -119,7 +117,7 @@ export abstract class BPTree<K, V> {
   protected get headState(): SerializeStrategyHead {
     const root = this.root.id
     const order = this.order
-    const data = this.data
+    const data = this.strategy.head.data
     return {
       root,
       order,
@@ -218,7 +216,7 @@ export abstract class BPTree<K, V> {
    * For example, you can store information such as the last update time and the number of insertions.
    * @param data User-defined data to be stored in the head of the tree.
    */
-  public abstract setHeadData(data: Record<string, Json>): Deferred<void>
+  public abstract setHeadData(data: SerializableData): Deferred<void>
   /**
    * This method deletes nodes cached in-memory and caches new nodes from the stored nodes.  
    * Typically, there's no need to use this method, but it can be used to synchronize data in scenarios where the remote storage and the client are in a 1:n relationship.
@@ -274,7 +272,7 @@ export abstract class BPTree<K, V> {
    * This value can be set using the `setHeadData` method. If no data has been previously inserted, the default value is returned, and the default value is `{}`.
    * @returns User-defined data stored in the head of the tree.
    */
-  getHeadData(): Record<string, Json> {
-    return this.data
+  getHeadData(): SerializableData {
+    return this.strategy.head.data
   }
 }

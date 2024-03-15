@@ -1,4 +1,3 @@
-import type { Json } from './utils/types'
 import {
   BPTree,
   BPTreeCondition,
@@ -10,6 +9,7 @@ import {
 } from './base/BPTree'
 import { SerializeStrategySync } from './SerializeStrategySync'
 import { ValueComparator } from './base/ValueComparator'
+import { SerializableData } from './base/SerializeStrategy'
 
 export class BPTreeSync<K, V> extends BPTree<K, V> {
   declare protected readonly strategy: SerializeStrategySync<K, V>
@@ -446,7 +446,6 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
     // first created
     if (head === null) {
       this.order = this.strategy.order
-      this.data = {}
       this.root = this._createNode([], [], true)
       this.bufferForHeadUpdate(this.headState)
       this.bufferForNodeCreate(this.root)
@@ -455,9 +454,8 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
     }
     // loaded
     else {
-      const { root, order, data } = head
+      const { root, order } = head
       this.order = order
-      this.data = data ?? {}
       this.root = this.getNode(root)
     }
     if (this.order < 3) {
@@ -644,8 +642,8 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
     return false
   }
 
-  public setHeadData(data: Record<string, Json>): void {
-    this.data = data
+  public setHeadData(data: SerializableData): void {
+    this.strategy.head.data = data
     this.bufferForHeadUpdate(this.headState)
     this.commitHeadBuffer()
   }

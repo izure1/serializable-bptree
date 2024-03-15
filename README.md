@@ -15,8 +15,9 @@ import {
 
 class FileStoreStrategySync extends SerializeStrategySync<K, V> {
   id(): number {
-    const random = Math.ceil(Math.random()*1000000)
-    return random
+    const index = this.getHeadData('index', 1) as number
+    this.setHeadData('index', index+1)
+    return index
   }
 
   read(id: number): BPTreeNode<K, V> {
@@ -202,7 +203,17 @@ id(): number {
 
 Or, you could use file input/output to save and load the value of the **before** variable.
 
-This method is called before a node is created in the tree. Therefore, it can also be used to allocate space for storing the node.
+Typically, such an **id** value increases sequentially, and it would be beneficial to store such a value separately within the tree. For that purpose, the **setHeadData** and **getHeadData** methods are available. These methods are responsible for storing arbitrary data in the tree's header or retrieving stored data. Below is an example of usage:
+
+```typescript
+id(): number {
+  const current = this.getHeadData('index', 1) as number
+  this.setHeadData('index', current+1)
+  return current
+}
+```
+
+The **id** method is called before a node is created in the tree. Therefore, it can also be used to allocate space for storing the node.
 
 #### read(id: `number`): `BPTreeNode<K, V>`
 
@@ -350,8 +361,9 @@ import {
 
 class FileStoreStrategyAsync extends SerializeStrategyAsync<K, V> {
   async id(): Promise<number> {
-    const random = Math.ceil(Math.random()*1000000)
-    return random
+    const index = await this.getHeadData('index', 1) as number
+    await this.setHeadData('index', index+1)
+    return index
   }
 
   async read(id: number): Promise<BPTreeNode<K, V>> {

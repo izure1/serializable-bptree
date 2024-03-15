@@ -1,4 +1,3 @@
-import type { Json } from './utils/types'
 import {
   BPTree,
   BPTreeCondition,
@@ -10,6 +9,7 @@ import {
 } from './base/BPTree'
 import { SerializeStrategyAsync } from './SerializeStrategyAsync'
 import { ValueComparator } from './base/ValueComparator'
+import { SerializableData } from './base/SerializeStrategy'
 
 export class BPTreeAsync<K, V> extends BPTree<K, V> {
   declare protected readonly strategy: SerializeStrategyAsync<K, V>
@@ -415,7 +415,6 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
     // first created
     if (head === null) {
       this.order = this.strategy.order
-      this.data = {}
       this.root = await this._createNode([], [], true)
       this.bufferForHeadUpdate(this.headState)
       this.bufferForNodeCreate(this.root)
@@ -424,9 +423,8 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
     }
     // loaded
     else {
-      const { root, order, data } = head
+      const { root, order } = head
       this.order = order
-      this.data = data ?? {}
       this.root = await this.getNode(root)
     }
     if (this.order < 3) {
@@ -613,8 +611,8 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
     return false
   }
 
-  public async setHeadData(data: Record<string, Json>): Promise<void> {
-    this.data = data
+  public async setHeadData(data: SerializableData): Promise<void> {
+    this.strategy.head.data = data
     this.bufferForHeadUpdate(this.headState)
     await this.commitHeadBuffer()
   }

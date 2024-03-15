@@ -15,12 +15,12 @@ import {
   readFileSync,
   writeFileSync,
   existsSync,
-  mkdirSync
+  mkdirSync,
+  rmSync
 } from 'fs'
 import {
   readFile,
   writeFile,
-  mkdir
 } from 'fs/promises'
 import { join } from 'path'
 
@@ -490,7 +490,6 @@ describe('unit-test', () => {
   })
 })
 
-
 class FileIOStrategySync extends SerializeStrategySync<string, number> {
   protected readonly dir: string
 
@@ -501,9 +500,8 @@ class FileIOStrategySync extends SerializeStrategySync<string, number> {
   }
 
   private _ensureDir(dir: string): void {
-    if (!existsSync(dir)) {
-      mkdirSync(dir)
-    }
+    rmSync(dir, { recursive: true, force: true })
+    mkdirSync(dir)
   }
 
   private _filePath(name: number|string): string {
@@ -511,7 +509,7 @@ class FileIOStrategySync extends SerializeStrategySync<string, number> {
   }
 
   id(): number {
-    return Math.ceil(Math.random()*(Number.MAX_SAFE_INTEGER-1))
+    return this.autoIncrement('index', 1)
   }
 
   read(id: number): BPTreeNode<string, number> {
@@ -548,10 +546,9 @@ class FileIOStrategyAsync extends SerializeStrategyAsync<string, number> {
     this._ensureDir(dir)
   }
 
-  private async _ensureDir(dir: string): Promise<void> {
-    if (!existsSync(dir)) {
-      await mkdir(dir)
-    }
+  private _ensureDir(dir: string): void {
+    rmSync(dir, { recursive: true, force: true })
+    mkdirSync(dir)
   }
 
   private _filePath(name: number|string): string {
@@ -559,7 +556,7 @@ class FileIOStrategyAsync extends SerializeStrategyAsync<string, number> {
   }
 
   async id(): Promise<number> {
-    return Math.ceil(Math.random()*(Number.MAX_SAFE_INTEGER-1))
+    return await this.autoIncrement('index', 1)
   }
 
   async read(id: number): Promise<BPTreeNode<string, number>> {
@@ -586,6 +583,76 @@ class FileIOStrategyAsync extends SerializeStrategyAsync<string, number> {
     await writeFile(this._filePath('head'), stringify, 'utf8')
   }
 }
+
+describe('strategy-test', () => {
+  test('strategy', () => {
+    const storageDirectory = join(__dirname, 'storage')
+    const tree = new BPTreeSync(
+      new FileIOStrategySync(6, storageDirectory),
+      new NumericComparator()
+    )
+    tree.init()
+
+    const max = 50
+    for (let i = 1; i < max; i++) {
+      tree.insert(i.toString(), i)
+    }
+    for (let i = 1; i < max; i++) {
+      if (i%3 === 0) {
+        tree.delete(i.toString(), i)
+      }
+    }
+
+    tree.setHeadData({
+      ...tree.getHeadData(),
+      count: (tree.getHeadData().count as number ?? 0)+1,
+      at: Date.now()
+    })
+    for (let i = 1; i < max; i++) {
+      const r = tree.where({ equal: i })
+      if (i%3 === 0) {
+        expect(r).toEqual([])
+      }
+      else {
+        expect(r).toEqual([{ key: i.toString(), value: i }])
+      }
+    }
+  })
+
+  test('strategy:async', async () => {
+    const storageDirectory = join(__dirname, 'storage-async')
+    const tree = new BPTreeAsync(
+      new FileIOStrategyAsync(6, storageDirectory),
+      new NumericComparator()
+    )
+    await tree.init()
+
+    const max = 50
+    for (let i = 1; i < max; i++) {
+      await tree.insert(i.toString(), i)
+    }
+    for (let i = 1; i < max; i++) {
+      if (i%3 === 0) {
+        await tree.delete(i.toString(), i)
+      }
+    }
+
+    await tree.setHeadData({
+      ...tree.getHeadData(),
+      count: (tree.getHeadData().count as number ?? 0)+1,
+      at: Date.now()
+    })
+    for (let i = 1; i < max; i++) {
+      const r = await tree.where({ equal: i })
+      if (i%3 === 0) {
+        expect(r).toEqual([])
+      }
+      else {
+        expect(r).toEqual([{ key: i.toString(), value: i }])
+      }
+    }
+  })
+})
 
 interface CompositeValue {
   name: string
@@ -690,75 +757,5 @@ describe('composite-value-test', () => {
       { key: 2, value: { name: 'Brazil', capital: 'Brasilia' } },
       { key: 5, value: { name: 'France', capital: 'Paris' } },
     ])
-  })
-})
-
-describe('strategy-test', () => {
-  test('strategy', () => {
-    const storageDirectory = join(__dirname, 'storage')
-    const tree = new BPTreeSync(
-      new FileIOStrategySync(6, storageDirectory),
-      new NumericComparator()
-    )
-    tree.init()
-
-    const max = 50
-    for (let i = 1; i < max; i++) {
-      tree.insert(i.toString(), i)
-    }
-    for (let i = 1; i < max; i++) {
-      if (i%3 === 0) {
-        tree.delete(i.toString(), i)
-      }
-    }
-
-    tree.setHeadData({
-      ...tree.getHeadData(),
-      count: (tree.getHeadData().count as number ?? 0)+1,
-      at: Date.now()
-    })
-    for (let i = 1; i < max; i++) {
-      const r = tree.where({ equal: i })
-      if (i%3 === 0) {
-        expect(r).toEqual([])
-      }
-      else {
-        expect(r).toEqual([{ key: i.toString(), value: i }])
-      }
-    }
-  })
-
-  test('strategy:async', async () => {
-    const storageDirectory = join(__dirname, 'storage-async')
-    const tree = new BPTreeAsync(
-      new FileIOStrategyAsync(6, storageDirectory),
-      new NumericComparator()
-    )
-    await tree.init()
-
-    const max = 50
-    for (let i = 1; i < max; i++) {
-      await tree.insert(i.toString(), i)
-    }
-    for (let i = 1; i < max; i++) {
-      if (i%3 === 0) {
-        await tree.delete(i.toString(), i)
-      }
-    }
-
-    await tree.setHeadData({
-      ...tree.getHeadData(),
-      count: (tree.getHeadData().count as number ?? 0)+1,
-      at: Date.now()
-    })
-    for (let i = 1; i < max; i++) {
-      const r = await tree.where({ equal: i })
-      if (i%3 === 0) {
-        expect(r).toEqual([])
-      }
-      else {
-        expect(r).toEqual([{ key: i.toString(), value: i }])
-      }
-    }
   })
 })
