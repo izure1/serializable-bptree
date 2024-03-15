@@ -15,9 +15,7 @@ import {
 
 class FileStoreStrategySync extends SerializeStrategySync<K, V> {
   id(): number {
-    const index = this.getHeadData('index', 1) as number
-    this.setHeadData('index', index+1)
-    return index
+    return this.autoIncrement('index', 1)
   }
 
   read(id: number): BPTreeNode<K, V> {
@@ -213,6 +211,14 @@ id(): number {
 }
 ```
 
+Additionally, there is a more user-friendly usage of this code.
+
+```typescript
+id(): number {
+  return this.autoIncrement('index', 1)
+}
+```
+
 The **id** method is called before a node is created in the tree. Therefore, it can also be used to allocate space for storing the node.
 
 #### read(id: `number`): `BPTreeNode<K, V>`
@@ -361,9 +367,7 @@ import {
 
 class FileStoreStrategyAsync extends SerializeStrategyAsync<K, V> {
   async id(): Promise<number> {
-    const index = await this.getHeadData('index', 1) as number
-    await this.setHeadData('index', index+1)
-    return index
+    return await this.autoIncrement('index', 1)
   }
 
   async read(id: number): Promise<BPTreeNode<K, V>> {
