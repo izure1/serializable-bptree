@@ -160,7 +160,7 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
       const keys = node.keys as number[]
       this.root = await this.getNode(keys[0])
       this.root.parent = 0
-      this.bufferForHeadUpdate(this.headState)
+      this.strategy.head.root = this.root.id
       this.bufferForNodeUpdate(this.root)
       return
     }
@@ -361,9 +361,9 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
     if (this.root === node) {
       const root = await this._createNode([node.id, pointer.id], [value])
       this.root = root
+      this.strategy.head.root = root.id
       node.parent = root.id
       pointer.parent = root.id
-      this.bufferForHeadUpdate(this.headState)
       this.bufferForNodeCreate(root)
       this.bufferForNodeUpdate(node)
       this.bufferForNodeUpdate(pointer)
@@ -416,7 +416,7 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
     if (head === null) {
       this.order = this.strategy.order
       this.root = await this._createNode([], [], true)
-      this.bufferForHeadUpdate(this.headState)
+      this.strategy.head.root = this.root.id
       this.bufferForNodeCreate(this.root)
       this.commitHeadBuffer()
       this.commitNodeCreateBuffer()
@@ -424,6 +424,7 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
     // loaded
     else {
       const { root, order } = head
+      this.strategy.head = head
       this.order = order
       this.root = await this.getNode(root)
     }
@@ -472,10 +473,7 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
   }
 
   protected async commitHeadBuffer(): Promise<void> {
-    if (this._headBuffer !== null) {
-      await this.strategy.writeHead(this._headBuffer)
-    }
-    this.bufferForHeadUpdate(null)
+    await this.strategy.writeHead(this.strategy.head)
   }
 
   protected async commitNodeCreateBuffer(): Promise<void> {
@@ -613,7 +611,6 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
 
   public async setHeadData(data: SerializableData): Promise<void> {
     this.strategy.head.data = data
-    this.bufferForHeadUpdate(this.headState)
     await this.commitHeadBuffer()
   }
 

@@ -160,7 +160,7 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
       const keys = node.keys as number[]
       this.root = this.getNode(keys[0])
       this.root.parent = 0
-      this.bufferForHeadUpdate(this.headState)
+      this.strategy.head.root = this.root.id
       this.bufferForNodeUpdate(this.root)
       return
     }
@@ -392,9 +392,9 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
     if (this.root === node) {
       const root = this._createNode([node.id, pointer.id], [value])
       this.root = root
+      this.strategy.head.root = root.id
       node.parent = root.id
       pointer.parent = root.id
-      this.bufferForHeadUpdate(this.headState)
       this.bufferForNodeCreate(root)
       this.bufferForNodeUpdate(node)
       this.bufferForNodeUpdate(pointer)
@@ -447,7 +447,7 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
     if (head === null) {
       this.order = this.strategy.order
       this.root = this._createNode([], [], true)
-      this.bufferForHeadUpdate(this.headState)
+      this.strategy.head.root = this.root.id
       this.bufferForNodeCreate(this.root)
       this.commitHeadBuffer()
       this.commitNodeCreateBuffer()
@@ -455,6 +455,7 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
     // loaded
     else {
       const { root, order } = head
+      this.strategy.head = head
       this.order = order
       this.root = this.getNode(root)
     }
@@ -503,10 +504,7 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
   }
 
   protected commitHeadBuffer(): void {
-    if (this._headBuffer !== null) {
-      this.strategy.writeHead(this._headBuffer)
-    }
-    this.bufferForHeadUpdate(null)
+    this.strategy.writeHead(this.strategy.head)
   }
 
   protected commitNodeCreateBuffer(): void {
@@ -644,7 +642,6 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
 
   public setHeadData(data: SerializableData): void {
     this.strategy.head.data = data
-    this.bufferForHeadUpdate(this.headState)
     this.commitHeadBuffer()
   }
 

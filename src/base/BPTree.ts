@@ -58,7 +58,6 @@ export abstract class BPTree<K, V> {
 
   protected readonly _nodeCreateBuffer: Map<number, BPTreeUnknownNode<K, V>>
   protected readonly _nodeUpdateBuffer: Map<number, BPTreeUnknownNode<K, V>>
-  protected _headBuffer: SerializeStrategyHead|null
 
   protected readonly verifierMap: Record<
     keyof BPTreeCondition<V>,
@@ -114,20 +113,8 @@ export abstract class BPTree<K, V> {
     like: true,
   }
 
-  protected get headState(): SerializeStrategyHead {
-    const root = this.root.id
-    const order = this.order
-    const data = this.strategy.head.data
-    return {
-      root,
-      order,
-      data,
-    }
-  }
-
   protected constructor(strategy: SerializeStrategy<K, V>, comparator: ValueComparator<V>) {
     this._regexpCache = new CacheStorage()
-    this._headBuffer = null
     this._nodeCreateBuffer = new Map()
     this._nodeUpdateBuffer = new Map()
     this.nodes = new Map()
@@ -253,10 +240,6 @@ export abstract class BPTree<K, V> {
       node.keys = [[key]]
       this.bufferForNodeUpdate(node)
     }
-  }
-
-  protected bufferForHeadUpdate(head: SerializeStrategyHead|null): Deferred<void> {
-    this._headBuffer = head
   }
 
   protected bufferForNodeCreate(node: BPTreeUnknownNode<K, V>): Deferred<void> {
