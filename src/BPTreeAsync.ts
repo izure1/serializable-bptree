@@ -504,7 +504,13 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
         result = pairs.map((pair) => pair.key)
       }
       else {
-        result = result.filter((key) => pairs.find((p) => p.key === key))
+        const intersections = []
+        for (const pair of pairs) {
+          if (result.includes(pair.key)) {
+            intersections.push(pair.key)
+          }
+        }
+        result = intersections
       }
     }
     return new Set<K>(result ?? [])
@@ -524,7 +530,13 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
         result = pairs
       }
       else {
-        result = result.filter((pair) => pairs.find((p) => p.key === pair.key))
+        const intersection = []
+        for (const pair of pairs) {
+          if (result.find((p) => p.key === pair.key)) {
+            intersection.push(pair)
+          }
+        }
+        result = intersection
       }
     }
     return result ?? []
