@@ -130,7 +130,7 @@ class AgeComparator extends ValueComparator<MyObject> {
   }
 
   match(value: MyObject): string {
-    return value.age
+    return value.age.toString()
   }
 }
 ```
@@ -141,7 +141,7 @@ The **asc** method should return values in ascending order. If the return value 
 
 #### match
 
-The `match` method is used for the **LIKE** operator. This method specifies which value to test against a regular expression. For example, if you have a tree with values of the structure `{ country: string, capital: number }`, and you want to perform a **LIKE** operation based on the **capital** value, the method should return **value.capital**. In this case, you **CANNOT** perform a **LIKE** operation based on the **country** attribute. The returned value must be a string.
+The `match` method is used for the **LIKE** operator. This method specifies which value to test against a regular expression. For example, if you have a tree with values of the structure `{ country: string, capital: string }`, and you want to perform a **LIKE** operation based on the **capital** value, the method should return **value.capital**. In this case, you **CANNOT** perform a **LIKE** operation based on the **country** attribute. The returned value must be a string.
 
 ```typescript
 interface MyObject {
