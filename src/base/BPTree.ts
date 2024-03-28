@@ -170,8 +170,11 @@ export abstract class BPTree<K, V> {
    * The result is key set instance, and you can use the `gt`, `lt`, `gte`, `lte`, `equal`, `notEqual`, `like` condition statements.
    * This method operates much faster than first searching with `where` and then retrieving only the key list.
    * @param condition You can use the `gt`, `lt`, `gte`, `lte`, `equal`, `notEqual`, `like` condition statements.
+   * @param filterValues The `Set` containing values to check for intersection.
+   * Returns a `Set` containing values that are common to both the input `Set` and the intersection `Set`.
+   * If this parameter is not provided, it searches for all keys inserted into the tree.
    */
-  public abstract keys(condition: BPTreeCondition<V>): Deferred<Set<K>>
+  public abstract keys(condition: BPTreeCondition<V>, filterValues?: Set<K>): Deferred<Set<K>>
   /**
    * It searches for a value within the tree. The result is returned as an array sorted in ascending order based on the value.  
    * The result includes the key and value attributes, and you can use the `gt`, `lt`, `gte`, `lte`, `equal`, `notEqual`, `like` condition statements.

@@ -490,8 +490,7 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
     this._nodeUpdateBuffer.clear()
   }
 
-  public async keys(condition: BPTreeCondition<V>): Promise<Set<K>> {
-    let result: Set<K>|null = null
+  public async keys(condition: BPTreeCondition<V>, filterValues?: Set<K>): Promise<Set<K>> {
     for (const k in condition) {
       const key = k as keyof BPTreeCondition<V>
       const value = condition[key] as V
@@ -500,20 +499,20 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
       const fullScan    = this.verifierFullScan[key]
       const comparator  = this.verifierMap[key]
       const pairs       = await this.getPairs(value, startNode, fullScan, comparator, direction)
-      if (result === null) {
-        result = new Set(pairs.map((pair) => pair.key))
+      if (!filterValues) {
+        filterValues = new Set(pairs.map((pair) => pair.key))
       }
       else {
         const intersections = new Set<K>()
         for (const pair of pairs) {
-          if (result.has(pair.key)) {
+          if (filterValues.has(pair.key)) {
             intersections.add(pair.key)
           }
         }
-        result = intersections
+        filterValues = intersections
       }
     }
-    return result ?? new Set([])
+    return filterValues ?? new Set([])
   }
 
   public async where(condition: BPTreeCondition<V>): Promise<BPTreePair<K, V>[]> {

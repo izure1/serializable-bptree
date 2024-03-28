@@ -521,8 +521,7 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
     this._nodeUpdateBuffer.clear()
   }
 
-  public keys(condition: BPTreeCondition<V>): Set<K> {
-    let result: Set<K>|null = null
+  public keys(condition: BPTreeCondition<V>, filterValues?: Set<K>): Set<K> {
     for (const k in condition) {
       const key = k as keyof BPTreeCondition<V>
       const value = condition[key] as V
@@ -530,21 +529,21 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
       const direction   = this.verifierDirection[key]
       const fullScan    = this.verifierFullScan[key]
       const comparator  = this.verifierMap[key]
-      const pairs = this.getPairs(value, startNode, fullScan, comparator, direction)
-      if (result === null) {
-        result = new Set(pairs.map((pair) => pair.key))
+      const pairs       = this.getPairs(value, startNode, fullScan, comparator, direction)
+      if (!filterValues) {
+        filterValues = new Set(pairs.map((pair) => pair.key))
       }
       else {
         const intersections = new Set<K>()
         for (const pair of pairs) {
-          if (result.has(pair.key)) {
+          if (filterValues.has(pair.key)) {
             intersections.add(pair.key)
           }
         }
-        result = intersections
+        filterValues = intersections
       }
     }
-    return result ?? new Set([])
+    return filterValues ?? new Set([])
   }
 
   public where(condition: BPTreeCondition<V>): BPTreePair<K, V>[] {
