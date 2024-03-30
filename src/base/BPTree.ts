@@ -212,7 +212,7 @@ export abstract class BPTree<K, V> {
    * Typically, there's no need to use this method, but it can be used to synchronize data in scenarios where the remote storage and the client are in a 1:n relationship.
    * @returns The return value is the total number of nodes updated.
    */
-  public abstract forceUpdate(nodeId: number): Deferred<number>
+  public abstract forceUpdate(): Deferred<number>
 
   protected _insertAtLeaf(node: BPTreeLeafNode<K, V>, key: K, value: V): void {
     if (node.values.length) {

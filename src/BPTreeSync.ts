@@ -353,37 +353,6 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
     }
   }
 
-  protected _insertAtLeaf(node: BPTreeLeafNode<K, V>, key: K, value: V): void {
-    if (node.values.length) {
-      for (let i = 0, len = node.values.length; i < len; i++) {
-        const nValue = node.values[i]
-        if (this.comparator.isSame(value, nValue)) {
-          const keys = node.keys[i]
-          keys.push(key)
-          this.bufferForNodeUpdate(node)
-          break
-        }
-        else if (this.comparator.isLower(value, nValue)) {
-          node.values.splice(i, 0, value)
-          node.keys.splice(i, 0, [key])
-          this.bufferForNodeUpdate(node)
-          break
-        }
-        else if (i+1 === node.values.length) {
-          node.values.push(value)
-          node.keys.push([key])
-          this.bufferForNodeUpdate(node)
-          break
-        }
-      }
-    }
-    else {
-      node.values = [value]
-      node.keys = [[key]]
-      this.bufferForNodeUpdate(node)
-    }
-  }
-
   protected _insertInParent(
     node: BPTreeUnknownNode<K, V>,
     value: V,
