@@ -5,6 +5,13 @@
   "main": "dist/cjs/index.js",
   "module": "dist/esm/index.js",
   "typings": "dist/typings/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/esm/index.js",
+      "require": "./dist/cjs/index.js",
+      "types": "./dist/typings/index.d.ts"
+    }
+  },
   "files": [
     "dist/**/*"
   ],
@@ -34,5 +41,8 @@
     "jest": "^29.7.0",
     "ts-jest": "^29.1.1",
     "typescript": "^5.2.2"
+  },
+  "dependencies": {
+    "cachebranch": "^1.1.0"
   }
 }

@@ -1,6 +1,7 @@
-import { CacheStorage } from '../utils/CacheStorage'
+import { CacheBranchSync } from 'cachebranch'
+
 import { ValueComparator } from './ValueComparator'
-import { SerializableData, SerializeStrategy, SerializeStrategyHead } from './SerializeStrategy'
+import { SerializableData, SerializeStrategy } from './SerializeStrategy'
 
 type Sync<T> = T
 type Async<T> = Promise<T>
@@ -48,7 +49,9 @@ export interface BPTreeLeafNode<K, V> extends BPTreeNode<K, V> {
 }
 
 export abstract class BPTree<K, V> {
-  private readonly _regexpCache: CacheStorage<string, RegExp>
+  private readonly _cachedRegexp: CacheBranchSync<{
+    [key: string]: RegExp
+  }>
 
   protected readonly strategy: SerializeStrategy<K, V>
   protected readonly comparator: ValueComparator<V>
@@ -72,10 +75,10 @@ export abstract class BPTree<K, V> {
     like: (nv, v) => {
       const nodeValue = this.comparator.match(nv)
       const value = this.comparator.match(v)
-      const regexp = this._regexpCache.ensure(value, () => {
+      const regexp = this._cachedRegexp.ensure(value, () => {
         const pattern = value.replace(/%/g, '.*').replace(/_/g, '.')
         return new RegExp(`^${pattern}$`, 'i')
-      })
+      }).raw
       return regexp.test(nodeValue)
     },
   }
@@ -114,7 +117,7 @@ export abstract class BPTree<K, V> {
   }
 
   protected constructor(strategy: SerializeStrategy<K, V>, comparator: ValueComparator<V>) {
-    this._regexpCache = new CacheStorage()
+    this._cachedRegexp = new CacheBranchSync()
     this._nodeCreateBuffer = new Map()
     this._nodeUpdateBuffer = new Map()
     this.nodes = new Map()
@@ -125,19 +128,19 @@ export abstract class BPTree<K, V> {
   protected abstract _getPairsRightToLeft(
     value: V,
     startNode: BPTreeLeafNode<K, V>,
-    fullSearch: boolean,
+    fullScan: boolean,
     comparator: (nodeValue: V, value: V) => boolean
   ): Deferred<BPTreePair<K, V>[]>
   protected abstract _getPairsLeftToRight(
     value: V,
     startNode: BPTreeLeafNode<K, V>,
-    fullSearch: boolean,
+    fullScan: boolean,
     comparator: (nodeValue: V, value: V) => boolean
   ): Deferred<BPTreePair<K, V>[]>
   protected abstract getPairs(
     value: V,
     startNode: BPTreeLeafNode<K, V>,
-    fullSearch: boolean,
+    fullScan: boolean,
     comparator: (nodeValue: V, value: V) => boolean,
     direction: -1|1
   ): Deferred<BPTreePair<K, V>[]>

@@ -21,7 +21,7 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
   protected async _getPairsRightToLeft(
     value: V,
     startNode: BPTreeLeafNode<K, V>,
-    fullSearch: boolean,
+    fullScan: boolean,
     comparator: (nodeValue: V, value: V) => boolean
   ): Promise<BPTreePair<K, V>[]> {
     const pairs = []
@@ -40,7 +40,7 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
             pairs.push({ key: keys[j], value: nValue })
           }
         }
-        else if (found && !fullSearch) {
+        else if (found && !fullScan) {
           done = true
           break
         }
@@ -57,7 +57,7 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
   protected async _getPairsLeftToRight(
     value: V,
     startNode: BPTreeLeafNode<K, V>,
-    fullSearch: boolean,
+    fullScan: boolean,
     comparator: (nodeValue: V, value: V) => boolean
   ): Promise<BPTreePair<K, V>[]> {
     const pairs = []
@@ -74,7 +74,7 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
             pairs.push({ key, value: nValue })
           }
         }
-        else if (found && !fullSearch) {
+        else if (found && !fullScan) {
           done = true
           break
         }
@@ -91,13 +91,13 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
   protected async getPairs(
     value: V,
     startNode: BPTreeLeafNode<K, V>,
-    fullSearch: boolean,
+    fullScan: boolean,
     comparator: (nodeValue: V, value: V) => boolean,
     direction: 1|-1
   ): Promise<BPTreePair<K, V>[]> {
     switch (direction) {
-      case -1:  return await this._getPairsRightToLeft(value, startNode, fullSearch, comparator)
-      case +1:  return await this._getPairsLeftToRight(value, startNode, fullSearch, comparator)
+      case -1:  return await this._getPairsRightToLeft(value, startNode, fullScan, comparator)
+      case +1:  return await this._getPairsLeftToRight(value, startNode, fullScan, comparator)
       default:  throw new Error(`Direction must be -1 or 1. but got a ${direction}`)
     }
   }
