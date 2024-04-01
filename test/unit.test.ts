@@ -16,7 +16,6 @@ import {
   writeFileSync,
   existsSync,
   mkdirSync,
-  rmSync
 } from 'fs'
 import {
   readFile,
@@ -124,8 +123,6 @@ describe('unit-test', () => {
       { key: 'f', value: 6 },
       { key: 'ㅌ', value: 6 },
     ])
-
-    console.log(tree.keys({ gt: 0, lt: 10 }))
   })
 
   test('insert:number:async', async () => {
@@ -227,8 +224,6 @@ describe('unit-test', () => {
       { key: 'f', value: 6 },
       { key: 'ㅌ', value: 6 },
     ])
-
-    console.log(await tree.keys({ gt: 0, lt: 10 }))
   })
 
   test('insert:string', () => {
