@@ -81,7 +81,8 @@ export abstract class SerializeStrategy<K, V> {
    * This method returns a numeric value and increments it by `1`, storing it in the tree's header.  
    * Therefore, when called again, the value incremented by `+1` is returned.
    * 
-   * This is a syntactic sugar for using the `setHeadData` and `getHeadData` methods.  
+   * This is a syntactic sugar for using the `setHeadData` and `getHeadData` methods.
+   * Therefore, the value specified by this key can be retrieved using the `getHeadData(key)` method or by accessing it directly through `this.head.data[key]`.  
    * It assists in simplifying the implementation of node ID generation in the `id` method.
    * @param key The key of the data to be stored in the tree.
    * @param defaultValue The data to be stored in the tree.
