@@ -10,6 +10,9 @@ const common = {
 esbuild.build({
   ...common,
   outdir: 'dist/esm',
+  outExtension: {
+    '.js': '.mjs'
+  },
   bundle: true,
   format: 'esm',
 })
@@ -17,6 +20,9 @@ esbuild.build({
 esbuild.build({
   ...common,
   outdir: 'dist/cjs',
+  outExtension: {
+    '.js': '.cjs'
+  },
   bundle: true,
   format: 'cjs',
 })
