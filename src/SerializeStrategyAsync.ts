@@ -3,7 +3,7 @@ import { SerializeStrategy, SerializeStrategyHead } from './base/SerializeStrate
 import { Json } from './utils/types'
 
 export abstract class SerializeStrategyAsync<K, V> extends SerializeStrategy<K, V> {
-  abstract id(): Promise<number>
+  abstract id(isLeaf: boolean): Promise<number>
   abstract read(id: number): Promise<BPTreeNode<K, V>>
   abstract write(id: number, node: BPTreeNode<K, V>): Promise<void>
   abstract readHead(): Promise<SerializeStrategyHead|null>
@@ -37,7 +37,7 @@ export class InMemoryStoreStrategyAsync<K, V> extends SerializeStrategyAsync<K, 
     this.node = {}
   }
 
-  async id(): Promise<number> {
+  async id(isLeaf: boolean): Promise<number> {
     return await this.autoIncrement('index', 1)
   }
 

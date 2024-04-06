@@ -504,7 +504,7 @@ class FileIOStrategySync extends SerializeStrategySync<string, number> {
     return join(this.dir, name.toString())
   }
 
-  id(): number {
+  id(isLeaf: boolean): number {
     return this.autoIncrement('index', 1)
   }
 
@@ -552,7 +552,7 @@ class FileIOStrategyAsync extends SerializeStrategyAsync<string, number> {
     return join(this.dir, name.toString())
   }
 
-  async id(): Promise<number> {
+  async id(isLeaf: boolean): Promise<number> {
     return await this.autoIncrement('index', 1)
   }
 

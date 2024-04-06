@@ -27,8 +27,9 @@ export abstract class SerializeStrategy<K, V> {
    * When a new node is created within the tree, the value returned by this method becomes the node's ID.
    * 
    * **WARNING!** The return value should never be `0`.
+   * @param isLeaf This is a flag that indicates whether the node is a leaf node or not.
    */
-  abstract id(): number|Promise<number>
+  abstract id(isLeaf: boolean): number|Promise<number>
 
   /**
    * Read the stored node from the ID.  

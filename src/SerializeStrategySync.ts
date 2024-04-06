@@ -3,7 +3,7 @@ import { SerializeStrategy, SerializeStrategyHead } from './base/SerializeStrate
 import { Json } from './utils/types'
 
 export abstract class SerializeStrategySync<K, V> extends SerializeStrategy<K, V> {
-  abstract id(): number
+  abstract id(isLeaf: boolean): number
   abstract read(id: number): BPTreeNode<K, V>
   abstract write(id: number, node: BPTreeNode<K, V>): void
   abstract readHead(): SerializeStrategyHead|null
@@ -37,7 +37,7 @@ export class InMemoryStoreStrategySync<K, V> extends SerializeStrategySync<K, V>
     this.node = {}
   }
 
-  id(): number {
+  id(isLeaf: boolean): number {
     return this.autoIncrement('index', 1)
   }
 

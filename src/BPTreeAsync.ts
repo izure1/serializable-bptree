@@ -102,8 +102,8 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
     }
   }
 
-  protected async _createNodeId(): Promise<number> {
-    const id = await this.strategy.id()
+  protected async _createNodeId(isLeaf: boolean): Promise<number> {
+    const id = await this.strategy.id(isLeaf)
     if (id === 0) {
       throw new Error(`The node's id should never be 0.`)
     }
@@ -111,6 +111,7 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
   }
 
   protected async _createNode(
+    isLeaf: boolean,
     keys: number[]|K[][],
     values: V[],
     leaf = false,
@@ -118,7 +119,7 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
     next = 0,
     prev = 0
   ): Promise<BPTreeUnknownNode<K, V>> {
-    const id = await this._createNodeId()
+    const id = await this._createNodeId(isLeaf)
     const node = {
       id,
       keys,
@@ -359,7 +360,7 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
     pointer: BPTreeUnknownNode<K, V>
   ): Promise<void> {
     if (this.root === node) {
-      const root = await this._createNode([node.id, pointer.id], [value])
+      const root = await this._createNode(false, [node.id, pointer.id], [value])
       this.root = root
       this.strategy.head.root = root.id
       node.parent = root.id
@@ -378,7 +379,7 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
         this.bufferForNodeUpdate(parentNode)
 
         if (parentNode.keys.length > this.order) {
-          const parentPointer = await this._createNode([], []) as BPTreeInternalNode<K, V>
+          const parentPointer = await this._createNode(false, [], []) as BPTreeInternalNode<K, V>
           parentPointer.parent = parentNode.parent
           const mid = Math.ceil(this.order/2)-1
           parentPointer.values = parentNode.values.slice(mid+1)
@@ -415,7 +416,7 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
     // first created
     if (head === null) {
       this.order = this.strategy.order
-      this.root = await this._createNode([], [], true)
+      this.root = await this._createNode(true, [], [], true)
       this.strategy.head.root = this.root.id
       this.bufferForNodeCreate(this.root)
       this.commitHeadBuffer()
@@ -547,6 +548,7 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
 
     if (before.values.length === this.order) {
       const after = await this._createNode(
+        true,
         [],
         [],
         true,

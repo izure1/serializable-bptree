@@ -144,8 +144,9 @@ export abstract class BPTree<K, V> {
     comparator: (nodeValue: V, value: V) => boolean,
     direction: -1|1
   ): Deferred<BPTreePair<K, V>[]>
-  protected abstract _createNodeId(): Deferred<number>
+  protected abstract _createNodeId(isLeaf: boolean): Deferred<number>
   protected abstract _createNode(
+    isLeaf: boolean,
     keys: number[]|K[][],
     values: V[],
     leaf?: boolean,

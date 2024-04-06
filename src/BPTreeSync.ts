@@ -102,8 +102,8 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
     }
   }
 
-  protected _createNodeId(): number {
-    const id = this.strategy.id()
+  protected _createNodeId(isLeaf: boolean): number {
+    const id = this.strategy.id(isLeaf)
     if (id === 0) {
       throw new Error(`The node's id should never be 0.`)
     }
@@ -111,6 +111,7 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
   }
 
   protected _createNode(
+    isLeaf: boolean,
     keys: number[]|K[][],
     values: V[],
     leaf = false,
@@ -118,7 +119,7 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
     next = 0,
     prev = 0
   ): BPTreeUnknownNode<K, V> {
-    const id = this._createNodeId()
+    const id = this._createNodeId(isLeaf)
     const node = {
       id,
       keys,
@@ -359,7 +360,7 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
     pointer: BPTreeUnknownNode<K, V>
   ): void {
     if (this.root === node) {
-      const root = this._createNode([node.id, pointer.id], [value])
+      const root = this._createNode(false, [node.id, pointer.id], [value])
       this.root = root
       this.strategy.head.root = root.id
       node.parent = root.id
@@ -378,7 +379,7 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
         this.bufferForNodeUpdate(parentNode)
 
         if (parentNode.keys.length > this.order) {
-          const parentPointer = this._createNode([], []) as BPTreeInternalNode<K, V>
+          const parentPointer = this._createNode(false, [], []) as BPTreeInternalNode<K, V>
           parentPointer.parent = parentNode.parent
           const mid = Math.ceil(this.order/2)-1
           parentPointer.values = parentNode.values.slice(mid+1)
@@ -415,7 +416,7 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
     // first created
     if (head === null) {
       this.order = this.strategy.order
-      this.root = this._createNode([], [], true)
+      this.root = this._createNode(true, [], [], true)
       this.strategy.head.root = this.root.id
       this.bufferForNodeCreate(this.root)
       this.commitHeadBuffer()
@@ -547,6 +548,7 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
 
     if (before.values.length === this.order) {
       const after = this._createNode(
+        true,
         [],
         [],
         true,
