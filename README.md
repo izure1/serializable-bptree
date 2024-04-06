@@ -187,12 +187,12 @@ class MyFileIOStrategySync extends SerializeStrategySync {
 
 What does this method mean? And why do we need to construct such a method?
 
-#### id(): `number`
+#### id(isLeaf: `boolean`): `number`
 
 When a node is created in the B+tree, the node needs a unique value to represent itself. This is the **node.id** attribute, and you can specify this attribute yourself. For example, it could be implemented like this.
 
 ```typescript
-id(): number {
+id(isLeaf: boolean): number {
   const current = before + 1
   before = current
   return current
@@ -204,7 +204,7 @@ Or, you could use file input/output to save and load the value of the **before**
 Typically, such an **id** value increases sequentially, and it would be beneficial to store such a value separately within the tree. For that purpose, the **setHeadData** and **getHeadData** methods are available. These methods are responsible for storing arbitrary data in the tree's header or retrieving stored data. Below is an example of usage:
 
 ```typescript
-id(): number {
+id(isLeaf: boolean): number {
   const current = this.getHeadData('index', 1) as number
   this.setHeadData('index', current+1)
   return current
@@ -214,7 +214,7 @@ id(): number {
 Additionally, there is a more user-friendly usage of this code.
 
 ```typescript
-id(): number {
+id(isLeaf: boolean): number {
   return this.autoIncrement('index', 1)
 }
 ```
@@ -366,7 +366,7 @@ import {
 } from 'serializable-bptree'
 
 class FileStoreStrategyAsync extends SerializeStrategyAsync<K, V> {
-  async id(): Promise<number> {
+  async id(isLeaf: boolean): Promise<number> {
     return await this.autoIncrement('index', 1)
   }
 
