@@ -47,6 +47,13 @@ export abstract class SerializeStrategy<K, V> {
   abstract write(id: number, node: BPTreeNode<K, V>): void|Promise<void>
 
   /**
+   * This method is called when previously created nodes become no longer needed due to deletion or other processes.  
+   * It can be used to free up space by deleting existing stored nodes.
+   * @param id This is the ID of the node to be deleted.
+   */
+  abstract delete(id: number): void|Promise<void>
+
+  /**
    * It is called when the `init` method of the tree instance is called.
    * This method should return the information needed to initialize the tree. This information refers to the values stored in the `writeHead` method.
    * 

@@ -61,6 +61,7 @@ export abstract class BPTree<K, V> {
 
   protected readonly _nodeCreateBuffer: Map<number, BPTreeUnknownNode<K, V>>
   protected readonly _nodeUpdateBuffer: Map<number, BPTreeUnknownNode<K, V>>
+  protected readonly _nodeDeleteBuffer: Map<number, BPTreeUnknownNode<K, V>>
 
   protected readonly verifierMap: Record<
     keyof BPTreeCondition<V>,
@@ -120,6 +121,7 @@ export abstract class BPTree<K, V> {
     this._cachedRegexp = new CacheBranchSync()
     this._nodeCreateBuffer = new Map()
     this._nodeUpdateBuffer = new Map()
+    this._nodeDeleteBuffer = new Map()
     this.nodes = new Map()
     this.strategy = strategy
     this.comparator = comparator
@@ -249,12 +251,16 @@ export abstract class BPTree<K, V> {
     }
   }
 
-  protected bufferForNodeCreate(node: BPTreeUnknownNode<K, V>): Deferred<void> {
+  protected bufferForNodeCreate(node: BPTreeUnknownNode<K, V>): void {
     this._nodeCreateBuffer.set(node.id, node)
   }
 
-  protected bufferForNodeUpdate(node: BPTreeUnknownNode<K, V>): Deferred<void> {
+  protected bufferForNodeUpdate(node: BPTreeUnknownNode<K, V>): void {
     this._nodeUpdateBuffer.set(node.id, node)
+  }
+
+  protected bufferForNodeDelete(node: BPTreeUnknownNode<K, V>): void {
+    this._nodeDeleteBuffer.set(node.id, node)
   }
 
   /**

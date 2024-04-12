@@ -159,6 +159,7 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
 
     if (this.root === node && node.keys.length === 1) {
       const keys = node.keys as number[]
+      this.bufferForNodeDelete(this.root)
       this.root = this.getNode(keys[0])
       this.root.parent = 0
       this.strategy.head.root = this.root.id
@@ -255,6 +256,7 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
         
         this._deleteEntry(this.getNode(node.parent), node.id, guess!)
         this.bufferForNodeUpdate(pointer)
+        this.bufferForNodeDelete(node)
       }
       else {
         if (isPredecessor) {
@@ -491,6 +493,13 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
     this._nodeUpdateBuffer.clear()
   }
 
+  protected commitNodeDeleteBuffer(): void {
+    for (const node of this._nodeDeleteBuffer.values()) {
+      this.strategy.delete(node.id)
+    }
+    this._nodeDeleteBuffer.clear()
+  }
+
   public keys(condition: BPTreeCondition<V>, filterValues?: Set<K>): Set<K> {
     for (const k in condition) {
       const key = k as keyof BPTreeCondition<V>
@@ -608,6 +617,7 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
     this.commitHeadBuffer()
     this.commitNodeCreateBuffer()
     this.commitNodeUpdateBuffer()
+    this.commitNodeDeleteBuffer()
   }
 
   public exists(key: K, value: V): boolean {

@@ -14,12 +14,14 @@ import {
 import {
   readFileSync,
   writeFileSync,
+  unlinkSync,
   existsSync,
   mkdirSync,
 } from 'fs'
 import {
   readFile,
   writeFile,
+  unlink
 } from 'fs/promises'
 import { join } from 'path'
 
@@ -518,6 +520,10 @@ class FileIOStrategySync extends SerializeStrategySync<string, number> {
     writeFileSync(this._filePath(id), stringify, 'utf8')
   }
 
+  delete(id: number): void {
+    unlinkSync(this._filePath(id))
+  }
+
   readHead(): SerializeStrategyHead|null {
     const filePath = this._filePath('head')
     if (!existsSync(filePath)) {
@@ -564,6 +570,10 @@ class FileIOStrategyAsync extends SerializeStrategyAsync<string, number> {
   async write(id: number, node: BPTreeNode<string, number>): Promise<void> {
     const stringify = JSON.stringify(node, null, 2)
     await writeFile(this._filePath(id), stringify, 'utf8')
+  }
+
+  async delete(id: number): Promise<void> {
+    await unlink(this._filePath(id))
   }
 
   async readHead(): Promise<SerializeStrategyHead|null> {

@@ -6,6 +6,7 @@ export abstract class SerializeStrategyAsync<K, V> extends SerializeStrategy<K, 
   abstract id(isLeaf: boolean): Promise<number>
   abstract read(id: number): Promise<BPTreeNode<K, V>>
   abstract write(id: number, node: BPTreeNode<K, V>): Promise<void>
+  abstract delete(id: number): Promise<void>
   abstract readHead(): Promise<SerializeStrategyHead|null>
   abstract writeHead(head: SerializeStrategyHead): Promise<void>
 
@@ -50,6 +51,10 @@ export class InMemoryStoreStrategyAsync<K, V> extends SerializeStrategyAsync<K, 
 
   async write(id: number, node: BPTreeNode<K, V>): Promise<void> {
     this.node[id] = node
+  }
+
+  async delete(id: number): Promise<void> {
+    delete this.node[id]
   }
 
   async readHead(): Promise<SerializeStrategyHead|null> {

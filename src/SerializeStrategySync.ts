@@ -6,6 +6,7 @@ export abstract class SerializeStrategySync<K, V> extends SerializeStrategy<K, V
   abstract id(isLeaf: boolean): number
   abstract read(id: number): BPTreeNode<K, V>
   abstract write(id: number, node: BPTreeNode<K, V>): void
+  abstract delete(id: number): void
   abstract readHead(): SerializeStrategyHead|null
   abstract writeHead(head: SerializeStrategyHead): void
 
@@ -50,6 +51,10 @@ export class InMemoryStoreStrategySync<K, V> extends SerializeStrategySync<K, V>
 
   write(id: number, node: BPTreeNode<K, V>): void {
     this.node[id] = node
+  }
+
+  delete(id: number): void {
+    delete this.node[id]
   }
 
   readHead(): SerializeStrategyHead|null {

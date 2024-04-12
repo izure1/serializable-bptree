@@ -159,6 +159,7 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
 
     if (this.root === node && node.keys.length === 1) {
       const keys = node.keys as number[]
+      this.bufferForNodeDelete(this.root)
       this.root = await this.getNode(keys[0])
       this.root.parent = 0
       this.strategy.head.root = this.root.id
@@ -255,6 +256,7 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
         
         await this._deleteEntry(await this.getNode(node.parent), node.id, guess!)
         this.bufferForNodeUpdate(pointer)
+        this.bufferForNodeDelete(node)
       }
       else {
         if (isPredecessor) {
@@ -491,6 +493,13 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
     this._nodeUpdateBuffer.clear()
   }
 
+  protected async commitNodeDeleteBuffer(): Promise<void> {
+    for (const node of this._nodeDeleteBuffer.values()) {
+      await this.strategy.delete(node.id)
+    }
+    this._nodeDeleteBuffer.clear()
+  }
+
   public async keys(condition: BPTreeCondition<V>, filterValues?: Set<K>): Promise<Set<K>> {
     for (const k in condition) {
       const key = k as keyof BPTreeCondition<V>
@@ -608,6 +617,7 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
     await this.commitHeadBuffer()
     await this.commitNodeCreateBuffer()
     await this.commitNodeUpdateBuffer()
+    await this.commitNodeDeleteBuffer()
   }
 
   public async exists(key: K, value: V): Promise<boolean> {
