@@ -12,7 +12,7 @@ export abstract class SerializeStrategyAsync<K, V> extends SerializeStrategy<K, 
 
   async getHeadData(key: string, defaultValue: Json): Promise<Json> {
     if (!Object.hasOwn(this.head.data, key)) {
-      return defaultValue
+      await this.setHeadData(key, defaultValue)
     }
     return this.head.data[key]
   }

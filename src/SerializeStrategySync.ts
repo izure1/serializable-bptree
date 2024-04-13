@@ -12,7 +12,7 @@ export abstract class SerializeStrategySync<K, V> extends SerializeStrategy<K, V
 
   getHeadData(key: string, defaultValue: Json): Json {
     if (!Object.hasOwn(this.head.data, key)) {
-      return defaultValue
+      this.setHeadData(key, defaultValue)
     }
     return this.head.data[key]
   }
