@@ -3,10 +3,10 @@ import { SerializeStrategy, SerializeStrategyHead } from './base/SerializeStrate
 import { Json } from './utils/types'
 
 export abstract class SerializeStrategySync<K, V> extends SerializeStrategy<K, V> {
-  abstract id(isLeaf: boolean): number
-  abstract read(id: number): BPTreeNode<K, V>
-  abstract write(id: number, node: BPTreeNode<K, V>): void
-  abstract delete(id: number): void
+  abstract id(isLeaf: boolean): string
+  abstract read(id: string): BPTreeNode<K, V>
+  abstract write(id: string, node: BPTreeNode<K, V>): void
+  abstract delete(id: string): void
   abstract readHead(): SerializeStrategyHead|null
   abstract writeHead(head: SerializeStrategyHead): void
 
@@ -31,34 +31,34 @@ export abstract class SerializeStrategySync<K, V> extends SerializeStrategy<K, V
 }
 
 export class InMemoryStoreStrategySync<K, V> extends SerializeStrategySync<K, V> {
-  protected readonly node: Record<number, BPTreeNode<K, V>>
+  protected readonly node: Record<string, BPTreeNode<K, V>>
 
   constructor(order: number) {
     super(order)
     this.node = {}
   }
 
-  id(isLeaf: boolean): number {
-    return this.autoIncrement('index', 1)
+  id(isLeaf: boolean): string {
+    return this.autoIncrement('index', 1).toString()
   }
 
-  read(id: number): BPTreeNode<K, V> {
+  read(id: string): BPTreeNode<K, V> {
     if (!Object.hasOwn(this.node, id)) {
       throw new Error(`The tree attempted to reference node '${id}', but couldn't find the corresponding node.`)
     }
     return this.node[id] as BPTreeNode<K, V>
   }
 
-  write(id: number, node: BPTreeNode<K, V>): void {
+  write(id: string, node: BPTreeNode<K, V>): void {
     this.node[id] = node
   }
 
-  delete(id: number): void {
+  delete(id: string): void {
     delete this.node[id]
   }
 
   readHead(): SerializeStrategyHead|null {
-    if (this.head.root === 0) {
+    if (this.head.root === null) {
       return null
     }
     return this.head

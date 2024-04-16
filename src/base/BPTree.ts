@@ -7,7 +7,7 @@ type Sync<T> = T
 type Async<T> = Promise<T>
 type Deferred<T> = Sync<T>|Async<T>
 
-export type BPTreeNodeKey<K> = number|K
+export type BPTreeNodeKey<K> = string|K
 export type BPTreeCondition<V> = Partial<{
   /** Searches for pairs greater than the given value. */
   gt: Partial<V>
@@ -29,18 +29,18 @@ export type BPTreePair<K, V> = { key: K, value: V }
 export type BPTreeUnknownNode<K, V> = BPTreeInternalNode<K, V>|BPTreeLeafNode<K, V>
 
 export interface BPTreeNode<K, V> {
-  id: number
-  keys: number[]|K[][],
+  id: string
+  keys: string[]|K[][],
   values: V[],
   leaf: boolean
-  parent: number
-  next: number
-  prev: number
+  parent: string|null
+  next: string|null
+  prev: string|null
 }
 
 export interface BPTreeInternalNode<K, V> extends BPTreeNode<K, V> {
   leaf: false
-  keys: number[]
+  keys: string[]
 }
 
 export interface BPTreeLeafNode<K, V> extends BPTreeNode<K, V> {
@@ -55,13 +55,13 @@ export abstract class BPTree<K, V> {
 
   protected readonly strategy: SerializeStrategy<K, V>
   protected readonly comparator: ValueComparator<V>
-  protected readonly nodes: Map<number, BPTreeUnknownNode<K, V>>
+  protected readonly nodes: Map<string, BPTreeUnknownNode<K, V>>
   protected order!: number
   protected root!: BPTreeUnknownNode<K, V>
 
-  protected readonly _nodeCreateBuffer: Map<number, BPTreeUnknownNode<K, V>>
-  protected readonly _nodeUpdateBuffer: Map<number, BPTreeUnknownNode<K, V>>
-  protected readonly _nodeDeleteBuffer: Map<number, BPTreeUnknownNode<K, V>>
+  protected readonly _nodeCreateBuffer: Map<string, BPTreeUnknownNode<K, V>>
+  protected readonly _nodeUpdateBuffer: Map<string, BPTreeUnknownNode<K, V>>
+  protected readonly _nodeDeleteBuffer: Map<string, BPTreeUnknownNode<K, V>>
 
   protected readonly verifierMap: Record<
     keyof BPTreeCondition<V>,
@@ -146,19 +146,19 @@ export abstract class BPTree<K, V> {
     comparator: (nodeValue: V, value: V) => boolean,
     direction: -1|1
   ): Deferred<BPTreePair<K, V>[]>
-  protected abstract _createNodeId(isLeaf: boolean): Deferred<number>
+  protected abstract _createNodeId(isLeaf: boolean): Deferred<string>
   protected abstract _createNode(
     isLeaf: boolean,
-    keys: number[]|K[][],
+    keys: string[]|K[][],
     values: V[],
     leaf?: boolean,
-    parent?: number,
-    next?: number,
-    prev?: number
+    parent?: string|null,
+    next?: string|null,
+    prev?: string|null
   ): Deferred<BPTreeUnknownNode<K, V>>
   protected abstract _deleteEntry(node: BPTreeUnknownNode<K, V>, key: BPTreeNodeKey<K>, value: V): Deferred<void>
   protected abstract _insertInParent(node: BPTreeUnknownNode<K, V>, value: V, pointer: BPTreeUnknownNode<K, V>): Deferred<void>
-  protected abstract getNode(id: number): Deferred<BPTreeUnknownNode<K, V>>
+  protected abstract getNode(id: string): Deferred<BPTreeUnknownNode<K, V>>
   protected abstract insertableNode(value: V): Deferred<BPTreeLeafNode<K, V>>
   protected abstract leftestNode(): Deferred<BPTreeLeafNode<K, V>>
   protected abstract commitHeadBuffer(): Deferred<void>

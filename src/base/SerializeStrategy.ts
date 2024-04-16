@@ -4,7 +4,7 @@ import type { Json } from '../utils/types'
 export type SerializableData = Record<string, Json>
 
 export interface SerializeStrategyHead {
-  root: number
+  root: string|null
   order: number
   data: SerializableData
 }
@@ -16,7 +16,7 @@ export abstract class SerializeStrategy<K, V> {
     this.order = order
     this.head = {
       order,
-      root: 0,
+      root: null,
       data: {
       }
     }
@@ -26,17 +26,16 @@ export abstract class SerializeStrategy<K, V> {
    * The rule for generating node IDs is set.  
    * When a new node is created within the tree, the value returned by this method becomes the node's ID.
    * 
-   * **WARNING!** The return value should never be `0`.
    * @param isLeaf This is a flag that indicates whether the node is a leaf node or not.
    */
-  abstract id(isLeaf: boolean): number|Promise<number>
+  abstract id(isLeaf: boolean): string|Promise<string>
 
   /**
    * Read the stored node from the ID.  
    * The JSON object of the read node should be returned.
    * @param id This is the ID of the node to be read.
    */
-  abstract read(id: number): BPTreeNode<K, V>|Promise<BPTreeNode<K, V>>
+  abstract read(id: string): BPTreeNode<K, V>|Promise<BPTreeNode<K, V>>
 
   /**
    * It is called when a node is created or updated and needs to be stored.  
@@ -44,14 +43,14 @@ export abstract class SerializeStrategy<K, V> {
    * @param id This is the ID of the node to be stored.
    * @param node This is the JSON object of the node to be stored.
    */
-  abstract write(id: number, node: BPTreeNode<K, V>): void|Promise<void>
+  abstract write(id: string, node: BPTreeNode<K, V>): void|Promise<void>
 
   /**
    * This method is called when previously created nodes become no longer needed due to deletion or other processes.  
    * It can be used to free up space by deleting existing stored nodes.
    * @param id This is the ID of the node to be deleted.
    */
-  abstract delete(id: number): void|Promise<void>
+  abstract delete(id: string): void|Promise<void>
 
   /**
    * It is called when the `init` method of the tree instance is called.
@@ -71,7 +70,7 @@ export abstract class SerializeStrategy<K, V> {
 
   /**
    * Retrieves the data stored in the tree.
-   * If there are no values stored in the tree, it returns the `defaultValue`.
+   * If no value is stored in the tree, it stores a `defaultValue` and then returns that value.
    * @param key The key of the data stored in the tree.
    */
   abstract getHeadData(key: string, defaultValue: Json): Json|Promise<Json>

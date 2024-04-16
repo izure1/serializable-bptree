@@ -17,13 +17,14 @@ import {
   unlinkSync,
   existsSync,
   mkdirSync,
-} from 'fs'
+} from 'node:fs'
 import {
   readFile,
   writeFile,
   unlink
-} from 'fs/promises'
-import { join } from 'path'
+} from 'node:fs/promises'
+import { randomUUID } from 'node:crypto'
+import { join } from 'node:path'
 
 describe('unit-test', () => {
   test('insert:number', () => {
@@ -502,25 +503,25 @@ class FileIOStrategySync extends SerializeStrategySync<string, number> {
     }
   }
 
-  private _filePath(name: number|string): string {
-    return join(this.dir, name.toString())
+  private _filePath(name: string): string {
+    return join(this.dir, name)
   }
 
-  id(isLeaf: boolean): number {
-    return this.autoIncrement('index', 1)
+  id(isLeaf: boolean): string {
+    return randomUUID()
   }
 
-  read(id: number): BPTreeNode<string, number> {
+  read(id: string): BPTreeNode<string, number> {
     const raw = readFileSync(this._filePath(id), 'utf8')
     return JSON.parse(raw)
   }
 
-  write(id: number, node: BPTreeNode<string, number>): void {
+  write(id: string, node: BPTreeNode<string, number>): void {
     const stringify = JSON.stringify(node, null, 2)
     writeFileSync(this._filePath(id), stringify, 'utf8')
   }
 
-  delete(id: number): void {
+  delete(id: string): void {
     unlinkSync(this._filePath(id))
   }
 
@@ -554,25 +555,25 @@ class FileIOStrategyAsync extends SerializeStrategyAsync<string, number> {
     }
   }
 
-  private _filePath(name: number|string): string {
-    return join(this.dir, name.toString())
+  private _filePath(name: string): string {
+    return join(this.dir, name)
   }
 
-  async id(isLeaf: boolean): Promise<number> {
-    return await this.autoIncrement('index', 1)
+  async id(isLeaf: boolean): Promise<string> {
+    return randomUUID()
   }
 
-  async read(id: number): Promise<BPTreeNode<string, number>> {
+  async read(id: string): Promise<BPTreeNode<string, number>> {
     const raw = await readFile(this._filePath(id), 'utf8')
     return JSON.parse(raw)
   }
 
-  async write(id: number, node: BPTreeNode<string, number>): Promise<void> {
+  async write(id: string, node: BPTreeNode<string, number>): Promise<void> {
     const stringify = JSON.stringify(node, null, 2)
     await writeFile(this._filePath(id), stringify, 'utf8')
   }
 
-  async delete(id: number): Promise<void> {
+  async delete(id: string): Promise<void> {
     await unlink(this._filePath(id))
   }
 

@@ -6,7 +6,7 @@
 This is a B+tree that's totally okay with duplicate values. If you need to keep track of the B+ tree's state, don't just leave it in memory - make sure you write it down.
 
 ```typescript
-import { readFileSync, writeFileSync, existsSync } from 'fs'
+import { readFileSync, writeFileSync, unlinkSync, existsSync } from 'fs'
 import {
   BPTreeSync,
   SerializeStrategySync,
@@ -14,18 +14,22 @@ import {
 } from 'serializable-bptree'
 
 class FileStoreStrategySync extends SerializeStrategySync<K, V> {
-  id(): number {
-    return this.autoIncrement('index', 1)
+  id(): string {
+    return this.autoIncrement('index', 1).toString()
   }
 
-  read(id: number): BPTreeNode<K, V> {
-    const raw = readFileSync(id.toString(), 'utf8')
+  read(id: string): BPTreeNode<K, V> {
+    const raw = readFileSync(id, 'utf8')
     return JSON.parse(raw)
   }
 
-  write(id: number, node: BPTreeNode<K, V>): void {
+  write(id: string, node: BPTreeNode<K, V>): void {
     const stringify = JSON.stringify(node)
-    writeFileSync(id.toString(), stringify, 'utf8')
+    writeFileSync(id, stringify, 'utf8')
+  }
+
+  delete(id: string): void {
+    unlinkSync(id)
   }
 
   readHead(): SerializeStrategyHead|null {
@@ -177,9 +181,10 @@ You need to construct a logic for input/output from the file by inheriting the S
 import { SerializeStrategySync } from 'serializable-bptree'
 
 class MyFileIOStrategySync extends SerializeStrategySync {
-  id(): number
-  read(id: number): BPTreeNode<K, V>
-  write(id: number, node: BPTreeNode<K, V>): void
+  id(): string
+  read(id: string): BPTreeNode<K, V>
+  write(id: string, node: BPTreeNode<K, V>): void
+  delete(id: string): void
   readHead(): SerializeStrategyHead|null
   writeHead(head: SerializeStrategyHead): void
 }
@@ -187,49 +192,39 @@ class MyFileIOStrategySync extends SerializeStrategySync {
 
 What does this method mean? And why do we need to construct such a method?
 
-#### id(isLeaf: `boolean`): `number`
+#### id(isLeaf: `boolean`): `string`
 
-When a node is created in the B+tree, the node needs a unique value to represent itself. This is the **node.id** attribute, and you can specify this attribute yourself. For example, it could be implemented like this.
-
-```typescript
-id(isLeaf: boolean): number {
-  const current = before + 1
-  before = current
-  return current
-}
-```
-
-Or, you could use file input/output to save and load the value of the **before** variable.
+When a node is created in the B+tree, the node needs a unique value to represent itself. This is the **node.id** attribute, and you can specify this attribute yourself.
 
 Typically, such an **id** value increases sequentially, and it would be beneficial to store such a value separately within the tree. For that purpose, the **setHeadData** and **getHeadData** methods are available. These methods are responsible for storing arbitrary data in the tree's header or retrieving stored data. Below is an example of usage:
 
 ```typescript
-id(isLeaf: boolean): number {
+id(isLeaf: boolean): string {
   const current = this.getHeadData('index', 1) as number
   this.setHeadData('index', current+1)
-  return current
+  return current.toString()
 }
 ```
 
-Additionally, there is a more user-friendly usage of this code.
+Additionally, there is a more dev-friendly usage of this code.
 
 ```typescript
-id(isLeaf: boolean): number {
-  return this.autoIncrement('index', 1)
+id(isLeaf: boolean): string {
+  return this.autoIncrement('index', 1).toString()
 }
 ```
 
 The **id** method is called before a node is created in the tree. Therefore, it can also be used to allocate space for storing the node.
 
-#### read(id: `number`): `BPTreeNode<K, V>`
+#### read(id: `string`): `BPTreeNode<K, V>`
 
 This is a method to load the saved value as a tree instance. If you have previously saved the node as a file, you should use this method to convert it back to JavaScript JSON format and return it.
 
 Please refer to the example below:
 
 ```typescript
-read(id: number): BPTreeNode<K, V> {
-  const filePath = `./my-store/${id.toString()}`
+read(id: string): BPTreeNode<K, V> {
+  const filePath = `./my-store/${id}`
   const raw = fs.readFileSync(filePath, 'utf8')
   return JSON.parse(raw)
 }
@@ -237,7 +232,7 @@ read(id: number): BPTreeNode<K, V> {
 
 This method is called only once when loading a node from a tree instance. The loaded node is loaded into memory, and subsequently, when the tree references the node, it operates based on the values in memory **without** re-invoking this method.
 
-#### write(id: `number`, node: `BPTreeNode<K, V>`): `void`
+#### write(id: `string`, node: `BPTreeNode<K, V>`): `void`
 
 This method is called when there are changes in the internal nodes due to the insert or delete operations of the tree instance. In other words, it's a necessary method for synchronizing the in-memory nodes into a file.
 
@@ -247,23 +242,34 @@ Please refer to the example below:
 
 ```typescript
 let queue = 0
-function writeBack(id: number, node: BPTreeNode<K, V>, timer: number) {
+function writeBack(id: string, node: BPTreeNode<K, V>, timer: number) {
   clearTimeout(queue)
   queue = setTimeout(() => {
-    const filePath = `./my-store/${id.toString()}`
+    const filePath = `./my-store/${id}`
     const stringify = JSON.stringify(node)
     writeFileSync(filePath, stringify, 'utf8')
   }, timer)
 }
 
 ...
-write(id: number, node: BPTreeNode<K, V>): void {
+write(id: string, node: BPTreeNode<K, V>): void {
   const writeBackInterval = 10
   writeBack(id, node, writeBackInterval)
 }
 ```
 
 This kind of delay writing should ideally occur within a few milliseconds. If this is not feasible, consider other approaches.
+
+#### delete(id: `string`): `void`
+
+This method is called when previously created nodes become no longer needed due to deletion or other processes. It can be used to free up space by deleting existing stored nodes.
+
+```typescript
+delete(id: string): void {
+  const filePath = `./my-store/${id}`
+  fs.unlinkSync(filePath)
+}
+```
 
 #### readHead(): `SerializeStrategyHead`|`null`
 
@@ -357,7 +363,7 @@ Support for asynchronous trees has been available since version 3.0.0. Asynchron
 
 ```typescript
 import { existsSync } from 'fs'
-import { readFile, writeFile } from 'fs/promises'
+import { readFile, writeFile, unlink } from 'fs/promises'
 import {
   BPTreeAsync,
   SerializeStrategyAsync,
@@ -366,18 +372,22 @@ import {
 } from 'serializable-bptree'
 
 class FileStoreStrategyAsync extends SerializeStrategyAsync<K, V> {
-  async id(isLeaf: boolean): Promise<number> {
-    return await this.autoIncrement('index', 1)
+  async id(isLeaf: boolean): Promise<string> {
+    return await this.autoIncrement('index', 1).toString()
   }
 
-  async read(id: number): Promise<BPTreeNode<K, V>> {
-    const raw = await readFile(id.toString(), 'utf8')
+  async read(id: string): Promise<BPTreeNode<K, V>> {
+    const raw = await readFile(id, 'utf8')
     return JSON.parse(raw)
   }
 
-  async write(id: number, node: BPTreeNode<K, V>): Promise<void> {
+  async write(id: string, node: BPTreeNode<K, V>): Promise<void> {
     const stringify = JSON.stringify(node)
-    await writeFile(id.toString(), stringify, 'utf8')
+    await writeFile(id, stringify, 'utf8')
+  }
+
+  async delete(id: string): Promise<void> {
+    await unlink(id)
   }
 
   async readHead(): Promise<SerializeStrategyHead|null> {

@@ -102,22 +102,22 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
     }
   }
 
-  protected _createNodeId(isLeaf: boolean): number {
+  protected _createNodeId(isLeaf: boolean): string {
     const id = this.strategy.id(isLeaf)
-    if (id === 0) {
-      throw new Error(`The node's id should never be 0.`)
+    if (id === null) {
+      throw new Error(`The node's id should never be null.`)
     }
     return id
   }
 
   protected _createNode(
     isLeaf: boolean,
-    keys: number[]|K[][],
+    keys: string[]|K[][],
     values: V[],
     leaf = false,
-    parent = 0,
-    next = 0,
-    prev = 0
+    parent: string|null = null,
+    next: string|null = null,
+    prev: string|null = null
   ): BPTreeUnknownNode<K, V> {
     const id = this._createNodeId(isLeaf)
     const node = {
@@ -158,10 +158,10 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
     }
 
     if (this.root === node && node.keys.length === 1) {
-      const keys = node.keys as number[]
+      const keys = node.keys as string[]
       this.bufferForNodeDelete(this.root)
       this.root = this.getNode(keys[0])
-      this.root.parent = 0
+      this.root.parent = null
       this.strategy.head.root = this.root.id
       this.bufferForNodeUpdate(this.root)
       return
@@ -174,7 +174,7 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
       (node.values.length < Math.ceil((this.order-1)/2) && node.leaf)
     ) {
       let isPredecessor = false
-      let parentNode = this.getNode(node.parent) as BPTreeInternalNode<K, V>
+      let parentNode = this.getNode(node.parent!) as BPTreeInternalNode<K, V>
       let prevNode: BPTreeInternalNode<K, V>|null = null
       let nextNode: BPTreeInternalNode<K, V>|null = null
       let prevValue: V|null = null
@@ -230,7 +230,7 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
           pointer.next = node.next
           pointer.prev = node.id
           if (pointer.next) {
-            const n = this.getNode(node.next)
+            const n = this.getNode(node.next!)
             n.prev = pointer.id
             this.bufferForNodeUpdate(n)
           }
@@ -240,7 +240,7 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
             this.bufferForNodeUpdate(n)
           }
           if (isPredecessor) {
-            pointer.prev = 0
+            pointer.prev = null
           }
         }
         pointer.values.push(...node.values)
@@ -254,7 +254,7 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
           }
         }
         
-        this._deleteEntry(this.getNode(node.parent), node.id, guess!)
+        this._deleteEntry(this.getNode(node.parent!), node.id, guess!)
         this.bufferForNodeUpdate(pointer)
         this.bufferForNodeDelete(node)
       }
@@ -267,7 +267,7 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
             pointerKm = pointer.values.splice(-1)[0]
             node.keys = [pointerPm, ...node.keys]
             node.values = [guess!, ...node.values]
-            parentNode = this.getNode(node.parent) as BPTreeInternalNode<K, V>
+            parentNode = this.getNode(node.parent!) as BPTreeInternalNode<K, V>
             for (let i = 0, len = parentNode.values.length; i < len; i++) {
               const nValue = parentNode.values[i]
               if (this.comparator.isSame(guess!, nValue)) {
@@ -282,7 +282,7 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
             pointerKm = pointer.values.splice(-1)[0]
             node.keys = [pointerPm, ...node.keys]
             node.values = [pointerKm, ...node.values]
-            parentNode = this.getNode(node.parent) as BPTreeInternalNode<K, V>
+            parentNode = this.getNode(node.parent!) as BPTreeInternalNode<K, V>
             for (let i = 0, len = parentNode.values.length; i < len; i++) {
               const nValue = parentNode.values[i]
               if (this.comparator.isSame(guess!, nValue)) {
@@ -303,7 +303,7 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
             pointerK0 = pointer.values.splice(0, 1)[0]
             node.keys = [...node.keys, pointerP0]
             node.values = [...node.values, guess!]
-            parentNode = this.getNode(node.parent) as BPTreeInternalNode<K, V>
+            parentNode = this.getNode(node.parent!) as BPTreeInternalNode<K, V>
             for (let i = 0, len = parentNode.values.length; i < len; i++) {
               const nValue = parentNode.values[i]
               if (this.comparator.isSame(guess!, nValue)) {
@@ -318,7 +318,7 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
             pointerK0 = pointer.values.splice(0, 1)[0]
             node.keys = [...node.keys, pointerP0]
             node.values = [...node.values, pointerK0]
-            parentNode = this.getNode(node.parent) as BPTreeInternalNode<K, V>
+            parentNode = this.getNode(node.parent!) as BPTreeInternalNode<K, V>
             for (let i = 0, len = parentNode.values.length; i < len; i++) {
               const nValue = parentNode.values[i]
               if (this.comparator.isSame(guess!, nValue)) {
@@ -372,7 +372,7 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
       this.bufferForNodeUpdate(pointer)
       return
     }
-    const parentNode = this.getNode(node.parent) as BPTreeInternalNode<K, V>
+    const parentNode = this.getNode(node.parent!) as BPTreeInternalNode<K, V>
     for (let i = 0, len = parentNode.keys.length; i < len; i++) {
       const nKeys = parentNode.keys[i]
       if (nKeys === node.id) {
@@ -429,14 +429,14 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
       const { root, order } = head
       this.strategy.head = head
       this.order = order
-      this.root = this.getNode(root)
+      this.root = this.getNode(root!)
     }
     if (this.order < 3) {
       throw new Error(`The 'order' parameter must be greater than 2. but got a '${this.order}'.`)
     }
   }
 
-  protected getNode(id: number): BPTreeUnknownNode<K, V> {
+  protected getNode(id: string): BPTreeUnknownNode<K, V> {
     if (!this.nodes.has(id)) {
       this.nodes.set(id, this.strategy.read(id) as BPTreeUnknownNode<K, V>)
     }
