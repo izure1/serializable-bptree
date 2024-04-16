@@ -102,7 +102,7 @@ import {
     ValueComparator,
     NumericComparator,
     StringComparator
-  } from 'https://cdn.jsdelivr.net/npm/serializable-bptree@3.x.x/dist/esm/index.min.js'
+  } from 'https://cdn.jsdelivr.net/npm/serializable-bptree@4.x.x/dist/esm/index.min.js'
 </script>
 ```
 
