@@ -2,6 +2,7 @@ import { CacheBranchSync } from 'cachebranch'
 
 import { ValueComparator } from './ValueComparator'
 import { SerializableData, SerializeStrategy } from './SerializeStrategy'
+import { InvertedWeakMap } from '../utils/InvertedWeakMap'
 
 type Sync<T> = T
 type Async<T> = Promise<T>
@@ -55,7 +56,7 @@ export abstract class BPTree<K, V> {
 
   protected readonly strategy: SerializeStrategy<K, V>
   protected readonly comparator: ValueComparator<V>
-  protected readonly nodes: Map<string, BPTreeUnknownNode<K, V>>
+  protected readonly nodes: InvertedWeakMap<string, BPTreeUnknownNode<K, V>>
   protected order!: number
   protected root!: BPTreeUnknownNode<K, V>
 
@@ -122,7 +123,7 @@ export abstract class BPTree<K, V> {
     this._nodeCreateBuffer = new Map()
     this._nodeUpdateBuffer = new Map()
     this._nodeDeleteBuffer = new Map()
-    this.nodes = new Map()
+    this.nodes = new InvertedWeakMap()
     this.strategy = strategy
     this.comparator = comparator
   }
