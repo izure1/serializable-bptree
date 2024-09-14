@@ -1,5 +1,3 @@
-import { CacheBranchSync } from 'cachebranch'
-
 import { ValueComparator } from './ValueComparator'
 import { SerializableData, SerializeStrategy } from './SerializeStrategy'
 import { InvertedWeakMap } from '../utils/InvertedWeakMap'
@@ -50,9 +48,7 @@ export interface BPTreeLeafNode<K, V> extends BPTreeNode<K, V> {
 }
 
 export abstract class BPTree<K, V> {
-  private readonly _cachedRegexp: CacheBranchSync<{
-    [key: string]: RegExp
-  }>
+  private readonly _cachedRegexp: InvertedWeakMap<string, RegExp>
 
   protected readonly strategy: SerializeStrategy<K, V>
   protected readonly comparator: ValueComparator<V>
@@ -77,10 +73,12 @@ export abstract class BPTree<K, V> {
     like: (nv, v) => {
       const nodeValue = this.comparator.match(nv)
       const value = this.comparator.match(v)
-      const regexp = this._cachedRegexp.ensure(value, () => {
+      if (!this._cachedRegexp.has(value)) {
         const pattern = value.replace(/%/g, '.*').replace(/_/g, '.')
-        return new RegExp(`^${pattern}$`, 'i')
-      }).raw
+        const regexp = new RegExp(`^${pattern}$`, 'i')
+        this._cachedRegexp.set(value, regexp)
+      }
+      const regexp = this._cachedRegexp.get(value)!
       return regexp.test(nodeValue)
     },
   }
@@ -119,7 +117,7 @@ export abstract class BPTree<K, V> {
   }
 
   protected constructor(strategy: SerializeStrategy<K, V>, comparator: ValueComparator<V>) {
-    this._cachedRegexp = new CacheBranchSync()
+    this._cachedRegexp = new InvertedWeakMap()
     this._nodeCreateBuffer = new Map()
     this._nodeUpdateBuffer = new Map()
     this._nodeDeleteBuffer = new Map()
