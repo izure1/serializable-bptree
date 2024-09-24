@@ -189,19 +189,19 @@ export abstract class BPTree<K, V> {
   /**
    * You enter the key and value as a pair. You can later search for the pair by value.
    * This data is stored in the tree, sorted in ascending order of value.
-   * @param key The key of the pair.
+   * @param key The key of the pair. This key must be unique.
    * @param value The value of the pair.
    */
   public abstract insert(key: K, value: V): Deferred<void>
   /**
    * Deletes the pair that matches the key and value.
-   * @param key The key of the pair.
+   * @param key The key of the pair. This key must be unique.
    * @param value The value of the pair.
    */
   public abstract delete(key: K, value: V): Deferred<void>
   /**
    * It returns whether there is a value in the tree.
-   * @param key The key value to search for.
+   * @param key The key value to search for. This key must be unique.
    * @param value The value to search for.
    */
   public abstract exists(key: K, value: V): Deferred<boolean>
