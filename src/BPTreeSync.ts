@@ -173,8 +173,11 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
       (node.keys.length < Math.ceil(this.order/2) && !node.leaf) ||
       (node.values.length < Math.ceil((this.order-1)/2) && node.leaf)
     ) {
+      if (node.parent === null) {
+        return
+      }
       let isPredecessor = false
-      let parentNode = this.getNode(node.parent!) as BPTreeInternalNode<K, V>
+      let parentNode = this.getNode(node.parent) as BPTreeInternalNode<K, V>
       let prevNode: BPTreeInternalNode<K, V>|null = null
       let nextNode: BPTreeInternalNode<K, V>|null = null
       let prevValue: V|null = null
