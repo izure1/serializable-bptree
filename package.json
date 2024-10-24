@@ -1,6 +1,6 @@
 {
   "name": "serializable-bptree",
-  "version": "4.0.4",
+  "version": "4.0.5",
   "description": "Store the B+tree flexibly, not only in-memory.",
   "types": "./dist/types/index.d.ts",
   "main": "./dist/cjs/index.cjs",
@@ -36,10 +36,10 @@
   },
   "license": "MIT",
   "devDependencies": {
-    "@types/jest": "^29.5.13",
-    "esbuild": "^0.23.1",
+    "@types/jest": "^29.5.14",
+    "esbuild": "^0.24.0",
     "jest": "^29.7.0",
     "ts-jest": "^29.2.5",
-    "typescript": "^5.6.2"
+    "typescript": "^5.6.3"
   }
 }

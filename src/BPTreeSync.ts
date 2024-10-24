@@ -517,9 +517,10 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
       }
       else {
         const intersections = new Set<K>()
-        for (const pair of pairs) {
-          if (filterValues.has(pair.key)) {
-            intersections.add(pair.key)
+        for (const key of filterValues) {
+          const has = pairs.some((pair) => pair.key === key)
+          if (has) {
+            intersections.add(key)
           }
         }
         filterValues = intersections
