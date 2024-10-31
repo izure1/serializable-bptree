@@ -18,13 +18,13 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
     super(strategy, comparator)
   }
 
-  protected _getPairsRightToLeft(
+  protected getPairsRightToLeft(
     value: V,
     startNode: BPTreeLeafNode<K, V>,
     fullScan: boolean,
     comparator: (nodeValue: V, value: V) => boolean
-  ): BPTreePair<K, V>[] {
-    const pairs = []
+  ): BPTreePair<K, V> {
+    const pairs: [K, V][] = []
     let node = startNode
     let done = false
     let found = false
@@ -37,7 +37,7 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
           found = true
           let j = keys.length
           while (j--) {
-            pairs.push({ key: keys[j], value: nValue })
+            pairs.push([keys[j], nValue])
           }
         }
         else if (found && !fullScan) {
@@ -51,16 +51,16 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
       }
       node = this.getNode(node.prev) as BPTreeLeafNode<K, V>
     }
-    return pairs.reverse()
+    return new Map(pairs.reverse())
   }
 
-  protected _getPairsLeftToRight(
+  protected getPairsLeftToRight(
     value: V,
     startNode: BPTreeLeafNode<K, V>,
     fullScan: boolean,
     comparator: (nodeValue: V, value: V) => boolean
-  ): BPTreePair<K, V>[] {
-    const pairs = []
+  ): BPTreePair<K, V> {
+    const pairs: [K, V][] = []
     let node = startNode
     let done = false
     let found = false
@@ -70,8 +70,9 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
         const keys = node.keys[i]
         if (comparator(nValue, value)) {
           found = true
-          for (const key of keys) {
-            pairs.push({ key, value: nValue })
+          for (let j = 0, len = keys.length; j < len; j++) {
+            const key = keys[j]
+            pairs.push([key, nValue])
           }
         }
         else if (found && !fullScan) {
@@ -85,7 +86,7 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
       }
       node = this.getNode(node.next) as BPTreeLeafNode<K, V>
     }
-    return pairs
+    return new Map(pairs)
   }
 
   protected getPairs(
@@ -94,10 +95,10 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
     fullScan: boolean,
     comparator: (nodeValue: V, value: V) => boolean,
     direction: 1|-1
-  ): BPTreePair<K, V>[] {
+  ): BPTreePair<K, V> {
     switch (direction) {
-      case -1:  return this._getPairsRightToLeft(value, startNode, fullScan, comparator)
-      case +1:  return this._getPairsLeftToRight(value, startNode, fullScan, comparator)
+      case -1:  return this.getPairsRightToLeft(value, startNode, fullScan, comparator)
+      case +1:  return this.getPairsLeftToRight(value, startNode, fullScan, comparator)
       default:  throw new Error(`Direction must be -1 or 1. but got a ${direction}`)
     }
   }
@@ -513,12 +514,12 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
       const comparator  = this.verifierMap[key]
       const pairs       = this.getPairs(value, startNode, fullScan, comparator, direction)
       if (!filterValues) {
-        filterValues = new Set(pairs.map((pair) => pair.key))
+        filterValues = new Set(pairs.keys())
       }
       else {
         const intersections = new Set<K>()
         for (const key of filterValues) {
-          const has = pairs.some((pair) => pair.key === key)
+          const has = pairs.has(key)
           if (has) {
             intersections.add(key)
           }
@@ -529,8 +530,8 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
     return filterValues ?? new Set([])
   }
 
-  public where(condition: BPTreeCondition<V>): BPTreePair<K, V>[] {
-    let result: BPTreePair<K, V>[]|null = null
+  public where(condition: BPTreeCondition<V>): BPTreePair<K, V> {
+    let result: BPTreePair<K, V>|null = null
     for (const k in condition) {
       const key = k as keyof BPTreeCondition<V>
       const value = condition[key] as V
@@ -543,16 +544,16 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
         result = pairs
       }
       else {
-        const intersection = []
-        for (const pair of pairs) {
-          if (result.find((p) => p.key === pair.key)) {
-            intersection.push(pair)
+        const intersection = new Map<K, V>()
+        for (const [k, v] of pairs) {
+          if (result.has(k)) {
+            intersection.set(k, v)
           }
         }
         result = intersection
       }
     }
-    return result ?? []
+    return result ?? new Map()
   }
 
   public insert(key: K, value: V): void {

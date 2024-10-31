@@ -59,10 +59,10 @@ tree.insert('c', 3)
 
 tree.delete('b', 2)
 
-tree.where({ equal: 1 }) // [{ key: 'a', value: 1 }]
-tree.where({ gt: 1 }) // [{ key: 'c', value: 3 }]
-tree.where({ lt: 2 }) // [{ key: 'a', value: 1 }]
-tree.where({ gt: 0, lt: 4 }) // [{ key: 'a', value: 1 }, { key: 'c', value: 3 }]
+tree.where({ equal: 1 }) // Map([{ key: 'a', value: 1 }])
+tree.where({ gt: 1 }) // Map([{ key: 'c', value: 3 }])
+tree.where({ lt: 2 }) // Map([{ key: 'a', value: 1 }])
+tree.where({ gt: 0, lt: 4 }) // Map([{ key: 'a', value: 1 }, { key: 'c', value: 3 }])
 ```
 
 ## Why use a `serializable-bptree`?
@@ -102,7 +102,7 @@ import {
     ValueComparator,
     NumericComparator,
     StringComparator
-  } from 'https://cdn.jsdelivr.net/npm/serializable-bptree@4.x.x/dist/esm/index.min.js'
+  } from 'https://cdn.jsdelivr.net/npm/serializable-bptree@5.x.x/dist/esm/index.min.js'
 </script>
 ```
 
@@ -417,10 +417,10 @@ await tree.insert('c', 3)
 
 await tree.delete('b', 2)
 
-await tree.where({ equal: 1 }) // [{ key: 'a', value: 1 }]
-await tree.where({ gt: 1 }) // [{ key: 'c', value: 3 }]
-await tree.where({ lt: 2 }) // [{ key: 'a', value: 1 }]
-await tree.where({ gt: 0, lt: 4 }) // [{ key: 'a', value: 1 }, { key: 'c', value: 3 }]
+await tree.where({ equal: 1 }) // Map([{ key: 'a', value: 1 }])
+await tree.where({ gt: 1 }) // Map([{ key: 'c', value: 3 }])
+await tree.where({ lt: 2 }) // Map([{ key: 'a', value: 1 }])
+await tree.where({ gt: 0, lt: 4 }) // Map([{ key: 'a', value: 1 }, { key: 'c', value: 3 }])
 ```
 
 The implementation method for asynchronous operations is not significantly different. The **-Async** suffix is used instead of the **-Sync** suffix in the **BPTree** and **SerializeStrategy** classes. The only difference is that the methods become asynchronous. The **ValueComparator** class and similar value comparators do not use asynchronous operations.

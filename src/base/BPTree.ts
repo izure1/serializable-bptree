@@ -23,7 +23,7 @@ export type BPTreeCondition<V> = Partial<{
   /** Searches for values matching the given pattern. '%' matches zero or more characters, and '_' matches exactly one character. */
   like: Partial<V>
 }>
-export type BPTreePair<K, V> = { key: K, value: V }
+export type BPTreePair<K, V> = Map<K, V>
 
 export type BPTreeUnknownNode<K, V> = BPTreeInternalNode<K, V>|BPTreeLeafNode<K, V>
 
@@ -126,25 +126,25 @@ export abstract class BPTree<K, V> {
     this.comparator = comparator
   }
 
-  protected abstract _getPairsRightToLeft(
+  protected abstract getPairsRightToLeft(
     value: V,
     startNode: BPTreeLeafNode<K, V>,
     fullScan: boolean,
     comparator: (nodeValue: V, value: V) => boolean
-  ): Deferred<BPTreePair<K, V>[]>
-  protected abstract _getPairsLeftToRight(
+  ): Deferred<BPTreePair<K, V>>
+  protected abstract getPairsLeftToRight(
     value: V,
     startNode: BPTreeLeafNode<K, V>,
     fullScan: boolean,
     comparator: (nodeValue: V, value: V) => boolean
-  ): Deferred<BPTreePair<K, V>[]>
+  ): Deferred<BPTreePair<K, V>>
   protected abstract getPairs(
     value: V,
     startNode: BPTreeLeafNode<K, V>,
     fullScan: boolean,
     comparator: (nodeValue: V, value: V) => boolean,
     direction: -1|1
-  ): Deferred<BPTreePair<K, V>[]>
+  ): Deferred<BPTreePair<K, V>>
   protected abstract _createNodeId(isLeaf: boolean): Deferred<string>
   protected abstract _createNode(
     isLeaf: boolean,
@@ -185,7 +185,7 @@ export abstract class BPTree<K, V> {
    * The result includes the key and value attributes, and you can use the `gt`, `lt`, `gte`, `lte`, `equal`, `notEqual`, `like` condition statements.
    * @param condition You can use the `gt`, `lt`, `gte`, `lte`, `equal`, `notEqual`, `like` condition statements.
    */
-  public abstract where(condition: BPTreeCondition<V>): Deferred<BPTreePair<K, V>[]>
+  public abstract where(condition: BPTreeCondition<V>): Deferred<BPTreePair<K, V>>
   /**
    * You enter the key and value as a pair. You can later search for the pair by value.
    * This data is stored in the tree, sorted in ascending order of value.
