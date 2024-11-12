@@ -1,0 +1,21 @@
+{
+  "name": "@izure/serializable-bptree",
+  "version": "0.0.1",
+  "description": "Store the B+tree flexibly, not only in-memory.",
+  "author": "izure1 <admin@izure.org>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/izure1/serializable-bptree.git"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "publish": {
+    "include": [
+      "LICENSE",
+      "README.md",
+      "src/**/*.ts"
+    ]
+  }
+}
