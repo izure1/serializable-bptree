@@ -55,10 +55,12 @@ export abstract class BPTree<K, V> {
   protected readonly nodes: InvertedWeakMap<string, BPTreeUnknownNode<K, V>>
   protected order!: number
   protected root!: BPTreeUnknownNode<K, V>
-
+  
+  protected _strategyDirty: boolean
   protected readonly _nodeCreateBuffer: Map<string, BPTreeUnknownNode<K, V>>
   protected readonly _nodeUpdateBuffer: Map<string, BPTreeUnknownNode<K, V>>
   protected readonly _nodeDeleteBuffer: Map<string, BPTreeUnknownNode<K, V>>
+
 
   protected readonly verifierMap: Record<
     keyof BPTreeCondition<V>,
@@ -117,6 +119,7 @@ export abstract class BPTree<K, V> {
   }
 
   protected constructor(strategy: SerializeStrategy<K, V>, comparator: ValueComparator<V>) {
+    this._strategyDirty = false
     this._cachedRegexp = new InvertedWeakMap()
     this._nodeCreateBuffer = new Map()
     this._nodeUpdateBuffer = new Map()

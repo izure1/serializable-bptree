@@ -164,6 +164,7 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
       this.root = await this.getNode(keys[0])
       this.root.parent = null
       this.strategy.head.root = this.root.id
+      this._strategyDirty = true
       this.bufferForNodeUpdate(this.root)
       return
     }
@@ -369,6 +370,7 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
       const root = await this._createNode(false, [node.id, pointer.id], [value])
       this.root = root
       this.strategy.head.root = root.id
+      this._strategyDirty = true
       node.parent = root.id
       pointer.parent = root.id
       this.bufferForNodeCreate(root)
@@ -480,6 +482,10 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
   }
 
   protected async commitHeadBuffer(): Promise<void> {
+    if (!this._strategyDirty) {
+      return
+    }
+    this._strategyDirty = false
     await this.strategy.writeHead(this.strategy.head)
   }
 
@@ -639,6 +645,7 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
 
   public async setHeadData(data: SerializableData): Promise<void> {
     this.strategy.head.data = data
+    this._strategyDirty = true
     await this.commitHeadBuffer()
   }
 
