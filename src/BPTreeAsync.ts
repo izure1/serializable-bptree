@@ -427,8 +427,8 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
       this.root = await this._createNode(true, [], [], true)
       this.strategy.head.root = this.root.id
       this.bufferForNodeCreate(this.root)
-      this.commitHeadBuffer()
-      this.commitNodeCreateBuffer()
+      await this.commitHeadBuffer()
+      await this.commitNodeCreateBuffer()
     }
     // loaded
     else {
