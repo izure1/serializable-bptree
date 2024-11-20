@@ -12,6 +12,13 @@ export class InvertedWeakMap<K extends string|number|symbol, V extends WeakKey> 
   }
 
   delete(key: K): boolean {
+    const ref = this._map.get(key)
+    if (ref) {
+      const raw = ref.deref()
+      if (raw !== undefined) {
+        this._registry.unregister(raw)
+      }
+    }
     return this._map.delete(key)
   }
 
