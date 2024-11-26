@@ -158,7 +158,7 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
       }
     }
 
-    if (this.root === node && node.keys.length === 1) {
+    if (this.root.id === node.id && node.keys.length === 1) {
       const keys = node.keys as string[]
       this.bufferForNodeDelete(this.root)
       this.root = await this.getNode(keys[0])
@@ -167,7 +167,7 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
       this.bufferForNodeUpdate(this.root)
       return
     }
-    else if (this.root === node) {
+    else if (this.root.id === node.id) {
       this.bufferForNodeUpdate(this.root)
       return
     }
@@ -366,7 +366,7 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
     value: V,
     pointer: BPTreeUnknownNode<K, V>
   ): Promise<void> {
-    if (this.root === node) {
+    if (this.root.id === node.id) {
       const root = await this._createNode(false, [node.id, pointer.id], [value])
       this.root = root
       this.strategy.head.root = root.id
@@ -609,7 +609,7 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
             keys.splice(keys.indexOf(key), 1)
             this.bufferForNodeUpdate(node)
           }
-          else if (node === this.root) {
+          else if (node.id === this.root.id) {
             node.values.splice(i, 1)
             node.keys.splice(i, 1)
             this.bufferForNodeUpdate(node)
