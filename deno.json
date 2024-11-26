@@ -1,6 +1,6 @@
 {
   "name": "@izure/serializable-bptree",
-  "version": "5.0.3",
+  "version": "5.0.4",
   "description": "Store the B+tree flexibly, not only in-memory.",
   "author": "izure1 <admin@izure.org>",
   "license": "MIT",

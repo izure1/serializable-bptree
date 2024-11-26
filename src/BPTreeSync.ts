@@ -164,11 +164,11 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
       this.root = this.getNode(keys[0])
       this.root.parent = null
       this.strategy.head.root = this.root.id
-      this._strategyDirty = true
       this.bufferForNodeUpdate(this.root)
       return
     }
     else if (this.root === node) {
+      this.bufferForNodeUpdate(this.root)
       return
     }
     else if (
@@ -370,7 +370,6 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
       const root = this._createNode(false, [node.id, pointer.id], [value])
       this.root = root
       this.strategy.head.root = root.id
-      this._strategyDirty = true
       node.parent = root.id
       pointer.parent = root.id
       this.bufferForNodeCreate(root)

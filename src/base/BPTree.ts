@@ -254,14 +254,23 @@ export abstract class BPTree<K, V> {
   }
 
   protected bufferForNodeCreate(node: BPTreeUnknownNode<K, V>): void {
+    if (node.id === this.root.id) {
+      this._strategyDirty = true
+    }
     this._nodeCreateBuffer.set(node.id, node)
   }
 
   protected bufferForNodeUpdate(node: BPTreeUnknownNode<K, V>): void {
+    if (node.id === this.root.id) {
+      this._strategyDirty = true
+    }
     this._nodeUpdateBuffer.set(node.id, node)
   }
 
   protected bufferForNodeDelete(node: BPTreeUnknownNode<K, V>): void {
+    if (node.id === this.root.id) {
+      this._strategyDirty = true
+    }
     this._nodeDeleteBuffer.set(node.id, node)
   }
 
