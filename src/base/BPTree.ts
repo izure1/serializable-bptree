@@ -20,6 +20,8 @@ export type BPTreeCondition<V> = Partial<{
   equal: Partial<V>
   /** Searches for pairs not equal to the given value. */
   notEqual: Partial<V>
+  /** Searches for pairs that satisfy at least one of the conditions. */
+  or: Partial<V>[]
   /** Searches for values matching the given pattern. '%' matches zero or more characters, and '_' matches exactly one character. */
   like: Partial<V>
 }>
@@ -61,20 +63,20 @@ export abstract class BPTree<K, V> {
   protected readonly _nodeUpdateBuffer: Map<string, BPTreeUnknownNode<K, V>>
   protected readonly _nodeDeleteBuffer: Map<string, BPTreeUnknownNode<K, V>>
 
-
   protected readonly verifierMap: Record<
     keyof BPTreeCondition<V>,
-    (nodeValue: V, value: V) => boolean
+    (nodeValue: V, value: V|V[]) => boolean
   > = {
-    gt: (nv, v) => this.comparator.isHigher(nv, v),
-    gte: (nv, v) => this.comparator.isHigher(nv, v) || this.comparator.isSame(nv, v),
-    lt: (nv, v) => this.comparator.isLower(nv, v),
-    lte: (nv, v) => this.comparator.isLower(nv, v) || this.comparator.isSame(nv, v),
-    equal: (nv, v) => this.comparator.isSame(nv, v),
-    notEqual: (nv, v) => this.comparator.isSame(nv, v) === false,
+    gt: (nv, v) => this.comparator.isHigher(nv, v as V),
+    gte: (nv, v) => this.comparator.isHigher(nv, v as V) || this.comparator.isSame(nv, v as V),
+    lt: (nv, v) => this.comparator.isLower(nv, v as V),
+    lte: (nv, v) => this.comparator.isLower(nv, v as V) || this.comparator.isSame(nv, v as V),
+    equal: (nv, v) => this.comparator.isSame(nv, v as V),
+    notEqual: (nv, v) => this.comparator.isSame(nv, v as V) === false,
+    or: (nv, v) => this.ensureValues(v).some((v) => this.comparator.isSame(nv, v)),
     like: (nv, v) => {
       const nodeValue = this.comparator.match(nv)
-      const value = this.comparator.match(v)
+      const value = this.comparator.match(v as V)
       if (!this._cachedRegexp.has(value)) {
         const pattern = value.replace(/%/g, '.*').replace(/_/g, '.')
         const regexp = new RegExp(`^${pattern}$`, 'i')
@@ -95,7 +97,25 @@ export abstract class BPTree<K, V> {
     lte: (v) => this.insertableNode(v),
     equal: (v) => this.insertableNode(v),
     notEqual: (v) => this.leftestNode(),
+    or: (v) => this.insertableNode(this.lowestValue(this.ensureValues(v))),
     like: (v) => this.leftestNode(),
+  }
+
+  protected readonly verifierEndNode: Record<
+    keyof BPTreeCondition<V>,
+    (value: V) => Deferred<BPTreeLeafNode<K, V>|null>
+  > = {
+    gt: (v) => null,
+    gte: (v) => null,
+    lt: (v) => null,
+    lte: (v) => null,
+    equal: (v) => this.insertableEndNode(v, this.verifierDirection.equal),
+    notEqual: (v) => null,
+    or: (v) => this.insertableEndNode(
+      this.highestValue(this.ensureValues(v)),
+      this.verifierDirection.or
+    ),
+    like: (v) => null,
   }
   
   protected readonly verifierDirection: Record<keyof BPTreeCondition<V>, -1|1> = {
@@ -105,17 +125,8 @@ export abstract class BPTree<K, V> {
     lte: -1,
     equal: 1,
     notEqual: 1,
+    or: 1,
     like: 1,
-  }
-
-  protected readonly verifierFullScan: Record<keyof BPTreeCondition<V>, boolean> = {
-    gt: false,
-    gte: false,
-    lt: false,
-    lte: false,
-    equal: false,
-    notEqual: true,
-    like: true,
   }
 
   protected constructor(strategy: SerializeStrategy<K, V>, comparator: ValueComparator<V>) {
@@ -132,19 +143,19 @@ export abstract class BPTree<K, V> {
   protected abstract getPairsRightToLeft(
     value: V,
     startNode: BPTreeLeafNode<K, V>,
-    fullScan: boolean,
+    endNode: BPTreeLeafNode<K, V>|null,
     comparator: (nodeValue: V, value: V) => boolean
   ): Deferred<BPTreePair<K, V>>
   protected abstract getPairsLeftToRight(
     value: V,
     startNode: BPTreeLeafNode<K, V>,
-    fullScan: boolean,
+    endNode: BPTreeLeafNode<K, V>|null,
     comparator: (nodeValue: V, value: V) => boolean
   ): Deferred<BPTreePair<K, V>>
   protected abstract getPairs(
     value: V,
     startNode: BPTreeLeafNode<K, V>,
-    fullScan: boolean,
+    endNode: BPTreeLeafNode<K, V>|null,
     comparator: (nodeValue: V, value: V) => boolean,
     direction: -1|1
   ): Deferred<BPTreePair<K, V>>
@@ -162,7 +173,9 @@ export abstract class BPTree<K, V> {
   protected abstract _insertInParent(node: BPTreeUnknownNode<K, V>, value: V, pointer: BPTreeUnknownNode<K, V>): Deferred<void>
   protected abstract getNode(id: string): Deferred<BPTreeUnknownNode<K, V>>
   protected abstract insertableNode(value: V): Deferred<BPTreeLeafNode<K, V>>
+  protected abstract insertableEndNode(value: V, direction: 1|-1): Deferred<BPTreeLeafNode<K, V>|null>
   protected abstract leftestNode(): Deferred<BPTreeLeafNode<K, V>>
+  protected abstract rightestNode(): Deferred<BPTreeLeafNode<K, V>>
   protected abstract commitHeadBuffer(): Deferred<void>
   protected abstract commitNodeCreateBuffer(): Deferred<void>
   protected abstract commitNodeUpdateBuffer(): Deferred<void>
@@ -222,12 +235,34 @@ export abstract class BPTree<K, V> {
    */
   public abstract forceUpdate(): Deferred<number>
 
+  protected ensureValues(v: V|V[]): V[] {
+    if (!Array.isArray(v)) {
+      v = [v]
+    }
+    return v
+  }
+
+  protected lowestValue(v: V[]): V {
+    const i = 0
+    return [...v].sort((a, b) => this.comparator.asc(a, b))[i]
+  }
+
+  protected highestValue(v: V[]): V {
+    const i = v.length - 1
+    return [...v].sort((a, b) => this.comparator.asc(a, b))[i]
+  }
+
   protected _insertAtLeaf(node: BPTreeLeafNode<K, V>, key: K, value: V): void {
     if (node.values.length) {
       for (let i = 0, len = node.values.length; i < len; i++) {
         const nValue = node.values[i]
         if (this.comparator.isSame(value, nValue)) {
           const keys = node.keys[i]
+          if (keys.includes(key)) {
+            throw new Error('The key already exists.', {
+              cause: { key, value }
+            })
+          }
           keys.push(key)
           this.bufferForNodeUpdate(node)
           break

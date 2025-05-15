@@ -10,7 +10,7 @@ import {
   SerializeStrategyHead,
   BPTreeNode,
   ValueComparator
-} from '../'
+} from 'serializable-bptree'
 import {
   readFileSync,
   writeFileSync,
@@ -282,7 +282,7 @@ describe('unit-test', () => {
   })
 
   test('insert:string:async', async () => {
-    const tree = new BPTreeAsync(
+    const tree = new BPTreeAsync<string, string>(
       new InMemoryStoreStrategyAsync(5),
       new StringComparator()
     )
@@ -362,6 +362,32 @@ describe('unit-test', () => {
     expect(await tree.where({ notEqual: 2 })).toEqual(new Map([
       ['a', 1],
       ['c', 3],
+    ]))
+  })
+
+  test('or condition', () => {
+    const tree = new BPTreeSync(
+      new InMemoryStoreStrategySync(4),
+      new StringComparator()
+    )
+    tree.init()
+    tree.insert('a', 'alpha')
+    tree.insert('b', 'bravo')
+    tree.insert('c', 'charlie')
+    tree.insert('d', 'delta')
+    tree.insert('e', 'echo')
+    tree.insert('f', 'foxtrot')
+    tree.insert('g', 'golf')
+    tree.insert('h', 'hotel')
+    tree.insert('i', 'india')
+
+    expect(tree.where({ or: ['alpha', 'foxtrot'] })).toEqual(new Map([
+      ['a', 'alpha'],
+      ['f', 'foxtrot'],
+    ]))
+    expect(tree.where({ or: ['foxtrot', 'alpha'] })).toEqual(new Map([
+      ['a', 'alpha'],
+      ['f', 'foxtrot'],
     ]))
   })
 

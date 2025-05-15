@@ -63,6 +63,7 @@ tree.where({ equal: 1 }) // Map([{ key: 'a', value: 1 }])
 tree.where({ gt: 1 }) // Map([{ key: 'c', value: 3 }])
 tree.where({ lt: 2 }) // Map([{ key: 'a', value: 1 }])
 tree.where({ gt: 0, lt: 4 }) // Map([{ key: 'a', value: 1 }, { key: 'c', value: 3 }])
+tree.where({ or: [3, 1] }) // Map([{ key: 'a', value: 1 }, { key: 'c', value: 3 }])
 ```
 
 ## Why use a `serializable-bptree`?
@@ -320,31 +321,63 @@ import {
 
 ## Data Query Condition Clause
 
-This library supports various conditional clauses. Currently, it supports **gte**, **gt**, **lte**, **lt**, **equal**, **notEqual**, and **like** conditions. Each condition is as follows:
+This library supports various conditional clauses. Currently, it supports **gte**, **gt**, **lte**, **lt**, **equal**, **notEqual**, **or**, and **like** conditions. Each condition is as follows:
 
 ### `gte`
 
 Queries values that are greater than or equal to the given value.
 
+```typescript
+tree.where({ gte: 1 })
+```
+
 ### `gt`
 
 Queries values that are greater than the given value.
+
+```typescript
+tree.where({ gt: 1 })
+```
 
 ### `lte`
 
 Queries values that are less than or equal to the given value.
 
+```typescript
+tree.where({ lte: 5 })
+```
+
 ### `lt`
 
 Queries values that are less than the given value.
+
+```typescript
+tree.where({ lt: 5 })
+```
 
 ### `equal`
 
 Queries values that match the given value.
 
+```typescript
+tree.where({ equal: 3 })
+```
+
 ### `notEqual`
 
 Queries values that do not match the given value.
+
+```typescript
+tree.where({ notEqual: 3 })
+```
+
+### `or`
+
+Queries values that satisfy at least one of the given conditions. It accepts an array of conditions, and if any of these conditions are met, the data is included in the result.
+
+```typescript
+tree.where({ or:  [1, 2, 3] })
+```
 
 ### `like`
 
@@ -356,6 +389,13 @@ Queries values that contain the given value in a manner similar to regular expre
 Using **p_t**, it can match any string where the underscore is replaced by any character, such as "pit", "put", etc.
 
 You can obtain matching data by combining these condition clauses. If there are multiple conditions, an **AND** operation is used to retrieve only the data that satisfies all conditions.
+
+```typescript
+tree.where({ like: 'hello%' })
+tree.where({ like: 'he__o%' })
+tree.where({ like: '%world!' })
+tree.where({ like: '%lo, wor%' })
+```
 
 ## Using Asynchronously
 

@@ -6,6 +6,7 @@ import {
   BPTreeNodeKey,
   BPTreeUnknownNode,
   BPTreeInternalNode,
+  BPTreeNode,
 } from './base/BPTree'
 import { SerializeStrategyAsync } from './SerializeStrategyAsync'
 import { ValueComparator } from './base/ValueComparator'
@@ -21,28 +22,26 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
   protected async getPairsRightToLeft(
     value: V,
     startNode: BPTreeLeafNode<K, V>,
-    fullScan: boolean,
+    endNode: BPTreeLeafNode<K, V>|null,
     comparator: (nodeValue: V, value: V) => boolean
   ): Promise<BPTreePair<K, V>> {
     const pairs: [K, V][] = []
     let node = startNode
     let done = false
-    let found = false
     while (!done) {
+      if (endNode && node.id === endNode.id) {
+        done = true
+        break
+      }
       let i = node.values.length
       while (i--) {
         const nValue = node.values[i]
         const keys = node.keys[i]
         if (comparator(nValue, value)) {
-          found = true
           let j = keys.length
           while (j--) {
             pairs.push([keys[j], nValue])
           }
-        }
-        else if (found && !fullScan) {
-          done = true
-          break
         }
       }
       if (!node.prev) {
@@ -57,27 +56,25 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
   protected async getPairsLeftToRight(
     value: V,
     startNode: BPTreeLeafNode<K, V>,
-    fullScan: boolean,
+    endNode: BPTreeLeafNode<K, V>|null,
     comparator: (nodeValue: V, value: V) => boolean
   ): Promise<BPTreePair<K, V>> {
     const pairs: [K, V][] = []
     let node = startNode
     let done = false
-    let found = false
     while (!done) {
+      if (endNode && node.id === endNode.id) {
+        done = true
+        break
+      }
       for (let i = 0, len = node.values.length; i < len; i++) {
         const nValue = node.values[i]
         const keys = node.keys[i]
         if (comparator(nValue, value)) {
-          found = true
           for (let j = 0, len = keys.length; j < len; j++) {
             const key = keys[j]
             pairs.push([key, nValue])
           }
-        }
-        else if (found && !fullScan) {
-          done = true
-          break
         }
       }
       if (!node.next) {
@@ -92,13 +89,13 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
   protected async getPairs(
     value: V,
     startNode: BPTreeLeafNode<K, V>,
-    fullScan: boolean,
+    endNode: BPTreeLeafNode<K, V>|null,
     comparator: (nodeValue: V, value: V) => boolean,
     direction: 1|-1
   ): Promise<BPTreePair<K, V>> {
     switch (direction) {
-      case -1:  return await this.getPairsRightToLeft(value, startNode, fullScan, comparator)
-      case +1:  return await this.getPairsLeftToRight(value, startNode, fullScan, comparator)
+      case -1:  return await this.getPairsRightToLeft(value, startNode, endNode, comparator)
+      case +1:  return await this.getPairsLeftToRight(value, startNode, endNode, comparator)
       default:  throw new Error(`Direction must be -1 or 1. but got a ${direction}`)
     }
   }
@@ -471,11 +468,40 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
     return node
   }
 
+  protected async insertableEndNode(value: V, direction: 1|-1): Promise<BPTreeLeafNode<K, V>|null> {
+    const insertableNode = await this.insertableNode(value)
+    let key: 'next'|'prev'
+    switch (direction) {
+      case -1:
+        key = 'prev'
+        break
+      case +1:
+        key = 'next'
+        break
+      default:
+        throw new Error(`Direction must be -1 or 1. but got a ${direction}`)
+    }
+    const guessNode = insertableNode[key]
+    if (!guessNode) {
+      return null
+    }
+    return await this.getNode(guessNode) as BPTreeLeafNode<K, V>
+  }
+
   protected async leftestNode(): Promise<BPTreeLeafNode<K, V>> {
     let node = this.root
     while (!node.leaf) {
       const keys = node.keys
       node = await this.getNode(keys[0])
+    }
+    return node
+  }
+
+  protected async rightestNode(): Promise<BPTreeLeafNode<K, V>> {
+    let node = this.root
+    while (!node.leaf) {
+      const keys = node.keys
+      node = await this.getNode(keys[keys.length - 1])
     }
     return node
   }
@@ -514,10 +540,10 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
       const key = k as keyof BPTreeCondition<V>
       const value = condition[key] as V
       const startNode   = await this.verifierStartNode[key](value) as BPTreeLeafNode<K, V>
+      const endNode     = await this.verifierEndNode[key](value) as BPTreeLeafNode<K, V>|null
       const direction   = this.verifierDirection[key]
-      const fullScan    = this.verifierFullScan[key]
       const comparator  = this.verifierMap[key]
-      const pairs       = await this.getPairs(value, startNode, fullScan, comparator, direction)
+      const pairs       = await this.getPairs(value, startNode, endNode, comparator, direction)
       if (!filterValues) {
         filterValues = new Set(pairs.keys())
       }
@@ -541,10 +567,10 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
       const key = k as keyof BPTreeCondition<V>
       const value = condition[key] as V
       const startNode   = await this.verifierStartNode[key](value) as BPTreeLeafNode<K, V>
+      const endNode     = await this.verifierEndNode[key](value) as BPTreeLeafNode<K, V>|null
       const direction   = this.verifierDirection[key]
-      const fullScan    = this.verifierFullScan[key]
       const comparator  = this.verifierMap[key]
-      const pairs = await this.getPairs(value, startNode, fullScan, comparator, direction)
+      const pairs = await this.getPairs(value, startNode, endNode, comparator, direction)
       if (result === null) {
         result = pairs
       }
