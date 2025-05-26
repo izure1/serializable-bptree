@@ -1,3 +1,4 @@
+import { CacheEntanglementSync } from 'cache-entanglement'
 import {
   BPTree,
   BPTreeCondition,
@@ -6,6 +7,7 @@ import {
   BPTreeNodeKey,
   BPTreeUnknownNode,
   BPTreeInternalNode,
+  BPTreeConstructorOption,
 } from './base/BPTree'
 import { SerializeStrategySync } from './SerializeStrategySync'
 import { ValueComparator } from './base/ValueComparator'
@@ -13,9 +15,23 @@ import { SerializableData } from './base/SerializeStrategy'
 
 export class BPTreeSync<K, V> extends BPTree<K, V> {
   declare protected readonly strategy: SerializeStrategySync<K, V>
+  declare protected readonly nodes: ReturnType<BPTreeSync<K, V>['_createCachedNode']>
 
-  constructor(strategy: SerializeStrategySync<K, V>, comparator: ValueComparator<V>) {
-    super(strategy, comparator)
+  constructor(
+    strategy: SerializeStrategySync<K, V>,
+    comparator: ValueComparator<V>,
+    option?: BPTreeConstructorOption
+  ) {
+    super(strategy, comparator, option)
+    this.nodes = this._createCachedNode()
+  }
+
+  private _createCachedNode() {
+    return new CacheEntanglementSync((key) => {
+      return this.strategy.read(key) as BPTreeUnknownNode<K, V>
+    }, {
+      lifespan: this.option.lifespan ?? '3m'
+    })
   }
 
   protected getPairsRightToLeft(
@@ -126,7 +142,7 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
       next,
       prev,
     } as BPTreeUnknownNode<K, V>
-    this.nodes.set(id, node)
+    this._nodeCreateBuffer.set(id, node)
     return node
   }
 
@@ -368,7 +384,6 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
       this.strategy.head.root = root.id
       node.parent = root.id
       pointer.parent = root.id
-      this.bufferForNodeCreate(root)
       this.bufferForNodeUpdate(node)
       this.bufferForNodeUpdate(pointer)
       return
@@ -407,7 +422,6 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
           }
 
           this._insertInParent(parentNode, midValue, parentPointer)
-          this.bufferForNodeCreate(parentPointer)
           this.bufferForNodeUpdate(parentNode)
         }
       }
@@ -421,7 +435,6 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
       this.order = this.strategy.order
       this.root = this._createNode(true, [], [], true)
       this.strategy.head.root = this.root.id
-      this.bufferForNodeCreate(this.root)
       this.commitHeadBuffer()
       this.commitNodeCreateBuffer()
     }
@@ -438,10 +451,11 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
   }
 
   protected getNode(id: string): BPTreeUnknownNode<K, V> {
-    if (!this.nodes.has(id)) {
-      this.nodes.set(id, this.strategy.read(id) as BPTreeUnknownNode<K, V>)
+    if (this._nodeCreateBuffer.has(id)) {
+      return this._nodeCreateBuffer.get(id)!
     }
-    return this.nodes.get(id)!
+    const cache = this.nodes.cache(id)
+    return cache.raw
   }
 
   protected insertableNode(value: V): BPTreeLeafNode<K, V> {
@@ -613,7 +627,6 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
         this.bufferForNodeUpdate(node)
       }
       this._insertInParent(before, after.values[0], after)
-      this.bufferForNodeCreate(after)
       this.bufferForNodeUpdate(before)
     }
 

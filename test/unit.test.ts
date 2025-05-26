@@ -30,7 +30,7 @@ describe('unit-test', () => {
   test('insert:number', () => {
     const tree = new BPTreeSync(
       new InMemoryStoreStrategySync(4),
-      new NumericComparator()
+      new NumericComparator(),
     )
     tree.init()
     tree.insert('a', 1)
@@ -126,6 +126,8 @@ describe('unit-test', () => {
       ['f', 6],
       ['ㅌ', 6],
     ]))
+    
+    tree.clear()
   })
 
   test('insert:number:async', async () => {
@@ -227,6 +229,8 @@ describe('unit-test', () => {
       ['f', 6],
       ['ㅌ', 6],
     ]))
+
+    tree.clear()
   })
 
   test('insert:string', () => {
@@ -279,6 +283,8 @@ describe('unit-test', () => {
       ['f', 'the'],
       ['g', 'things'],
     ]))
+
+    tree.clear()
   })
 
   test('insert:string:async', async () => {
@@ -331,6 +337,8 @@ describe('unit-test', () => {
       ['f', 'the'],
       ['g', 'things'],
     ]))
+
+    tree.clear()
   })
 
   test('insert:notEqual', () => {
@@ -347,6 +355,8 @@ describe('unit-test', () => {
       ['a', 1],
       ['c', 3],
     ]))
+
+    tree.clear()
   })
 
   test('insert:notEqual:async', async () => {
@@ -363,6 +373,8 @@ describe('unit-test', () => {
       ['a', 1],
       ['c', 3],
     ]))
+
+    tree.clear()
   })
 
   test('or condition', () => {
@@ -389,6 +401,8 @@ describe('unit-test', () => {
       ['a', 'alpha'],
       ['f', 'foxtrot'],
     ]))
+
+    tree.clear()
   })
 
   test('delete', () => {
@@ -431,6 +445,8 @@ describe('unit-test', () => {
       ['f', 6],
       ['g', 7],
     ]))
+
+    tree.clear()
   })
 
   test('delete:async', async () => {
@@ -473,6 +489,8 @@ describe('unit-test', () => {
       ['f', 6],
       ['g', 7],
     ]))
+
+    tree.clear()
   })
 
   test('delete:notEqual', () => {
@@ -492,6 +510,8 @@ describe('unit-test', () => {
       ['a', 1],
       ['d', 4],
     ]))
+
+    tree.clear()
   })
 
   test('delete:notEqual:async', async () => {
@@ -511,6 +531,8 @@ describe('unit-test', () => {
       ['a', 1],
       ['d', 4],
     ]))
+
+    tree.clear()
   })
 })
 
@@ -648,6 +670,8 @@ describe('strategy-test', () => {
         expect(r).toEqual(new Map([]))
       }
     }
+
+    tree.clear()
   })
 
   test('strategy:async', async () => {
@@ -679,6 +703,8 @@ describe('strategy-test', () => {
         expect(r).toEqual(new Map([]))
       }
     }
+
+    tree.clear()
   })
 })
 
@@ -740,6 +766,8 @@ describe('composite-value-test', () => {
       [2, { name: 'Brazil', capital: 'Brasilia' }],
       [5, { name: 'France', capital: 'Paris' }],
     ]))
+
+    tree.clear()
   })
 
   test('like:async', async () => {
@@ -785,5 +813,7 @@ describe('composite-value-test', () => {
       [2, { name: 'Brazil', capital: 'Brasilia' }],
       [5, { name: 'France', capital: 'Paris' }],
     ]))
+
+    tree.clear()
   })
 })

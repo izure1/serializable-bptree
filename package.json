@@ -43,6 +43,6 @@
     "typescript": "^5.8.3"
   },
   "dependencies": {
-    "cache-entanglement": "^1.5.0"
+    "cache-entanglement": "^1.5.2"
   }
 }

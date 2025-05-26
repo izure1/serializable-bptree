@@ -1,6 +1,6 @@
+import { CacheEntanglementSync, CacheEntanglementAsync, type StringValue } from 'cache-entanglement'
 import { ValueComparator } from './ValueComparator'
 import { SerializableData, SerializeStrategy } from './SerializeStrategy'
-import { InvertedWeakMap } from '../utils/InvertedWeakMap'
 
 type Sync<T> = T
 type Async<T> = Promise<T>
@@ -29,6 +29,18 @@ export type BPTreePair<K, V> = Map<K, V>
 
 export type BPTreeUnknownNode<K, V> = BPTreeInternalNode<K, V>|BPTreeLeafNode<K, V>
 
+export interface BPTreeConstructorOption {
+  /**
+   * The lifespan of the cached node.
+   * This value is used to determine how long a cached node should be kept in memory.
+   * If the lifespan is set to a positive number, the cached node will expire after the specified number of milliseconds.
+   * If the lifespan is set to `0` or a negative number, the cache will not prevent garbage collection.
+   * If the lifespan is set to a string, the string will be parsed as a time duration.
+   * For example, '1m' means 1 minute, '1h' means 1 hour, '1d' means 1 day, '1w' means 1 week.
+   */
+  lifespan?: StringValue|number
+}
+
 export interface BPTreeNode<K, V> {
   id: string
   keys: string[]|K[][],
@@ -50,11 +62,12 @@ export interface BPTreeLeafNode<K, V> extends BPTreeNode<K, V> {
 }
 
 export abstract class BPTree<K, V> {
-  private readonly _cachedRegexp: InvertedWeakMap<string, RegExp>
+  private readonly _cachedRegexp: ReturnType<BPTree<K, V>['_createCachedRegexp']>
+  protected abstract readonly nodes: CacheEntanglementSync<any, any>|CacheEntanglementAsync<any, any>
 
   protected readonly strategy: SerializeStrategy<K, V>
   protected readonly comparator: ValueComparator<V>
-  protected readonly nodes: InvertedWeakMap<string, BPTreeUnknownNode<K, V>>
+  protected readonly option: BPTreeConstructorOption
   protected order!: number
   protected root!: BPTreeUnknownNode<K, V>
   
@@ -77,12 +90,8 @@ export abstract class BPTree<K, V> {
     like: (nv, v) => {
       const nodeValue = this.comparator.match(nv)
       const value = this.comparator.match(v as V)
-      if (!this._cachedRegexp.has(value)) {
-        const pattern = value.replace(/%/g, '.*').replace(/_/g, '.')
-        const regexp = new RegExp(`^${pattern}$`, 'i')
-        this._cachedRegexp.set(value, regexp)
-      }
-      const regexp = this._cachedRegexp.get(value)!
+      const cache = this._cachedRegexp.cache(value)
+      const regexp = cache.raw
       return regexp.test(nodeValue)
     },
   }
@@ -129,15 +138,29 @@ export abstract class BPTree<K, V> {
     like: 1,
   }
 
-  protected constructor(strategy: SerializeStrategy<K, V>, comparator: ValueComparator<V>) {
+  protected constructor(
+    strategy: SerializeStrategy<K, V>,
+    comparator: ValueComparator<V>,
+    option?: BPTreeConstructorOption
+  ) {
+    this.strategy = strategy
+    this.comparator = comparator
+    this.option = option ?? {}
     this._strategyDirty = false
-    this._cachedRegexp = new InvertedWeakMap()
     this._nodeCreateBuffer = new Map()
     this._nodeUpdateBuffer = new Map()
     this._nodeDeleteBuffer = new Map()
-    this.nodes = new InvertedWeakMap()
-    this.strategy = strategy
-    this.comparator = comparator
+    this._cachedRegexp = this._createCachedRegexp()
+  }
+
+  private _createCachedRegexp() {
+    return new CacheEntanglementSync((key) => {
+      const pattern = key.replace(/%/g, '.*').replace(/_/g, '.')
+      const regexp = new RegExp(`^${pattern}$`, 'i')
+      return regexp
+    }, {
+      lifespan: this.option.lifespan ?? '3m'
+    })
   }
 
   protected abstract getPairsRightToLeft(
@@ -316,5 +339,14 @@ export abstract class BPTree<K, V> {
    */
   getHeadData(): SerializableData {
     return this.strategy.head.data
+  }
+
+  /**
+   * Clears all cached nodes.
+   * This method is useful for freeing up memory when the tree is no longer needed.
+   */
+  clear(): void {
+    this._cachedRegexp.clear()
+    this.nodes.clear()
   }
 }

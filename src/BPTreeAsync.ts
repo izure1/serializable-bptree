@@ -1,3 +1,4 @@
+import { CacheEntanglementAsync } from 'cache-entanglement'
 import {
   BPTree,
   BPTreeCondition,
@@ -6,7 +7,7 @@ import {
   BPTreeNodeKey,
   BPTreeUnknownNode,
   BPTreeInternalNode,
-  BPTreeNode,
+  BPTreeConstructorOption,
 } from './base/BPTree'
 import { SerializeStrategyAsync } from './SerializeStrategyAsync'
 import { ValueComparator } from './base/ValueComparator'
@@ -14,9 +15,23 @@ import { SerializableData } from './base/SerializeStrategy'
 
 export class BPTreeAsync<K, V> extends BPTree<K, V> {
   declare protected readonly strategy: SerializeStrategyAsync<K, V>
+  declare protected readonly nodes: ReturnType<BPTreeAsync<K, V>['_createCachedNode']>
 
-  constructor(strategy: SerializeStrategyAsync<K, V>, comparator: ValueComparator<V>) {
-    super(strategy, comparator)
+  constructor(
+    strategy: SerializeStrategyAsync<K, V>,
+    comparator: ValueComparator<V>,
+    option?: BPTreeConstructorOption
+  ) {
+    super(strategy, comparator, option)
+    this.nodes = this._createCachedNode()
+  }
+
+  private _createCachedNode() {
+    return new CacheEntanglementAsync(async (key) => {
+      return await this.strategy.read(key) as BPTreeUnknownNode<K, V>
+    }, {
+      lifespan: this.option.lifespan ?? '3m'
+    })
   }
 
   protected async getPairsRightToLeft(
@@ -127,7 +142,7 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
       next,
       prev,
     } as BPTreeUnknownNode<K, V>
-    this.nodes.set(id, node)
+    this._nodeCreateBuffer.set(id, node)
     return node
   }
 
@@ -369,7 +384,6 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
       this.strategy.head.root = root.id
       node.parent = root.id
       pointer.parent = root.id
-      this.bufferForNodeCreate(root)
       this.bufferForNodeUpdate(node)
       this.bufferForNodeUpdate(pointer)
       return
@@ -408,7 +422,6 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
           }
 
           await this._insertInParent(parentNode, midValue, parentPointer)
-          this.bufferForNodeCreate(parentPointer)
           this.bufferForNodeUpdate(parentNode)
         }
       }
@@ -422,7 +435,6 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
       this.order = this.strategy.order
       this.root = await this._createNode(true, [], [], true)
       this.strategy.head.root = this.root.id
-      this.bufferForNodeCreate(this.root)
       await this.commitHeadBuffer()
       await this.commitNodeCreateBuffer()
     }
@@ -439,10 +451,11 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
   }
 
   protected async getNode(id: string): Promise<BPTreeUnknownNode<K, V>> {
-    if (!this.nodes.has(id)) {
-      this.nodes.set(id, await this.strategy.read(id) as BPTreeUnknownNode<K, V>)
+    if (this._nodeCreateBuffer.has(id)) {
+      return this._nodeCreateBuffer.get(id)!
     }
-    return this.nodes.get(id)!
+    const cache = await this.nodes.cache(id)
+    return cache.raw
   }
 
   protected async insertableNode(value: V): Promise<BPTreeLeafNode<K, V>> {
@@ -614,7 +627,6 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
         this.bufferForNodeUpdate(node)
       }
       await this._insertInParent(before, after.values[0], after)
-      this.bufferForNodeCreate(after)
       this.bufferForNodeUpdate(before)
     }
 
