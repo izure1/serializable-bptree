@@ -1,6 +1,6 @@
 {
   "name": "@izure/serializable-bptree",
-  "version": "5.1.5",
+  "version": "5.1.6",
   "description": "Store the B+tree flexibly, not only in-memory.",
   "author": "izure1 <admin@izure.org>",
   "license": "MIT",
@@ -12,7 +12,7 @@
     ".": "./src/index.ts"
   },
   "imports": {
-    "cache-entanglement": "jsr:@izure/cache-entanglement@^1.5.5"
+    "cache-entanglement": "jsr:@izure/cache-entanglement@^1.6.0"
   },
   "publish": {
     "include": [
