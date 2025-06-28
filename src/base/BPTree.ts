@@ -282,9 +282,7 @@ export abstract class BPTree<K, V> {
         if (this.comparator.isSame(value, nValue)) {
           const keys = node.keys[i]
           if (keys.includes(key)) {
-            throw new Error('The key already exists.', {
-              cause: { key, value }
-            })
+            break
           }
           keys.push(key)
           this.bufferForNodeUpdate(node)
