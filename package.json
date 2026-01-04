@@ -1,6 +1,6 @@
 {
   "name": "serializable-bptree",
-  "version": "5.2.0",
+  "version": "5.2.1",
   "description": "Store the B+tree flexibly, not only in-memory.",
   "types": "./dist/types/index.d.ts",
   "main": "./dist/cjs/index.cjs",
@@ -43,6 +43,7 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
-    "cache-entanglement": "^1.7.0"
+    "cache-entanglement": "^1.7.1",
+    "ryoiki": "^1.2.0"
   }
 }

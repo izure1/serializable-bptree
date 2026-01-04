@@ -1,3 +1,4 @@
+import { Ryoiki } from 'ryoiki'
 import { CacheEntanglementAsync } from 'cache-entanglement'
 import {
   BPTree,
@@ -16,6 +17,7 @@ import { SerializableData } from './base/SerializeStrategy'
 export class BPTreeAsync<K, V> extends BPTree<K, V> {
   declare protected readonly strategy: SerializeStrategyAsync<K, V>
   declare protected readonly nodes: ReturnType<typeof this._createCachedNode>
+  private readonly lock: Ryoiki
 
   constructor(
     strategy: SerializeStrategyAsync<K, V>,
@@ -24,6 +26,7 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
   ) {
     super(strategy, comparator, option)
     this.nodes = this._createCachedNode()
+    this.lock = new Ryoiki()
   }
 
   private _createCachedNode() {
@@ -31,6 +34,26 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
       return await this.strategy.read(key) as BPTreeUnknownNode<K, V>
     }, {
       capacity: this.option.capacity ?? 1000
+    })
+  }
+
+  private async readLock(callback: () => Promise<any>) {
+    let lockId: string
+    return await this.lock.readLock(async (_lockId) => {
+      lockId = _lockId
+      return await callback()
+    }).finally(() => {
+      this.lock.readUnlock(lockId)
+    })
+  }
+
+  private async writeLock(callback: () => Promise<any>) {
+    let lockId: string
+    return await this.lock.writeLock(async (_lockId) => {
+      lockId = _lockId
+      return await callback()
+    }).finally(() => {
+      this.lock.writeUnlock(lockId)
     })
   }
 
@@ -549,150 +572,164 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
   }
 
   public async keys(condition: BPTreeCondition<V>, filterValues?: Set<K>): Promise<Set<K>> {
-    for (const k in condition) {
-      const key = k as keyof BPTreeCondition<V>
-      const value = condition[key] as V
-      const startNode = await this.verifierStartNode[key](value) as BPTreeLeafNode<K, V>
-      const endNode = await this.verifierEndNode[key](value) as BPTreeLeafNode<K, V> | null
-      const direction = this.verifierDirection[key]
-      const comparator = this.verifierMap[key]
-      const pairs = await this.getPairs(value, startNode, endNode, comparator, direction)
-      if (!filterValues) {
-        filterValues = new Set(pairs.keys())
-      }
-      else {
-        const intersections = new Set<K>()
-        for (const key of filterValues) {
-          const has = pairs.has(key)
-          if (has) {
-            intersections.add(key)
-          }
+    return this.readLock(async () => {
+      for (const k in condition) {
+        const key = k as keyof BPTreeCondition<V>
+        const value = condition[key] as V
+        const startNode = await this.verifierStartNode[key](value) as BPTreeLeafNode<K, V>
+        const endNode = await this.verifierEndNode[key](value) as BPTreeLeafNode<K, V> | null
+        const direction = this.verifierDirection[key]
+        const comparator = this.verifierMap[key]
+        const pairs = await this.getPairs(value, startNode, endNode, comparator, direction)
+        if (!filterValues) {
+          filterValues = new Set(pairs.keys())
         }
-        filterValues = intersections
+        else {
+          const intersections = new Set<K>()
+          for (const key of filterValues) {
+            const has = pairs.has(key)
+            if (has) {
+              intersections.add(key)
+            }
+          }
+          filterValues = intersections
+        }
       }
-    }
-    return filterValues ?? new Set([])
+      return filterValues ?? new Set([])
+    })
   }
 
   public async where(condition: BPTreeCondition<V>): Promise<BPTreePair<K, V>> {
-    let result: BPTreePair<K, V> | null = null
-    for (const k in condition) {
-      const key = k as keyof BPTreeCondition<V>
-      const value = condition[key] as V
-      const startNode = await this.verifierStartNode[key](value) as BPTreeLeafNode<K, V>
-      const endNode = await this.verifierEndNode[key](value) as BPTreeLeafNode<K, V> | null
-      const direction = this.verifierDirection[key]
-      const comparator = this.verifierMap[key]
-      const pairs = await this.getPairs(value, startNode, endNode, comparator, direction)
-      if (result === null) {
-        result = pairs
-      }
-      else {
-        const intersection = new Map<K, V>()
-        for (const [k, v] of pairs) {
-          if (result.has(k)) {
-            intersection.set(k, v)
-          }
+    return this.readLock(async () => {
+      let result: BPTreePair<K, V> | null = null
+      for (const k in condition) {
+        const key = k as keyof BPTreeCondition<V>
+        const value = condition[key] as V
+        const startNode = await this.verifierStartNode[key](value) as BPTreeLeafNode<K, V>
+        const endNode = await this.verifierEndNode[key](value) as BPTreeLeafNode<K, V> | null
+        const direction = this.verifierDirection[key]
+        const comparator = this.verifierMap[key]
+        const pairs = await this.getPairs(value, startNode, endNode, comparator, direction)
+        if (result === null) {
+          result = pairs
         }
-        result = intersection
+        else {
+          const intersection = new Map<K, V>()
+          for (const [k, v] of pairs) {
+            if (result.has(k)) {
+              intersection.set(k, v)
+            }
+          }
+          result = intersection
+        }
       }
-    }
-    return result ?? new Map()
+      return result ?? new Map()
+    })
   }
 
   public async insert(key: K, value: V): Promise<void> {
-    const before = await this.insertableNode(value)
-    this._insertAtLeaf(before, key, value)
+    return this.writeLock(async () => {
+      const before = await this.insertableNode(value)
+      this._insertAtLeaf(before, key, value)
 
-    if (before.values.length === this.order) {
-      const after = await this._createNode(
-        true,
-        [],
-        [],
-        true,
-        before.parent,
-        before.next,
-        before.id,
-      ) as BPTreeLeafNode<K, V>
-      const mid = Math.ceil(this.order / 2) - 1
-      const beforeNext = before.next
-      after.values = before.values.slice(mid + 1)
-      after.keys = before.keys.slice(mid + 1)
-      before.values = before.values.slice(0, mid + 1)
-      before.keys = before.keys.slice(0, mid + 1)
-      before.next = after.id
-      if (beforeNext) {
-        const node = await this.getNode(beforeNext)
-        node.prev = after.id
-        this.bufferForNodeUpdate(node)
+      if (before.values.length === this.order) {
+        const after = await this._createNode(
+          true,
+          [],
+          [],
+          true,
+          before.parent,
+          before.next,
+          before.id,
+        ) as BPTreeLeafNode<K, V>
+        const mid = Math.ceil(this.order / 2) - 1
+        const beforeNext = before.next
+        after.values = before.values.slice(mid + 1)
+        after.keys = before.keys.slice(mid + 1)
+        before.values = before.values.slice(0, mid + 1)
+        before.keys = before.keys.slice(0, mid + 1)
+        before.next = after.id
+        if (beforeNext) {
+          const node = await this.getNode(beforeNext)
+          node.prev = after.id
+          this.bufferForNodeUpdate(node)
+        }
+        await this._insertInParent(before, after.values[0], after)
+        this.bufferForNodeUpdate(before)
       }
-      await this._insertInParent(before, after.values[0], after)
-      this.bufferForNodeUpdate(before)
-    }
 
-    await this.commitHeadBuffer()
-    await this.commitNodeCreateBuffer()
-    await this.commitNodeUpdateBuffer()
+      await this.commitHeadBuffer()
+      await this.commitNodeCreateBuffer()
+      await this.commitNodeUpdateBuffer()
+    })
   }
 
   public async delete(key: K, value: V): Promise<void> {
-    const node = await this.insertableNode(value)
-    let i = node.values.length
-    while (i--) {
-      const nValue = node.values[i]
-      if (this.comparator.isSame(value, nValue)) {
-        const keys = node.keys[i]
-        if (keys.includes(key)) {
-          if (keys.length > 1) {
-            keys.splice(keys.indexOf(key), 1)
-            this.bufferForNodeUpdate(node)
-          }
-          else if (node.id === this.root.id) {
-            node.values.splice(i, 1)
-            node.keys.splice(i, 1)
-            this.bufferForNodeUpdate(node)
-          }
-          else {
-            keys.splice(keys.indexOf(key), 1)
-            node.keys.splice(i, 1)
-            node.values.splice(node.values.indexOf(value), 1)
-            await this._deleteEntry(node, key, value)
-            this.bufferForNodeUpdate(node)
+    return this.writeLock(async () => {
+      const node = await this.insertableNode(value)
+      let i = node.values.length
+      while (i--) {
+        const nValue = node.values[i]
+        if (this.comparator.isSame(value, nValue)) {
+          const keys = node.keys[i]
+          if (keys.includes(key)) {
+            if (keys.length > 1) {
+              keys.splice(keys.indexOf(key), 1)
+              this.bufferForNodeUpdate(node)
+            }
+            else if (node.id === this.root.id) {
+              node.values.splice(i, 1)
+              node.keys.splice(i, 1)
+              this.bufferForNodeUpdate(node)
+            }
+            else {
+              keys.splice(keys.indexOf(key), 1)
+              node.keys.splice(i, 1)
+              node.values.splice(node.values.indexOf(value), 1)
+              await this._deleteEntry(node, key, value)
+              this.bufferForNodeUpdate(node)
+            }
           }
         }
       }
-    }
-    await this.commitHeadBuffer()
-    await this.commitNodeCreateBuffer()
-    await this.commitNodeUpdateBuffer()
-    await this.commitNodeDeleteBuffer()
+      await this.commitHeadBuffer()
+      await this.commitNodeCreateBuffer()
+      await this.commitNodeUpdateBuffer()
+      await this.commitNodeDeleteBuffer()
+    })
   }
 
   public async exists(key: K, value: V): Promise<boolean> {
-    const node = await this.insertableNode(value)
-    for (let i = 0, len = node.values.length; i < len; i++) {
-      const nValue = node.values[i]
-      if (this.comparator.isSame(value, nValue)) {
-        const keys = node.keys[i]
-        return keys.includes(key)
+    return this.readLock(async () => {
+      const node = await this.insertableNode(value)
+      for (let i = 0, len = node.values.length; i < len; i++) {
+        const nValue = node.values[i]
+        if (this.comparator.isSame(value, nValue)) {
+          const keys = node.keys[i]
+          return keys.includes(key)
+        }
       }
-    }
-    return false
+      return false
+    })
   }
 
   public async setHeadData(data: SerializableData): Promise<void> {
-    this.strategy.head.data = data
-    this._strategyDirty = true
-    await this.commitHeadBuffer()
+    return this.writeLock(async () => {
+      this.strategy.head.data = data
+      this._strategyDirty = true
+      await this.commitHeadBuffer()
+    })
   }
 
   public async forceUpdate(): Promise<number> {
-    const keys = [...this.nodes.keys()]
-    this.nodes.clear()
-    await this.init()
-    for (const key of keys) {
-      await this.getNode(key)
-    }
-    return keys.length
+    return this.readLock(async () => {
+      const keys = [...this.nodes.keys()]
+      this.nodes.clear()
+      await this.init()
+      for (const key of keys) {
+        await this.getNode(key)
+      }
+      return keys.length
+    })
   }
 }

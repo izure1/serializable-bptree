@@ -479,7 +479,15 @@ To solve this problem, it's necessary to update the cached nodes. The forceUpdat
 
 ### Concurrency Issue in Asynchronous Trees
 
-This issue occurs only in asynchronous trees and can also occur in a 1:1 relationship between remote storage and client. During the process of inserting/removing data asynchronously, querying the data can result in inconsistent data. To prevent concurrency issues, do not query data while inserting/removing it.
+This issue occurs only in asynchronous trees and can also occur in a 1:1 relationship between remote storage and client.
+
+Since version 5.x.x, **serializable-bptree** provides a built-in read/write lock for the `BPTreeAsync` class to prevent data inconsistency during concurrent operations. Calling public methods like `insert`, `delete`, `where`, `exists`, `keys`, `setHeadData`, and `forceUpdate` will automatically acquire the appropriate lock.
+
+However, please be aware of the following technical limitations:
+- **Locking is only applied to public methods**: The internal `protected` methods (e.g., `_insertInParent`, `_deleteEntry`, etc.) do not automatically acquire locks.
+- **Inheritance Caution**: If you extend the `BPTreeAsync` class and call `protected` methods directly, you must manually manage the locks using `readLock` or `writeLock` to ensure data integrity.
+
+Despite these safeguards, it is still recommended to avoid unnecessary concurrent operations whenever possible to maintain optimal performance and predictability.
 
 ## LICENSE
 
