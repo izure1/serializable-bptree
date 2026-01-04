@@ -473,9 +473,11 @@ The implementation method for asynchronous operations is not significantly diffe
 
 ### Synchronization Issue
 
-The serializable-bptree minimizes file I/O by storing loaded nodes in-memory. This approach works well in situations where there is a 1:1 relationship between the remote storage and the client. However, in a 1:n scenario, where multiple clients read from and write to a single remote storage, data inconsistency between the remote storage and the clients can occur.
+The serializable-bptree minimizes file I/O by storing loaded nodes in-memory (caching). This approach works perfectly when a single tree instance is used for a given storage.
 
-To solve this problem, it's necessary to update the cached nodes. The forceUpdate method was created for this purpose. It fetches the node data cached in the tree instance again. To use this feature, when you save data to the remote storage, you must send a signal to all clients connected to that remote storage indicating that the node has been updated. Clients must receive this signal and configure logic to call the **forceUpdate** method; however, this goes beyond the scope of the library, so you must implement it yourself.
+However, if **multiple BPTree instances** (e.g., across different processes or servers) read from and write to a **single shared storage**, data inconsistency can occur. This is because each instance maintains its own independent in-memory cache, and changes made by one instance are not automatically reflected in the others.
+
+To solve this problem, you must synchronize the cached nodes across all instances. The `forceUpdate` method can be used to refresh the nodes cached in a tree instance. When one instance saves data to the shared storage, you should implement a signaling mechanism (e.g., via Pub/Sub or WebSockets) to notify other instances that a node has been updated. Upon receiving this signal, the other instances should call the `forceUpdate` method to ensure they are working with the latest data.
 
 ### Concurrency Issue in Asynchronous Trees
 
