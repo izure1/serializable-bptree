@@ -15,7 +15,7 @@ import { SerializableData } from './base/SerializeStrategy'
 
 export class BPTreeSync<K, V> extends BPTree<K, V> {
   declare protected readonly strategy: SerializeStrategySync<K, V>
-  declare protected readonly nodes: ReturnType<BPTreeSync<K, V>['_createCachedNode']>
+  declare protected readonly nodes: ReturnType<typeof this._createCachedNode>
 
   constructor(
     strategy: SerializeStrategySync<K, V>,
@@ -30,14 +30,14 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
     return new CacheEntanglementSync((key) => {
       return this.strategy.read(key) as BPTreeUnknownNode<K, V>
     }, {
-      lifespan: this.option.lifespan ?? '3m'
+      capacity: this.option.capacity ?? 1000
     })
   }
 
   protected getPairsRightToLeft(
     value: V,
     startNode: BPTreeLeafNode<K, V>,
-    endNode: BPTreeLeafNode<K, V>|null,
+    endNode: BPTreeLeafNode<K, V> | null,
     comparator: (nodeValue: V, value: V) => boolean
   ): BPTreePair<K, V> {
     const pairs: [K, V][] = []
@@ -71,7 +71,7 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
   protected getPairsLeftToRight(
     value: V,
     startNode: BPTreeLeafNode<K, V>,
-    endNode: BPTreeLeafNode<K, V>|null,
+    endNode: BPTreeLeafNode<K, V> | null,
     comparator: (nodeValue: V, value: V) => boolean
   ): BPTreePair<K, V> {
     const pairs: [K, V][] = []
@@ -104,14 +104,14 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
   protected getPairs(
     value: V,
     startNode: BPTreeLeafNode<K, V>,
-    endNode: BPTreeLeafNode<K, V>|null,
+    endNode: BPTreeLeafNode<K, V> | null,
     comparator: (nodeValue: V, value: V) => boolean,
-    direction: 1|-1
+    direction: 1 | -1
   ): BPTreePair<K, V> {
     switch (direction) {
-      case -1:  return this.getPairsRightToLeft(value, startNode, endNode, comparator)
-      case +1:  return this.getPairsLeftToRight(value, startNode, endNode, comparator)
-      default:  throw new Error(`Direction must be -1 or 1. but got a ${direction}`)
+      case -1: return this.getPairsRightToLeft(value, startNode, endNode, comparator)
+      case +1: return this.getPairsLeftToRight(value, startNode, endNode, comparator)
+      default: throw new Error(`Direction must be -1 or 1. but got a ${direction}`)
     }
   }
 
@@ -125,12 +125,12 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
 
   protected _createNode(
     isLeaf: boolean,
-    keys: string[]|K[][],
+    keys: string[] | K[][],
     values: V[],
     leaf = false,
-    parent: string|null = null,
-    next: string|null = null,
-    prev: string|null = null
+    parent: string | null = null,
+    next: string | null = null,
+    prev: string | null = null
   ): BPTreeUnknownNode<K, V> {
     const id = this._createNodeId(isLeaf)
     const node = {
@@ -184,35 +184,35 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
       return
     }
     else if (
-      (node.keys.length < Math.ceil(this.order/2) && !node.leaf) ||
-      (node.values.length < Math.ceil((this.order-1)/2) && node.leaf)
+      (node.keys.length < Math.ceil(this.order / 2) && !node.leaf) ||
+      (node.values.length < Math.ceil((this.order - 1) / 2) && node.leaf)
     ) {
       if (node.parent === null) {
         return
       }
       let isPredecessor = false
       let parentNode = this.getNode(node.parent) as BPTreeInternalNode<K, V>
-      let prevNode: BPTreeInternalNode<K, V>|null = null
-      let nextNode: BPTreeInternalNode<K, V>|null = null
-      let prevValue: V|null = null
-      let postValue: V|null = null
+      let prevNode: BPTreeInternalNode<K, V> | null = null
+      let nextNode: BPTreeInternalNode<K, V> | null = null
+      let prevValue: V | null = null
+      let postValue: V | null = null
 
       for (let i = 0, len = parentNode.keys.length; i < len; i++) {
         const nKey = parentNode.keys[i]
         if (nKey === node.id) {
           if (i > 0) {
-            prevNode = this.getNode(parentNode.keys[i-1]) as BPTreeInternalNode<K, V>
-            prevValue = parentNode.values[i-1]
+            prevNode = this.getNode(parentNode.keys[i - 1]) as BPTreeInternalNode<K, V>
+            prevValue = parentNode.values[i - 1]
           }
-          if (i < parentNode.keys.length-1) {
-            nextNode = this.getNode(parentNode.keys[i+1]) as BPTreeInternalNode<K, V>
+          if (i < parentNode.keys.length - 1) {
+            nextNode = this.getNode(parentNode.keys[i + 1]) as BPTreeInternalNode<K, V>
             postValue = parentNode.values[i]
           }
         }
       }
 
       let pointer: BPTreeUnknownNode<K, V>
-      let guess: V|null
+      let guess: V | null
       if (prevNode === null) {
         pointer = nextNode!
         guess = postValue
@@ -261,7 +261,7 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
           }
         }
         pointer.values.push(...node.values)
-        
+
         if (!pointer.leaf) {
           const keys = pointer.keys
           for (const key of keys) {
@@ -270,7 +270,7 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
             this.bufferForNodeUpdate(node)
           }
         }
-        
+
         this._deleteEntry(this.getNode(node.parent!), node.id, guess!)
         this.bufferForNodeUpdate(pointer)
         this.bufferForNodeDelete(node)
@@ -393,23 +393,23 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
       const nKeys = parentNode.keys[i]
       if (nKeys === node.id) {
         parentNode.values.splice(i, 0, value)
-        parentNode.keys.splice(i+1, 0, pointer.id)
+        parentNode.keys.splice(i + 1, 0, pointer.id)
         this.bufferForNodeUpdate(parentNode)
 
         if (parentNode.keys.length > this.order) {
           const parentPointer = this._createNode(false, [], []) as BPTreeInternalNode<K, V>
           parentPointer.parent = parentNode.parent
-          const mid = Math.ceil(this.order/2)-1
-          parentPointer.values = parentNode.values.slice(mid+1)
-          parentPointer.keys = parentNode.keys.slice(mid+1)
+          const mid = Math.ceil(this.order / 2) - 1
+          parentPointer.values = parentNode.values.slice(mid + 1)
+          parentPointer.keys = parentNode.keys.slice(mid + 1)
           const midValue = parentNode.values[mid]
           if (mid === 0) {
-            parentNode.values = parentNode.values.slice(0, mid+1)
+            parentNode.values = parentNode.values.slice(0, mid + 1)
           }
           else {
             parentNode.values = parentNode.values.slice(0, mid)
           }
-          parentNode.keys = parentNode.keys.slice(0, mid+1)
+          parentNode.keys = parentNode.keys.slice(0, mid + 1)
           for (const k of parentNode.keys) {
             const node = this.getNode(k)
             node.parent = parentNode.id
@@ -465,15 +465,15 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
         const nValue = node.values[i]
         const k = node.keys
         if (this.comparator.isSame(value, nValue)) {
-          node = this.getNode(k[i+1])
+          node = this.getNode(k[i + 1])
           break
         }
         else if (this.comparator.isLower(value, nValue)) {
           node = this.getNode(k[i])
           break
         }
-        else if (i+1 === node.values.length) {
-          node = this.getNode(k[i+1])
+        else if (i + 1 === node.values.length) {
+          node = this.getNode(k[i + 1])
           break
         }
       }
@@ -481,9 +481,9 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
     return node
   }
 
-  protected insertableEndNode(value: V, direction: 1|-1): BPTreeLeafNode<K, V>|null {
+  protected insertableEndNode(value: V, direction: 1 | -1): BPTreeLeafNode<K, V> | null {
     const insertableNode = this.insertableNode(value)
-    let key: 'next'|'prev'
+    let key: 'next' | 'prev'
     switch (direction) {
       case -1:
         key = 'prev'
@@ -552,11 +552,11 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
     for (const k in condition) {
       const key = k as keyof BPTreeCondition<V>
       const value = condition[key] as V
-      const startNode   = this.verifierStartNode[key](value) as BPTreeLeafNode<K, V>
-      const endNode     = this.verifierEndNode[key](value) as BPTreeLeafNode<K, V>|null
-      const direction   = this.verifierDirection[key]
-      const comparator  = this.verifierMap[key]
-      const pairs       = this.getPairs(value, startNode, endNode, comparator, direction)
+      const startNode = this.verifierStartNode[key](value) as BPTreeLeafNode<K, V>
+      const endNode = this.verifierEndNode[key](value) as BPTreeLeafNode<K, V> | null
+      const direction = this.verifierDirection[key]
+      const comparator = this.verifierMap[key]
+      const pairs = this.getPairs(value, startNode, endNode, comparator, direction)
       if (!filterValues) {
         filterValues = new Set(pairs.keys())
       }
@@ -575,15 +575,15 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
   }
 
   public where(condition: BPTreeCondition<V>): BPTreePair<K, V> {
-    let result: BPTreePair<K, V>|null = null
+    let result: BPTreePair<K, V> | null = null
     for (const k in condition) {
       const key = k as keyof BPTreeCondition<V>
       const value = condition[key] as V
-      const startNode   = this.verifierStartNode[key](value) as BPTreeLeafNode<K, V>
-      const endNode     = this.verifierEndNode[key](value) as BPTreeLeafNode<K, V>|null
-      const direction   = this.verifierDirection[key]
-      const comparator  = this.verifierMap[key]
-      const pairs       = this.getPairs(value, startNode, endNode, comparator, direction)
+      const startNode = this.verifierStartNode[key](value) as BPTreeLeafNode<K, V>
+      const endNode = this.verifierEndNode[key](value) as BPTreeLeafNode<K, V> | null
+      const direction = this.verifierDirection[key]
+      const comparator = this.verifierMap[key]
+      const pairs = this.getPairs(value, startNode, endNode, comparator, direction)
       if (result === null) {
         result = pairs
       }
@@ -614,12 +614,12 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
         before.next,
         before.id,
       ) as BPTreeLeafNode<K, V>
-      const mid = Math.ceil(this.order/2)-1
+      const mid = Math.ceil(this.order / 2) - 1
       const beforeNext = before.next
-      after.values = before.values.slice(mid+1)
-      after.keys = before.keys.slice(mid+1)
-      before.values = before.values.slice(0, mid+1)
-      before.keys = before.keys.slice(0, mid+1)
+      after.values = before.values.slice(mid + 1)
+      after.keys = before.keys.slice(mid + 1)
+      before.values = before.values.slice(0, mid + 1)
+      before.keys = before.keys.slice(0, mid + 1)
       before.next = after.id
       if (beforeNext) {
         const node = this.getNode(beforeNext)

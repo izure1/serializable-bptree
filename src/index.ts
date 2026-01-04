@@ -1,4 +1,4 @@
-export type { BPTreeNode, BPTreeCondition } from './base/BPTree'
+export type { BPTreeNode, BPTreeInternalNode, BPTreeLeafNode, BPTreeNodeKey, BPTreePair, BPTreeUnknownNode, BPTreeCondition } from './base/BPTree'
 export type { SerializeStrategyHead, SerializableData } from './base/SerializeStrategy'
 export { ValueComparator, NumericComparator, StringComparator } from './base/ValueComparator'
 export { BPTreeSync } from './BPTreeSync'

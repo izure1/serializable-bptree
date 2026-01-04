@@ -1,6 +1,6 @@
 {
   "name": "serializable-bptree",
-  "version": "5.1.6",
+  "version": "5.2.0",
   "description": "Store the B+tree flexibly, not only in-memory.",
   "types": "./dist/types/index.d.ts",
   "main": "./dist/cjs/index.cjs",
@@ -16,7 +16,7 @@
     "dist/**/*"
   ],
   "scripts": {
-    "test": "jest -t",
+    "test": "jest",
     "build": "node build/index.js && tsc"
   },
   "author": "izure <admin@izure.org>",
@@ -36,13 +36,13 @@
   },
   "license": "MIT",
   "devDependencies": {
-    "@types/jest": "^29.5.14",
-    "esbuild": "^0.25.5",
-    "jest": "^29.7.0",
-    "ts-jest": "^29.4.0",
-    "typescript": "^5.8.3"
+    "@types/jest": "^30.0.0",
+    "esbuild": "^0.27.2",
+    "jest": "^30.2.0",
+    "ts-jest": "^29.4.6",
+    "typescript": "^5.9.3"
   },
   "dependencies": {
-    "cache-entanglement": "^1.6.0"
+    "cache-entanglement": "^1.7.0"
   }
 }

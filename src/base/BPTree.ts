@@ -1,12 +1,12 @@
-import { CacheEntanglementSync, CacheEntanglementAsync, type StringValue } from 'cache-entanglement'
+import { CacheEntanglementSync, CacheEntanglementAsync } from 'cache-entanglement'
 import { ValueComparator } from './ValueComparator'
 import { SerializableData, SerializeStrategy } from './SerializeStrategy'
 
 type Sync<T> = T
 type Async<T> = Promise<T>
-type Deferred<T> = Sync<T>|Async<T>
+type Deferred<T> = Sync<T> | Async<T>
 
-export type BPTreeNodeKey<K> = string|K
+export type BPTreeNodeKey<K> = string | K
 export type BPTreeCondition<V> = Partial<{
   /** Searches for pairs greater than the given value. */
   gt: Partial<V>
@@ -27,28 +27,25 @@ export type BPTreeCondition<V> = Partial<{
 }>
 export type BPTreePair<K, V> = Map<K, V>
 
-export type BPTreeUnknownNode<K, V> = BPTreeInternalNode<K, V>|BPTreeLeafNode<K, V>
+export type BPTreeUnknownNode<K, V> = BPTreeInternalNode<K, V> | BPTreeLeafNode<K, V>
 
 export interface BPTreeConstructorOption {
   /**
-   * The lifespan of the cached node.
-   * This value is used to determine how long a cached node should be kept in memory.
-   * If the lifespan is set to a positive number, the cached node will expire after the specified number of milliseconds.
-   * If the lifespan is set to `0` or a negative number, the cache will not prevent garbage collection.
-   * If the lifespan is set to a string, the string will be parsed as a time duration.
-   * For example, '1m' means 1 minute, '1h' means 1 hour, '1d' means 1 day, '1w' means 1 week.
+   * The capacity of the cache.
+   * This value is used to determine how many nodes can be cached.
+   * If not specified, the default value is 1000.
    */
-  lifespan?: StringValue|number
+  capacity?: number
 }
 
 export interface BPTreeNode<K, V> {
   id: string
-  keys: string[]|K[][],
+  keys: string[] | K[][],
   values: V[],
   leaf: boolean
-  parent: string|null
-  next: string|null
-  prev: string|null
+  parent: string | null
+  next: string | null
+  prev: string | null
 }
 
 export interface BPTreeInternalNode<K, V> extends BPTreeNode<K, V> {
@@ -62,15 +59,15 @@ export interface BPTreeLeafNode<K, V> extends BPTreeNode<K, V> {
 }
 
 export abstract class BPTree<K, V> {
-  private readonly _cachedRegexp: ReturnType<BPTree<K, V>['_createCachedRegexp']>
-  protected abstract readonly nodes: CacheEntanglementSync<any, any>|CacheEntanglementAsync<any, any>
+  private readonly _cachedRegexp: ReturnType<typeof this._createCachedRegexp>
+  protected abstract readonly nodes: CacheEntanglementSync<any, any> | CacheEntanglementAsync<any, any>
 
   protected readonly strategy: SerializeStrategy<K, V>
   protected readonly comparator: ValueComparator<V>
   protected readonly option: BPTreeConstructorOption
   protected order!: number
   protected root!: BPTreeUnknownNode<K, V>
-  
+
   protected _strategyDirty: boolean
   protected readonly _nodeCreateBuffer: Map<string, BPTreeUnknownNode<K, V>>
   protected readonly _nodeUpdateBuffer: Map<string, BPTreeUnknownNode<K, V>>
@@ -78,56 +75,56 @@ export abstract class BPTree<K, V> {
 
   protected readonly verifierMap: Record<
     keyof BPTreeCondition<V>,
-    (nodeValue: V, value: V|V[]) => boolean
+    (nodeValue: V, value: V | V[]) => boolean
   > = {
-    gt: (nv, v) => this.comparator.isHigher(nv, v as V),
-    gte: (nv, v) => this.comparator.isHigher(nv, v as V) || this.comparator.isSame(nv, v as V),
-    lt: (nv, v) => this.comparator.isLower(nv, v as V),
-    lte: (nv, v) => this.comparator.isLower(nv, v as V) || this.comparator.isSame(nv, v as V),
-    equal: (nv, v) => this.comparator.isSame(nv, v as V),
-    notEqual: (nv, v) => this.comparator.isSame(nv, v as V) === false,
-    or: (nv, v) => this.ensureValues(v).some((v) => this.comparator.isSame(nv, v)),
-    like: (nv, v) => {
-      const nodeValue = this.comparator.match(nv)
-      const value = this.comparator.match(v as V)
-      const cache = this._cachedRegexp.cache(value)
-      const regexp = cache.raw
-      return regexp.test(nodeValue)
-    },
-  }
+      gt: (nv, v) => this.comparator.isHigher(nv, v as V),
+      gte: (nv, v) => this.comparator.isHigher(nv, v as V) || this.comparator.isSame(nv, v as V),
+      lt: (nv, v) => this.comparator.isLower(nv, v as V),
+      lte: (nv, v) => this.comparator.isLower(nv, v as V) || this.comparator.isSame(nv, v as V),
+      equal: (nv, v) => this.comparator.isSame(nv, v as V),
+      notEqual: (nv, v) => this.comparator.isSame(nv, v as V) === false,
+      or: (nv, v) => this.ensureValues(v).some((v) => this.comparator.isSame(nv, v)),
+      like: (nv, v) => {
+        const nodeValue = this.comparator.match(nv)
+        const value = this.comparator.match(v as V)
+        const cache = this._cachedRegexp.cache(value)
+        const regexp = cache.raw
+        return regexp.test(nodeValue)
+      },
+    }
 
   protected readonly verifierStartNode: Record<
     keyof BPTreeCondition<V>,
     (value: V) => Deferred<BPTreeLeafNode<K, V>>
   > = {
-    gt: (v) => this.insertableNode(v),
-    gte: (v) => this.insertableNode(v),
-    lt: (v) => this.insertableNode(v),
-    lte: (v) => this.insertableNode(v),
-    equal: (v) => this.insertableNode(v),
-    notEqual: (v) => this.leftestNode(),
-    or: (v) => this.insertableNode(this.lowestValue(this.ensureValues(v))),
-    like: (v) => this.leftestNode(),
-  }
+      gt: (v) => this.insertableNode(v),
+      gte: (v) => this.insertableNode(v),
+      lt: (v) => this.insertableNode(v),
+      lte: (v) => this.insertableNode(v),
+      equal: (v) => this.insertableNode(v),
+      notEqual: (v) => this.leftestNode(),
+      or: (v) => this.insertableNode(this.lowestValue(this.ensureValues(v))),
+      like: (v) => this.leftestNode(),
+    }
 
   protected readonly verifierEndNode: Record<
     keyof BPTreeCondition<V>,
-    (value: V) => Deferred<BPTreeLeafNode<K, V>|null>
+    (value: V) => Deferred<BPTreeLeafNode<K, V> | null>
   > = {
-    gt: (v) => null,
-    gte: (v) => null,
-    lt: (v) => null,
-    lte: (v) => null,
-    equal: (v) => this.insertableEndNode(v, this.verifierDirection.equal),
-    notEqual: (v) => null,
-    or: (v) => this.insertableEndNode(
-      this.highestValue(this.ensureValues(v)),
-      this.verifierDirection.or
-    ),
-    like: (v) => null,
-  }
-  
-  protected readonly verifierDirection: Record<keyof BPTreeCondition<V>, -1|1> = {
+      gt: (v) => null,
+      gte: (v) => null,
+      lt: (v) => null,
+      lte: (v) => null,
+      equal: (v) => this.insertableEndNode(v, this.verifierDirection.equal),
+      notEqual: (v) => null,
+      or: (v) => this.insertableEndNode(
+        this.highestValue(this.ensureValues(v)),
+        this.verifierDirection.or
+      ),
+      like: (v) => null,
+    }
+
+  protected readonly verifierDirection: Record<keyof BPTreeCondition<V>, -1 | 1> = {
     gt: 1,
     gte: 1,
     lt: -1,
@@ -159,50 +156,50 @@ export abstract class BPTree<K, V> {
       const regexp = new RegExp(`^${pattern}$`, 'i')
       return regexp
     }, {
-      lifespan: this.option.lifespan ?? '3m'
+      capacity: this.option.capacity ?? 1000
     })
   }
 
   protected abstract getPairsRightToLeft(
     value: V,
     startNode: BPTreeLeafNode<K, V>,
-    endNode: BPTreeLeafNode<K, V>|null,
+    endNode: BPTreeLeafNode<K, V> | null,
     comparator: (nodeValue: V, value: V) => boolean
   ): Deferred<BPTreePair<K, V>>
   protected abstract getPairsLeftToRight(
     value: V,
     startNode: BPTreeLeafNode<K, V>,
-    endNode: BPTreeLeafNode<K, V>|null,
+    endNode: BPTreeLeafNode<K, V> | null,
     comparator: (nodeValue: V, value: V) => boolean
   ): Deferred<BPTreePair<K, V>>
   protected abstract getPairs(
     value: V,
     startNode: BPTreeLeafNode<K, V>,
-    endNode: BPTreeLeafNode<K, V>|null,
+    endNode: BPTreeLeafNode<K, V> | null,
     comparator: (nodeValue: V, value: V) => boolean,
-    direction: -1|1
+    direction: -1 | 1
   ): Deferred<BPTreePair<K, V>>
   protected abstract _createNodeId(isLeaf: boolean): Deferred<string>
   protected abstract _createNode(
     isLeaf: boolean,
-    keys: string[]|K[][],
+    keys: string[] | K[][],
     values: V[],
     leaf?: boolean,
-    parent?: string|null,
-    next?: string|null,
-    prev?: string|null
+    parent?: string | null,
+    next?: string | null,
+    prev?: string | null
   ): Deferred<BPTreeUnknownNode<K, V>>
   protected abstract _deleteEntry(node: BPTreeUnknownNode<K, V>, key: BPTreeNodeKey<K>, value: V): Deferred<void>
   protected abstract _insertInParent(node: BPTreeUnknownNode<K, V>, value: V, pointer: BPTreeUnknownNode<K, V>): Deferred<void>
   protected abstract getNode(id: string): Deferred<BPTreeUnknownNode<K, V>>
   protected abstract insertableNode(value: V): Deferred<BPTreeLeafNode<K, V>>
-  protected abstract insertableEndNode(value: V, direction: 1|-1): Deferred<BPTreeLeafNode<K, V>|null>
+  protected abstract insertableEndNode(value: V, direction: 1 | -1): Deferred<BPTreeLeafNode<K, V> | null>
   protected abstract leftestNode(): Deferred<BPTreeLeafNode<K, V>>
   protected abstract rightestNode(): Deferred<BPTreeLeafNode<K, V>>
   protected abstract commitHeadBuffer(): Deferred<void>
   protected abstract commitNodeCreateBuffer(): Deferred<void>
   protected abstract commitNodeUpdateBuffer(): Deferred<void>
-  
+
   /**
    * After creating a tree instance, it must be called.  
    * This method is used to initialize the stored tree and recover data.
@@ -244,12 +241,12 @@ export abstract class BPTree<K, V> {
    * @param value The value to search for.
    */
   public abstract exists(key: K, value: V): Deferred<boolean>
-   /**
-   * Inserts user-defined data into the head of the tree.
-   * This feature is useful when you need to store separate, non-volatile information in the tree.
-   * For example, you can store information such as the last update time and the number of insertions.
-   * @param data User-defined data to be stored in the head of the tree.
-   */
+  /**
+  * Inserts user-defined data into the head of the tree.
+  * This feature is useful when you need to store separate, non-volatile information in the tree.
+  * For example, you can store information such as the last update time and the number of insertions.
+  * @param data User-defined data to be stored in the head of the tree.
+  */
   public abstract setHeadData(data: SerializableData): Deferred<void>
   /**
    * This method deletes nodes cached in-memory and caches new nodes from the stored nodes.  
@@ -258,7 +255,7 @@ export abstract class BPTree<K, V> {
    */
   public abstract forceUpdate(): Deferred<number>
 
-  protected ensureValues(v: V|V[]): V[] {
+  protected ensureValues(v: V | V[]): V[] {
     if (!Array.isArray(v)) {
       v = [v]
     }
@@ -294,7 +291,7 @@ export abstract class BPTree<K, V> {
           this.bufferForNodeUpdate(node)
           break
         }
-        else if (i+1 === node.values.length) {
+        else if (i + 1 === node.values.length) {
           node.values.push(value)
           node.keys.push([key])
           this.bufferForNodeUpdate(node)
