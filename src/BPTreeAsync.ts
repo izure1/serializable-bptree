@@ -37,7 +37,7 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
     })
   }
 
-  protected async readLock(callback: () => Promise<any>) {
+  protected async readLock<T>(callback: () => Promise<T>): Promise<T> {
     let lockId: string
     return await this.lock.readLock(async (_lockId) => {
       lockId = _lockId
@@ -47,7 +47,7 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
     })
   }
 
-  protected async writeLock(callback: () => Promise<any>) {
+  protected async writeLock<T>(callback: () => Promise<T>): Promise<T> {
     let lockId: string
     return await this.lock.writeLock(async (_lockId) => {
       lockId = _lockId
