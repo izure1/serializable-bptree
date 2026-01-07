@@ -7,7 +7,7 @@ export abstract class SerializeStrategySync<K, V> extends SerializeStrategy<K, V
   abstract read(id: string): BPTreeNode<K, V>
   abstract write(id: string, node: BPTreeNode<K, V>): void
   abstract delete(id: string): void
-  abstract readHead(): SerializeStrategyHead|null
+  abstract readHead(): SerializeStrategyHead | null
   abstract writeHead(head: SerializeStrategyHead): void
 
   getHeadData(key: string, defaultValue: Json): Json {
@@ -24,7 +24,7 @@ export abstract class SerializeStrategySync<K, V> extends SerializeStrategy<K, V
 
   autoIncrement(key: string, defaultValue: number): number {
     const current = this.getHeadData(key, defaultValue) as number
-    const next = current+1
+    const next = current + 1
     this.setHeadData(key, next)
     return current
   }
@@ -57,7 +57,7 @@ export class InMemoryStoreStrategySync<K, V> extends SerializeStrategySync<K, V>
     delete this.node[id]
   }
 
-  readHead(): SerializeStrategyHead|null {
+  readHead(): SerializeStrategyHead | null {
     if (this.head.root === null) {
       return null
     }

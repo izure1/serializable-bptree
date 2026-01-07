@@ -7,7 +7,7 @@ export abstract class SerializeStrategyAsync<K, V> extends SerializeStrategy<K, 
   abstract read(id: string): Promise<BPTreeNode<K, V>>
   abstract write(id: string, node: BPTreeNode<K, V>): Promise<void>
   abstract delete(id: string): Promise<void>
-  abstract readHead(): Promise<SerializeStrategyHead|null>
+  abstract readHead(): Promise<SerializeStrategyHead | null>
   abstract writeHead(head: SerializeStrategyHead): Promise<void>
 
   async getHeadData(key: string, defaultValue: Json): Promise<Json> {
@@ -24,7 +24,7 @@ export abstract class SerializeStrategyAsync<K, V> extends SerializeStrategy<K, 
 
   async autoIncrement(key: string, defaultValue: number): Promise<number> {
     const current = await this.getHeadData(key, defaultValue) as number
-    const next = current+1
+    const next = current + 1
     await this.setHeadData(key, next)
     return current
   }
@@ -57,7 +57,7 @@ export class InMemoryStoreStrategyAsync<K, V> extends SerializeStrategyAsync<K, 
     delete this.node[id]
   }
 
-  async readHead(): Promise<SerializeStrategyHead|null> {
+  async readHead(): Promise<SerializeStrategyHead | null> {
     if (this.head.root === null) {
       return null
     }

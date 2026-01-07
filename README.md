@@ -15,7 +15,7 @@ import {
 
 class FileStoreStrategySync extends SerializeStrategySync<K, V> {
   id(): string {
-    return this.autoIncrement('index', 1).toString()
+    return crypto.randomUUID()
   }
 
   read(id: string): BPTreeNode<K, V> {
@@ -105,9 +105,18 @@ import {
     ValueComparator,
     NumericComparator,
     StringComparator
-  } from 'https://cdn.jsdelivr.net/npm/serializable-bptree@5/+esm'
+  } from 'https://cdn.jsdelivr.com/npm/serializable-bptree@6/+esm'
 </script>
 ```
+
+## Migration from v5.x.x to v6.0.0
+
+Version 6.0.0 includes a critical fix for how internal nodes are sorted.
+
+> [!IMPORTANT]
+> **Breaking Changes & Incompatibility**
+> In previous versions, internal nodes were not strictly sorted by value magnitude, which could lead to incorrect traversals and failed queries (especially for the last nodes in a branch).
+> v6.0.0 enforces strict value sorting. **Data structures created with v5.x.x or earlier may be incompatible** with v6.0.0 if they contain unsorted internal nodes. It is highly recommended to rebuild your tree from scratch when upgrading.
 
 ## Conceptualization
 
@@ -199,21 +208,11 @@ What does this method mean? And why do we need to construct such a method?
 
 When a node is created in the B+tree, the node needs a unique value to represent itself. This is the **node.id** attribute, and you can specify this attribute yourself.
 
-Typically, such an **id** value increases sequentially, and it would be beneficial to store such a value separately within the tree. For that purpose, the **setHeadData** and **getHeadData** methods are available. These methods are responsible for storing arbitrary data in the tree's header or retrieving stored data. Below is an example of usage:
+Typically, such an **id** value can be a unique string like a UUID. Below is an example of usage:
 
 ```typescript
 id(isLeaf: boolean): string {
-  const current = this.getHeadData('index', 1) as number
-  this.setHeadData('index', current+1)
-  return current.toString()
-}
-```
-
-Additionally, there is a more dev-friendly usage of this code.
-
-```typescript
-id(isLeaf: boolean): string {
-  return this.autoIncrement('index', 1).toString()
+  return crypto.randomUUID()
 }
 ```
 
@@ -415,7 +414,7 @@ import {
 
 class FileStoreStrategyAsync extends SerializeStrategyAsync<K, V> {
   async id(isLeaf: boolean): Promise<string> {
-    return await this.autoIncrement('index', 1).toString()
+    return crypto.randomUUID()
   }
 
   async read(id: string): Promise<BPTreeNode<K, V>> {

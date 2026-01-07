@@ -59,7 +59,7 @@ export abstract class ValueComparator<V> {
 
 export class NumericComparator extends ValueComparator<number> {
   asc(a: number, b: number): number {
-    return a-b
+    return a - b
   }
 
   match(value: number): string {

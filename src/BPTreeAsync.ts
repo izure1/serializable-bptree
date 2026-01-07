@@ -37,7 +37,7 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
     })
   }
 
-  private async readLock(callback: () => Promise<any>) {
+  protected async readLock(callback: () => Promise<any>) {
     let lockId: string
     return await this.lock.readLock(async (_lockId) => {
       lockId = _lockId
@@ -47,7 +47,7 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
     })
   }
 
-  private async writeLock(callback: () => Promise<any>) {
+  protected async writeLock(callback: () => Promise<any>) {
     let lockId: string
     return await this.lock.writeLock(async (_lockId) => {
       lockId = _lockId
@@ -256,7 +256,10 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
           guess = prevValue
         }
       }
-      if (node.values.length + pointer!.values.length < this.order) {
+      if (!pointer) {
+        return
+      }
+      if (node.values.length + pointer.values.length < this.order) {
         if (!isPredecessor) {
           const pTemp = pointer
           pointer = node as BPTreeInternalNode<K, V>
@@ -412,42 +415,47 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
       return
     }
     const parentNode = await this.getNode(node.parent!) as BPTreeInternalNode<K, V>
-    for (let i = 0, len = parentNode.keys.length; i < len; i++) {
-      const nKeys = parentNode.keys[i]
-      if (nKeys === node.id) {
-        parentNode.values.splice(i, 0, value)
-        parentNode.keys.splice(i + 1, 0, pointer.id)
-        this.bufferForNodeUpdate(parentNode)
 
-        if (parentNode.keys.length > this.order) {
-          const parentPointer = await this._createNode(false, [], []) as BPTreeInternalNode<K, V>
-          parentPointer.parent = parentNode.parent
-          const mid = Math.ceil(this.order / 2) - 1
-          parentPointer.values = parentNode.values.slice(mid + 1)
-          parentPointer.keys = parentNode.keys.slice(mid + 1)
-          const midValue = parentNode.values[mid]
-          if (mid === 0) {
-            parentNode.values = parentNode.values.slice(0, mid + 1)
-          }
-          else {
-            parentNode.values = parentNode.values.slice(0, mid)
-          }
-          parentNode.keys = parentNode.keys.slice(0, mid + 1)
-          for (const k of parentNode.keys) {
-            const node = await this.getNode(k)
-            node.parent = parentNode.id
-            this.bufferForNodeUpdate(node)
-          }
-          for (const k of parentPointer.keys) {
-            const node = await this.getNode(k)
-            node.parent = parentPointer.id
-            this.bufferForNodeUpdate(node)
-          }
-
-          await this._insertInParent(parentNode, midValue, parentPointer)
-          this.bufferForNodeUpdate(parentNode)
-        }
+    // 값의 크기 기준으로 올바른 삽입 위치 찾기
+    let insertIndex = 0
+    for (let i = 0; i < parentNode.values.length; i++) {
+      if (this.comparator.asc(value, parentNode.values[i]) > 0) {
+        insertIndex = i + 1
+      } else {
+        break
       }
+    }
+
+    // 값과 포인터 삽입
+    parentNode.values.splice(insertIndex, 0, value)
+    parentNode.keys.splice(insertIndex + 1, 0, pointer.id)
+    pointer.parent = parentNode.id
+    this.bufferForNodeUpdate(parentNode)
+    this.bufferForNodeUpdate(pointer)
+
+    // 오버플로우 처리
+    if (parentNode.keys.length > this.order) {
+      const parentPointer = await this._createNode(false, [], []) as BPTreeInternalNode<K, V>
+      parentPointer.parent = parentNode.parent
+      const mid = Math.ceil(this.order / 2) - 1
+      parentPointer.values = parentNode.values.slice(mid + 1)
+      parentPointer.keys = parentNode.keys.slice(mid + 1)
+      const midValue = parentNode.values[mid]
+      parentNode.values = parentNode.values.slice(0, mid)
+      parentNode.keys = parentNode.keys.slice(0, mid + 1)
+      for (const k of parentNode.keys) {
+        const node = await this.getNode(k)
+        node.parent = parentNode.id
+        this.bufferForNodeUpdate(node)
+      }
+      for (const k of parentPointer.keys) {
+        const node = await this.getNode(k)
+        node.parent = parentPointer.id
+        this.bufferForNodeUpdate(node)
+      }
+
+      await this._insertInParent(parentNode, midValue, parentPointer)
+      this.bufferForNodeUpdate(parentNode)
     }
   }
 
