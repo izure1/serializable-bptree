@@ -410,6 +410,13 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
       this.strategy.head.root = root.id
       node.parent = root.id
       pointer.parent = root.id
+
+      // 리프 노드인 경우 next/prev 링크 설정
+      if (pointer.leaf) {
+        node.next = pointer.id
+        pointer.prev = node.id
+      }
+
       this.bufferForNodeUpdate(node)
       this.bufferForNodeUpdate(pointer)
       return
@@ -430,6 +437,29 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
     parentNode.values.splice(insertIndex, 0, value)
     parentNode.keys.splice(insertIndex + 1, 0, pointer.id)
     pointer.parent = parentNode.id
+
+    // 리프 노드인 경우 next/prev 링크 설정
+    if (pointer.leaf) {
+      const leftSiblingId = parentNode.keys[insertIndex] as string
+      const rightSiblingId = parentNode.keys[insertIndex + 2] as string | undefined
+
+      // 좌측 형제 노드 연결
+      if (leftSiblingId) {
+        const leftSibling = await this.getNode(leftSiblingId)
+        pointer.prev = leftSibling.id
+        pointer.next = leftSibling.next
+        leftSibling.next = pointer.id
+        this.bufferForNodeUpdate(leftSibling)
+      }
+
+      // 우측 형제 노드 연결
+      if (rightSiblingId) {
+        const rightSibling = await this.getNode(rightSiblingId)
+        rightSibling.prev = pointer.id
+        this.bufferForNodeUpdate(rightSibling)
+      }
+    }
+
     this.bufferForNodeUpdate(parentNode)
     this.bufferForNodeUpdate(pointer)
 
@@ -647,21 +677,14 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
           [],
           true,
           before.parent,
-          before.next,
-          before.id,
+          null,
+          null,
         ) as BPTreeLeafNode<K, V>
         const mid = Math.ceil(this.order / 2) - 1
-        const beforeNext = before.next
         after.values = before.values.slice(mid + 1)
         after.keys = before.keys.slice(mid + 1)
         before.values = before.values.slice(0, mid + 1)
         before.keys = before.keys.slice(0, mid + 1)
-        before.next = after.id
-        if (beforeNext) {
-          const node = await this.getNode(beforeNext)
-          node.prev = after.id
-          this.bufferForNodeUpdate(node)
-        }
         await this._insertInParent(before, after.values[0], after)
         this.bufferForNodeUpdate(before)
       }
