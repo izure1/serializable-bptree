@@ -489,6 +489,9 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
   }
 
   protected getNode(id: string): BPTreeUnknownNode<K, V> {
+    if (this._nodeUpdateBuffer.has(id)) {
+      return this._nodeUpdateBuffer.get(id)!
+    }
     if (this._nodeCreateBuffer.has(id)) {
       return this._nodeCreateBuffer.get(id)!
     }
@@ -497,7 +500,7 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
   }
 
   protected insertableNode(value: V): BPTreeLeafNode<K, V> {
-    let node = this.root
+    let node = this.getNode(this.root.id)
     while (!node.leaf) {
       for (let i = 0, len = node.values.length; i < len; i++) {
         const nValue = node.values[i]

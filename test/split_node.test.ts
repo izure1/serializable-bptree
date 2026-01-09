@@ -49,13 +49,13 @@ describe('split-node-test', () => {
 
   test('split-node-test', async () => {
     const tree = new BPTreeAsync(
-      new FileSerializeStrategyAsync(5),
+      new FileSerializeStrategyAsync(504),
       new NumericComparator()
     )
 
     await tree.init()
 
-    for (let i = 1; i <= 20; i++) {
+    for (let i = 1; i <= 1200; i++) {
       const v = i * 1000
       await tree.insert(v, i)
     }
