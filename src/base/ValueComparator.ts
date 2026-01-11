@@ -55,6 +55,37 @@ export abstract class ValueComparator<V> {
   isHigher(value: V, than: V): boolean {
     return this.asc(value, than) > 0
   }
+
+  /**
+   * This method is used for range queries with composite values.
+   * By default, it calls the `asc` method, so existing code works without changes.
+   * 
+   * When using composite values (e.g., `{ k: number, v: number }`), 
+   * override this method to compare only the primary sorting field (e.g., `v`),
+   * ignoring the unique identifier field (e.g., `k`).
+   * 
+   * This enables efficient range queries like `primaryEqual` that find all entries
+   * with the same primary value regardless of their unique identifiers.
+   * 
+   * @param a Value a.
+   * @param b Value b.
+   * @returns Negative if a < b, 0 if equal, positive if a > b (based on primary field only).
+   */
+  primaryAsc(a: V, b: V): number {
+    return this.asc(a, b)
+  }
+
+  isPrimarySame(value: V, than: V): boolean {
+    return this.primaryAsc(value, than) === 0
+  }
+
+  isPrimaryLower(value: V, than: V): boolean {
+    return this.primaryAsc(value, than) < 0
+  }
+
+  isPrimaryHigher(value: V, than: V): boolean {
+    return this.primaryAsc(value, than) > 0
+  }
 }
 
 export class NumericComparator extends ValueComparator<number> {

@@ -24,6 +24,12 @@ export type BPTreeCondition<V> = Partial<{
   or: Partial<V>[]
   /** Searches for values matching the given pattern. '%' matches zero or more characters, and '_' matches exactly one character. */
   like: Partial<V>
+  /** 
+   * Searches for pairs where the primary field equals the given value.
+   * Uses `primaryAsc` method for comparison, which compares only the primary sorting field.
+   * Useful for composite values where you want to find all entries with the same primary value.
+   */
+  primaryEqual: Partial<V>
 }>
 export type BPTreePair<K, V> = Map<K, V>
 
@@ -82,6 +88,7 @@ export abstract class BPTree<K, V> {
       lt: (nv, v) => this.comparator.isLower(nv, v as V),
       lte: (nv, v) => this.comparator.isLower(nv, v as V) || this.comparator.isSame(nv, v as V),
       equal: (nv, v) => this.comparator.isSame(nv, v as V),
+      primaryEqual: (nv, v) => this.comparator.isPrimarySame(nv, v as V),
       notEqual: (nv, v) => this.comparator.isSame(nv, v as V) === false,
       or: (nv, v) => this.ensureValues(v).some((v) => this.comparator.isSame(nv, v)),
       like: (nv, v) => {
@@ -102,6 +109,7 @@ export abstract class BPTree<K, V> {
       lt: (v) => this.insertableNode(v),
       lte: (v) => this.insertableNode(v),
       equal: (v) => this.insertableNode(v),
+      primaryEqual: (v) => this.insertableNodeByPrimary(v),
       notEqual: (v) => this.leftestNode(),
       or: (v) => this.insertableNode(this.lowestValue(this.ensureValues(v))),
       like: (v) => this.leftestNode(),
@@ -116,6 +124,7 @@ export abstract class BPTree<K, V> {
       lt: (v) => null,
       lte: (v) => null,
       equal: (v) => this.insertableEndNode(v, this.verifierDirection.equal),
+      primaryEqual: (v) => null,
       notEqual: (v) => null,
       or: (v) => this.insertableEndNode(
         this.highestValue(this.ensureValues(v)),
@@ -130,9 +139,27 @@ export abstract class BPTree<K, V> {
     lt: -1,
     lte: -1,
     equal: 1,
+    primaryEqual: 1,
     notEqual: 1,
     or: 1,
     like: 1,
+  }
+
+  /**
+   * Determines whether early termination is allowed for each condition.
+   * When true, the search will stop once a match is found and then a non-match is encountered.
+   * Only applicable for conditions that guarantee contiguous matches in a sorted B+Tree.
+   */
+  protected readonly verifierEarlyTerminate: Record<keyof BPTreeCondition<V>, boolean> = {
+    gt: false,
+    gte: false,
+    lt: false,
+    lte: false,
+    equal: true,
+    primaryEqual: true,
+    notEqual: false,
+    or: false,
+    like: false,
   }
 
   protected constructor(
@@ -164,20 +191,23 @@ export abstract class BPTree<K, V> {
     value: V,
     startNode: BPTreeLeafNode<K, V>,
     endNode: BPTreeLeafNode<K, V> | null,
-    comparator: (nodeValue: V, value: V) => boolean
+    comparator: (nodeValue: V, value: V) => boolean,
+    earlyTerminate: boolean
   ): Deferred<BPTreePair<K, V>>
   protected abstract getPairsLeftToRight(
     value: V,
     startNode: BPTreeLeafNode<K, V>,
     endNode: BPTreeLeafNode<K, V> | null,
-    comparator: (nodeValue: V, value: V) => boolean
+    comparator: (nodeValue: V, value: V) => boolean,
+    earlyTerminate: boolean
   ): Deferred<BPTreePair<K, V>>
   protected abstract getPairs(
     value: V,
     startNode: BPTreeLeafNode<K, V>,
     endNode: BPTreeLeafNode<K, V> | null,
     comparator: (nodeValue: V, value: V) => boolean,
-    direction: -1 | 1
+    direction: -1 | 1,
+    earlyTerminate: boolean
   ): Deferred<BPTreePair<K, V>>
   protected abstract _createNodeId(isLeaf: boolean): Deferred<string>
   protected abstract _createNode(
@@ -193,6 +223,7 @@ export abstract class BPTree<K, V> {
   protected abstract _insertInParent(node: BPTreeUnknownNode<K, V>, value: V, pointer: BPTreeUnknownNode<K, V>): Deferred<void>
   protected abstract getNode(id: string): Deferred<BPTreeUnknownNode<K, V>>
   protected abstract insertableNode(value: V): Deferred<BPTreeLeafNode<K, V>>
+  protected abstract insertableNodeByPrimary(value: V): Deferred<BPTreeLeafNode<K, V>>
   protected abstract insertableEndNode(value: V, direction: 1 | -1): Deferred<BPTreeLeafNode<K, V> | null>
   protected abstract leftestNode(): Deferred<BPTreeLeafNode<K, V>>
   protected abstract rightestNode(): Deferred<BPTreeLeafNode<K, V>>

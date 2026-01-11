@@ -61,11 +61,13 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
     value: V,
     startNode: BPTreeLeafNode<K, V>,
     endNode: BPTreeLeafNode<K, V> | null,
-    comparator: (nodeValue: V, value: V) => boolean
+    comparator: (nodeValue: V, value: V) => boolean,
+    earlyTerminate: boolean
   ): Promise<BPTreePair<K, V>> {
     const pairs: [K, V][] = []
     let node = startNode
     let done = false
+    let hasMatched = false
     while (!done) {
       if (endNode && node.id === endNode.id) {
         done = true
@@ -76,12 +78,17 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
         const nValue = node.values[i]
         const keys = node.keys[i]
         if (comparator(nValue, value)) {
+          hasMatched = true
           let j = keys.length
           while (j--) {
             pairs.push([keys[j], nValue])
           }
+        } else if (earlyTerminate && hasMatched) {
+          done = true
+          break
         }
       }
+      if (done) break
       if (!node.prev) {
         done = true
         break
@@ -95,11 +102,13 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
     value: V,
     startNode: BPTreeLeafNode<K, V>,
     endNode: BPTreeLeafNode<K, V> | null,
-    comparator: (nodeValue: V, value: V) => boolean
+    comparator: (nodeValue: V, value: V) => boolean,
+    earlyTerminate: boolean
   ): Promise<BPTreePair<K, V>> {
     const pairs: [K, V][] = []
     let node = startNode
     let done = false
+    let hasMatched = false
     while (!done) {
       if (endNode && node.id === endNode.id) {
         done = true
@@ -109,12 +118,17 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
         const nValue = node.values[i]
         const keys = node.keys[i]
         if (comparator(nValue, value)) {
+          hasMatched = true
           for (let j = 0, len = keys.length; j < len; j++) {
             const key = keys[j]
             pairs.push([key, nValue])
           }
+        } else if (earlyTerminate && hasMatched) {
+          done = true
+          break
         }
       }
+      if (done) break
       if (!node.next) {
         done = true
         break
@@ -129,11 +143,12 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
     startNode: BPTreeLeafNode<K, V>,
     endNode: BPTreeLeafNode<K, V> | null,
     comparator: (nodeValue: V, value: V) => boolean,
-    direction: 1 | -1
+    direction: 1 | -1,
+    earlyTerminate: boolean
   ): Promise<BPTreePair<K, V>> {
     switch (direction) {
-      case -1: return await this.getPairsRightToLeft(value, startNode, endNode, comparator)
-      case +1: return await this.getPairsLeftToRight(value, startNode, endNode, comparator)
+      case -1: return await this.getPairsRightToLeft(value, startNode, endNode, comparator, earlyTerminate)
+      case +1: return await this.getPairsLeftToRight(value, startNode, endNode, comparator, earlyTerminate)
       default: throw new Error(`Direction must be -1 or 1. but got a ${direction}`)
     }
   }
@@ -545,6 +560,33 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
     return node
   }
 
+  /**
+   * Find the insertable node using primaryAsc comparison.
+   * This allows finding nodes by primary value only, ignoring unique identifiers.
+   */
+  protected async insertableNodeByPrimary(value: V): Promise<BPTreeLeafNode<K, V>> {
+    let node = await this.getNode(this.root.id)
+    while (!node.leaf) {
+      for (let i = 0, len = node.values.length; i < len; i++) {
+        const nValue = node.values[i]
+        const k = node.keys
+        if (this.comparator.isPrimarySame(value, nValue)) {
+          node = await this.getNode(k[i])
+          break
+        }
+        else if (this.comparator.isPrimaryLower(value, nValue)) {
+          node = await this.getNode(k[i])
+          break
+        }
+        else if (i + 1 === node.values.length) {
+          node = await this.getNode(k[i + 1])
+          break
+        }
+      }
+    }
+    return node
+  }
+
   protected async insertableEndNode(value: V, direction: 1 | -1): Promise<BPTreeLeafNode<K, V> | null> {
     const insertableNode = await this.insertableNode(value)
     let key: 'next' | 'prev'
@@ -621,7 +663,8 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
         const endNode = await this.verifierEndNode[key](value) as BPTreeLeafNode<K, V> | null
         const direction = this.verifierDirection[key]
         const comparator = this.verifierMap[key]
-        const pairs = await this.getPairs(value, startNode, endNode, comparator, direction)
+        const earlyTerminate = this.verifierEarlyTerminate[key]
+        const pairs = await this.getPairs(value, startNode, endNode, comparator, direction, earlyTerminate)
         if (!filterValues) {
           filterValues = new Set(pairs.keys())
         }
@@ -650,7 +693,8 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
         const endNode = await this.verifierEndNode[key](value) as BPTreeLeafNode<K, V> | null
         const direction = this.verifierDirection[key]
         const comparator = this.verifierMap[key]
-        const pairs = await this.getPairs(value, startNode, endNode, comparator, direction)
+        const earlyTerminate = this.verifierEarlyTerminate[key]
+        const pairs = await this.getPairs(value, startNode, endNode, comparator, direction, earlyTerminate)
         if (result === null) {
           result = pairs
         }

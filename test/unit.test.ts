@@ -17,6 +17,7 @@ import {
   unlinkSync,
   existsSync,
   mkdirSync,
+  rmSync
 } from 'node:fs'
 import {
   readFile,
@@ -126,7 +127,7 @@ describe('unit-test', () => {
       ['f', 6],
       ['ㅌ', 6],
     ]))
-    
+
     tree.clear()
   })
 
@@ -573,7 +574,7 @@ class FileIOStrategySync extends SerializeStrategySync<string, number> {
     unlinkSync(this._filePath(id))
   }
 
-  readHead(): SerializeStrategyHead|null {
+  readHead(): SerializeStrategyHead | null {
     const filePath = this._filePath('head')
     if (!existsSync(filePath)) {
       return null
@@ -625,7 +626,7 @@ class FileIOStrategyAsync extends SerializeStrategyAsync<string, number> {
     await unlink(this._filePath(id))
   }
 
-  async readHead(): Promise<SerializeStrategyHead|null> {
+  async readHead(): Promise<SerializeStrategyHead | null> {
     const filePath = this._filePath('head')
     if (!existsSync(filePath)) {
       return null
@@ -641,6 +642,18 @@ class FileIOStrategyAsync extends SerializeStrategyAsync<string, number> {
 }
 
 describe('strategy-test', () => {
+  beforeAll(() => {
+    const storageDirectory = join(__dirname, 'storage')
+    if (existsSync(storageDirectory)) {
+      rmSync(storageDirectory, { recursive: true })
+    }
+
+    const storageDirectoryAsync = join(__dirname, 'storage-async')
+    if (existsSync(storageDirectoryAsync)) {
+      rmSync(storageDirectoryAsync, { recursive: true })
+    }
+  })
+
   test('strategy', () => {
     const storageDirectory = join(__dirname, 'storage')
     const tree = new BPTreeSync(
@@ -654,19 +667,19 @@ describe('strategy-test', () => {
       tree.insert(i.toString(), i)
     }
     for (let i = 1; i < max; i++) {
-      if (i%3 === 0) {
+      if (i % 3 === 0) {
         tree.delete(i.toString(), i)
       }
     }
 
     tree.setHeadData({
       ...tree.getHeadData(),
-      count: (tree.getHeadData().count as number ?? 0)+1,
+      count: (tree.getHeadData().count as number ?? 0) + 1,
       at: Date.now()
     })
     for (let i = 1; i < max; i++) {
       const r = tree.where({ equal: i })
-      if (i%3 === 0) {
+      if (i % 3 === 0) {
         expect(r).toEqual(new Map([]))
       }
     }
@@ -687,19 +700,19 @@ describe('strategy-test', () => {
       await tree.insert(i.toString(), i)
     }
     for (let i = 1; i < max; i++) {
-      if (i%3 === 0) {
+      if (i % 3 === 0) {
         await tree.delete(i.toString(), i)
       }
     }
 
     await tree.setHeadData({
       ...tree.getHeadData(),
-      count: (tree.getHeadData().count as number ?? 0)+1,
+      count: (tree.getHeadData().count as number ?? 0) + 1,
       at: Date.now()
     })
     for (let i = 1; i < max; i++) {
       const r = await tree.where({ equal: i })
-      if (i%3 === 0) {
+      if (i % 3 === 0) {
         expect(r).toEqual(new Map([]))
       }
     }
@@ -812,6 +825,93 @@ describe('composite-value-test', () => {
       [1, { name: 'Argentina', capital: 'Buenos Aires' }],
       [2, { name: 'Brazil', capital: 'Brasilia' }],
       [5, { name: 'France', capital: 'Paris' }],
+    ]))
+
+    tree.clear()
+  })
+})
+
+interface MyValue {
+  k: number
+  v: number
+}
+
+class MyValueComparator extends ValueComparator<MyValue> {
+  asc(a: MyValue, b: MyValue): number {
+    const diff = a.v - b.v
+    return diff === 0 ? a.k - b.k : diff
+  }
+
+  primaryAsc(a: MyValue, b: MyValue): number {
+    return a.v - b.v
+  }
+
+  match(v: MyValue): string {
+    return v.v.toString()
+  }
+}
+
+describe('primaryEqual-test', () => {
+  test('primaryEqual:sync', () => {
+    const tree = new BPTreeSync<number, MyValue>(
+      new InMemoryStoreStrategySync(4),
+      new MyValueComparator()
+    )
+    tree.init()
+
+    tree.insert(1, { v: 10, k: 1 })
+    tree.insert(2, { v: 10, k: 2 })
+    tree.insert(3, { v: 20, k: 3 })
+    tree.insert(4, { v: 10, k: 4 })
+    tree.insert(5, { v: 20, k: 5 })
+    tree.insert(6, { v: 20, k: 6 })
+    tree.insert(7, { v: 20, k: 7 })
+    tree.insert(8, { v: 30, k: 8 })
+    tree.insert(9, { v: 30, k: 9 })
+    tree.insert(10, { v: 30, k: 10 })
+    tree.insert(11, { v: 10, k: 11 })
+    tree.insert(12, { v: 30, k: 12 })
+    tree.insert(13, { v: 10, k: 13 })
+    tree.insert(14, { v: 30, k: 14 })
+    tree.insert(15, { v: 30, k: 15 })
+
+    // primaryEqual should find all entries with v: 10
+    expect(tree.where({ primaryEqual: { v: 10 } as MyValue })).toEqual(new Map([
+      [1, { v: 10, k: 1 }],
+      [2, { v: 10, k: 2 }],
+      [4, { v: 10, k: 4 }],
+      [11, { v: 10, k: 11 }],
+      [13, { v: 10, k: 13 }],
+    ]))
+
+    // equal should only find a specific entry if both v and k match
+    expect(tree.where({ equal: { v: 10, k: 1 } })).toEqual(new Map([
+      [1, { v: 10, k: 1 }],
+    ]))
+
+    // equal with a non-existent k for v: 10 should return empty
+    expect(tree.where({ equal: { v: 10, k: 99 } })).toEqual(new Map([]))
+
+    tree.clear()
+  })
+
+  test('primaryEqual:async', async () => {
+    const tree = new BPTreeAsync<number, MyValue>(
+      new InMemoryStoreStrategyAsync(4),
+      new MyValueComparator()
+    )
+    await tree.init()
+
+    await tree.insert(1, { v: 10, k: 1 })
+    await tree.insert(2, { v: 10, k: 2 })
+    await tree.insert(3, { v: 20, k: 3 })
+    await tree.insert(4, { v: 10, k: 4 })
+
+    // primaryEqual should find all entries with v: 10
+    expect(await tree.where({ primaryEqual: { v: 10 } as MyValue })).toEqual(new Map([
+      [1, { v: 10, k: 1 }],
+      [2, { v: 10, k: 2 }],
+      [4, { v: 10, k: 4 }],
     ]))
 
     tree.clear()
