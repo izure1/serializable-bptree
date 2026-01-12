@@ -1,4 +1,5 @@
 /node_modules
 /dist
-/test/storage
-/test/storage-async
+/test/*
+!/test/**/
+!/test/**/*.ts

@@ -587,6 +587,37 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
     return node
   }
 
+  protected async insertableRightestNodeByPrimary(value: V): Promise<BPTreeLeafNode<K, V>> {
+    let node = await this.getNode(this.root.id)
+    while (!node.leaf) {
+      for (let i = 0, len = node.values.length; i < len; i++) {
+        const nValue = node.values[i]
+        const k = node.keys
+
+        // If the search value is smaller than the node value, go to the left child
+        if (this.comparator.isPrimaryLower(value, nValue)) {
+          node = await this.getNode(k[i])
+          break
+        }
+        // If it is the same or larger, continue to the next value
+        // If it is the last value, go to the rightmost child
+        if (i + 1 === node.values.length) {
+          node = await this.getNode(k[i + 1])
+          break
+        }
+      }
+    }
+    return node
+  }
+
+  protected async insertableRightestEndNodeByPrimary(value: V): Promise<BPTreeLeafNode<K, V> | null> {
+    const node = await this.insertableRightestNodeByPrimary(value)
+    if (!node.next) {
+      return null
+    }
+    return await this.getNode(node.next) as BPTreeLeafNode<K, V>
+  }
+
   protected async insertableEndNode(value: V, direction: 1 | -1): Promise<BPTreeLeafNode<K, V> | null> {
     const insertableNode = await this.insertableNode(value)
     let key: 'next' | 'prev'

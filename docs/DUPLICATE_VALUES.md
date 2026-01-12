@@ -103,15 +103,23 @@ graph TD
 
 Since composite values distribute entries, queries must account for this structure.
 
-### Method 1: Use `primaryEqual` (Highly Recommended)
-If `primaryAsc` is defined, you can find all related data using only part of the composite value.
+### Method 1: Use Primary Operators (Highly Recommended)
+If `primaryAsc` is defined, you can find all related data using the primary sorting group. Unlike standard range queries, these operators are specifically optimized to search within composite value structures.
 
 ```typescript
-// Query all data where v is 3 as quickly as possible
-const results = await tree.keys({
+// Query all data where v is 3
+const results = await tree.where({
   primaryEqual: { v: 3 } as Partial<MyValue>
 })
+
+// Query all data where v is 5 or more
+const results = await tree.where({
+  primaryGte: { v: 5 } as Partial<MyValue>
+})
 ```
+
+All standard comparison and logical operators have primary-based equivalents:
+- `primaryGt`, `primaryGte`, `primaryLt`, `primaryLte`, `primaryEqual`, `primaryNotEqual`, `primaryOr`.
 
 ### Method 2: Use Range Queries
 Explicitly specify a range to collect data.

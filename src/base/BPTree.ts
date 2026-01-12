@@ -30,6 +30,18 @@ export type BPTreeCondition<V> = Partial<{
    * Useful for composite values where you want to find all entries with the same primary value.
    */
   primaryEqual: Partial<V>
+  /** Searches for pairs where the primary field is greater than the given value. */
+  primaryGt: Partial<V>
+  /** Searches for pairs where the primary field is greater than or equal to the given value. */
+  primaryGte: Partial<V>
+  /** Searches for pairs where the primary field is less than the given value. */
+  primaryLt: Partial<V>
+  /** Searches for pairs where the primary field is less than or equal to the given value. */
+  primaryLte: Partial<V>
+  /** Searches for pairs where the primary field is not equal to the given value. */
+  primaryNotEqual: Partial<V>
+  /** Searches for pairs where the primary field matches at least one of the given values. */
+  primaryOr: Partial<V>[]
 }>
 export type BPTreePair<K, V> = Map<K, V>
 
@@ -88,9 +100,15 @@ export abstract class BPTree<K, V> {
       lt: (nv, v) => this.comparator.isLower(nv, v as V),
       lte: (nv, v) => this.comparator.isLower(nv, v as V) || this.comparator.isSame(nv, v as V),
       equal: (nv, v) => this.comparator.isSame(nv, v as V),
-      primaryEqual: (nv, v) => this.comparator.isPrimarySame(nv, v as V),
       notEqual: (nv, v) => this.comparator.isSame(nv, v as V) === false,
       or: (nv, v) => this.ensureValues(v).some((v) => this.comparator.isSame(nv, v)),
+      primaryGt: (nv, v) => this.comparator.isPrimaryHigher(nv, v as V),
+      primaryGte: (nv, v) => this.comparator.isPrimaryHigher(nv, v as V) || this.comparator.isPrimarySame(nv, v as V),
+      primaryLt: (nv, v) => this.comparator.isPrimaryLower(nv, v as V),
+      primaryLte: (nv, v) => this.comparator.isPrimaryLower(nv, v as V) || this.comparator.isPrimarySame(nv, v as V),
+      primaryEqual: (nv, v) => this.comparator.isPrimarySame(nv, v as V),
+      primaryNotEqual: (nv, v) => this.comparator.isPrimarySame(nv, v as V) === false,
+      primaryOr: (nv, v) => this.ensureValues(v).some((v) => this.comparator.isPrimarySame(nv, v)),
       like: (nv, v) => {
         const nodeValue = this.comparator.match(nv)
         const value = this.comparator.match(v as V)
@@ -109,9 +127,15 @@ export abstract class BPTree<K, V> {
       lt: (v) => this.insertableNode(v),
       lte: (v) => this.insertableNode(v),
       equal: (v) => this.insertableNode(v),
-      primaryEqual: (v) => this.insertableNodeByPrimary(v),
       notEqual: (v) => this.leftestNode(),
       or: (v) => this.insertableNode(this.lowestValue(this.ensureValues(v))),
+      primaryGt: (v) => this.insertableNodeByPrimary(v),
+      primaryGte: (v) => this.insertableNodeByPrimary(v),
+      primaryLt: (v) => this.insertableNodeByPrimary(v),
+      primaryLte: (v) => this.insertableRightestNodeByPrimary(v),
+      primaryEqual: (v) => this.insertableNodeByPrimary(v),
+      primaryNotEqual: (v) => this.leftestNode(),
+      primaryOr: (v) => this.insertableNodeByPrimary(this.lowestPrimaryValue(this.ensureValues(v))),
       like: (v) => this.leftestNode(),
     }
 
@@ -124,11 +148,19 @@ export abstract class BPTree<K, V> {
       lt: (v) => null,
       lte: (v) => null,
       equal: (v) => this.insertableEndNode(v, this.verifierDirection.equal),
-      primaryEqual: (v) => null,
       notEqual: (v) => null,
       or: (v) => this.insertableEndNode(
         this.highestValue(this.ensureValues(v)),
         this.verifierDirection.or
+      ),
+      primaryGt: (v) => null,
+      primaryGte: (v) => null,
+      primaryLt: (v) => null,
+      primaryLte: (v) => null,
+      primaryEqual: (v) => null,
+      primaryNotEqual: (v) => null,
+      primaryOr: (v) => this.insertableRightestEndNodeByPrimary(
+        this.highestPrimaryValue(this.ensureValues(v))
       ),
       like: (v) => null,
     }
@@ -139,9 +171,15 @@ export abstract class BPTree<K, V> {
     lt: -1,
     lte: -1,
     equal: 1,
-    primaryEqual: 1,
     notEqual: 1,
     or: 1,
+    primaryGt: 1,
+    primaryGte: 1,
+    primaryLt: -1,
+    primaryLte: -1,
+    primaryEqual: 1,
+    primaryNotEqual: 1,
+    primaryOr: 1,
     like: 1,
   }
 
@@ -156,9 +194,15 @@ export abstract class BPTree<K, V> {
     lt: false,
     lte: false,
     equal: true,
-    primaryEqual: true,
     notEqual: false,
     or: false,
+    primaryGt: false,
+    primaryGte: false,
+    primaryLt: false,
+    primaryLte: false,
+    primaryEqual: true,
+    primaryNotEqual: false,
+    primaryOr: false,
     like: false,
   }
 
@@ -224,6 +268,8 @@ export abstract class BPTree<K, V> {
   protected abstract getNode(id: string): Deferred<BPTreeUnknownNode<K, V>>
   protected abstract insertableNode(value: V): Deferred<BPTreeLeafNode<K, V>>
   protected abstract insertableNodeByPrimary(value: V): Deferred<BPTreeLeafNode<K, V>>
+  protected abstract insertableRightestNodeByPrimary(value: V): Deferred<BPTreeLeafNode<K, V>>
+  protected abstract insertableRightestEndNodeByPrimary(value: V): Deferred<BPTreeLeafNode<K, V> | null>
   protected abstract insertableEndNode(value: V, direction: 1 | -1): Deferred<BPTreeLeafNode<K, V> | null>
   protected abstract leftestNode(): Deferred<BPTreeLeafNode<K, V>>
   protected abstract rightestNode(): Deferred<BPTreeLeafNode<K, V>>
@@ -301,6 +347,16 @@ export abstract class BPTree<K, V> {
   protected highestValue(v: V[]): V {
     const i = v.length - 1
     return [...v].sort((a, b) => this.comparator.asc(a, b))[i]
+  }
+
+  protected lowestPrimaryValue(v: V[]): V {
+    const i = 0
+    return [...v].sort((a, b) => this.comparator.primaryAsc(a, b))[i]
+  }
+
+  protected highestPrimaryValue(v: V[]): V {
+    const i = v.length - 1
+    return [...v].sort((a, b) => this.comparator.primaryAsc(a, b))[i]
   }
 
   protected _insertAtLeaf(node: BPTreeLeafNode<K, V>, key: K, value: V): void {

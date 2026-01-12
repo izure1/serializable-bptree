@@ -73,7 +73,7 @@ class CompositeComparator extends ValueComparator<MyObject> {
 
 `primaryAsc` is used to define a **primary sorting group**. This is particularly useful for **Composite Values** where you want to group entries by a specific field while maintaining uniqueness with another field.
 
-- **Purpose**: Enables the `primaryEqual` query operator.
+- **Purpose**: Enables **Primary Operators** (`primaryEqual`, `primaryGt`, `primaryGte`, `primaryLt`, `primaryLte`, `primaryNotEqual`, `primaryOr`).
 - **Behavior**: If `primaryAsc` is not implemented, it defaults to the `asc` method.
 - **Requirement**: The comparison logic in `primaryAsc` must be **consistent** with `asc`. If `primaryAsc(a, b)` returns a non-zero value, `asc(a, b)` must return the same sign.
 
@@ -97,8 +97,12 @@ class MyComparator extends ValueComparator<MyValue> {
 }
 ```
 
-By defining `primaryAsc`, you can query all items in a category using `primaryEqual`:
+By defining `primaryAsc`, you can perform advanced queries on groups:
 ```typescript
+// All electronics
 tree.where({ primaryEqual: { category: 'electronics' } })
+
+// Categories starting with 'f' or later
+tree.where({ primaryGte: { category: 'f' } })
 ```
 

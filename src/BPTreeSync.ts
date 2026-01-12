@@ -564,6 +564,37 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
     return node
   }
 
+  protected insertableRightestNodeByPrimary(value: V): BPTreeLeafNode<K, V> {
+    let node = this.getNode(this.root.id)
+    while (!node.leaf) {
+      for (let i = 0, len = node.values.length; i < len; i++) {
+        const nValue = node.values[i]
+        const k = node.keys
+
+        // If the search value is smaller than the node value, go to the left child
+        if (this.comparator.isPrimaryLower(value, nValue)) {
+          node = this.getNode(k[i])
+          break
+        }
+        // If it is the same or larger, continue to the next value
+        // If it is the last value, go to the rightmost child
+        if (i + 1 === node.values.length) {
+          node = this.getNode(k[i + 1])
+          break
+        }
+      }
+    }
+    return node
+  }
+
+  protected insertableRightestEndNodeByPrimary(value: V): BPTreeLeafNode<K, V> | null {
+    const node = this.insertableRightestNodeByPrimary(value)
+    if (!node.next) {
+      return null
+    }
+    return this.getNode(node.next) as BPTreeLeafNode<K, V>
+  }
+
   protected insertableEndNode(value: V, direction: 1 | -1): BPTreeLeafNode<K, V> | null {
     const insertableNode = this.insertableNode(value)
     let key: 'next' | 'prev'
