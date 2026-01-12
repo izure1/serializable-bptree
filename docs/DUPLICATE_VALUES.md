@@ -26,18 +26,18 @@ graph TD
 
 ---
 
-## 2. Node Bloat Issues
+## 2. Issues with Data Concentration (Node Bloat)
 
-When tens of thousands of data points cluster around a single value, it leads to severe performance costs.
+When a specific value has thousands of duplicates, they are all stored within a single entry in one node. This does **not** trigger the B+Tree's node splitting mechanism, causing data to concentrate in a single node.
 
 > [!WARNING]
-> **Node bloat causes bottlenecks across the entire system.**
+> **Data concentration creates a performance bottleneck for every insertion.**
 
 | Category | Description | Impact |
 | :--- | :--- | :--- |
-| **Serialization Performance** | The massive array must be processed when converting the entire node to JSON | Sharp increase in CPU usage and latency |
-| **I/O Overhead** | Adding a single key requires re-writing the entire multi-MB node | Depletion of disk write performance (IOPS) |
-| **Structural Limits** | B+Tree's automatic splitting only works at the node level, not inside arrays | Leads to imbalances where specific nodes become bloated |
+| **I/O Bottleneck** | Every time a single key is inserted into a bloated value, the **entire multi-MB node file must be re-written**. | Disk write performance (IOPS) drops significantly as the duplication increases. |
+| **Serialization Lag** | The massive array must be processed when converting the entire node to JSON for storage. | Sharp increase in CPU usage and latency for every update. |
+| **Structural Limits** | B+Tree's automatic splitting only works at the node level, not inside entries. | Leads to imbalances where specific nodes become massive while others remain small. |
 
 ---
 
@@ -120,6 +120,11 @@ Explicitly specify a range to collect data.
 | :--- | :--- | :--- | :--- |
 | **All for a specific value** | `{ v: 3, k: -Infinity }` | `{ v: 3, k: Infinity }` | Useful for total surveys of duplicate data |
 | **After a specific point**| `{ v: 3, k: 100 }` | `{ v: 3, k: Infinity }` | Advantageous for pagination |
+
+> [!CAUTION]
+> While range queries are simple and flexible, they may suffer from performance issues compared to `primaryEqual`:
+> - **Scan Range Issues**: Unnecessary node scans may occur while searching for the exact start and end boundaries.
+> - **Redundant Processing**: Performance may degrade due to additional verification and filtering processes within the range, which are less optimized than the internal logic of `primaryEqual`.
 
 ---
 

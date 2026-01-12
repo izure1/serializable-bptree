@@ -68,3 +68,37 @@ class CompositeComparator extends ValueComparator<MyObject> {
 
 > [!NOTE]
 > The value returned by `match` must always be a **string**.
+
+#### `primaryAsc(a: T, b: T): number` (Optional)
+
+`primaryAsc` is used to define a **primary sorting group**. This is particularly useful for **Composite Values** where you want to group entries by a specific field while maintaining uniqueness with another field.
+
+- **Purpose**: Enables the `primaryEqual` query operator.
+- **Behavior**: If `primaryAsc` is not implemented, it defaults to the `asc` method.
+- **Requirement**: The comparison logic in `primaryAsc` must be **consistent** with `asc`. If `primaryAsc(a, b)` returns a non-zero value, `asc(a, b)` must return the same sign.
+
+```typescript
+interface MyValue {
+  category: string
+  id: number
+}
+
+class MyComparator extends ValueComparator<MyValue> {
+  // Strict sorting for uniqueness
+  asc(a: MyValue, b: MyValue): number {
+    const diff = a.category.localeCompare(b.category)
+    return diff === 0 ? (a.id - b.id) : diff
+  }
+
+  // Grouping by category only
+  primaryAsc(a: MyValue, b: MyValue): number {
+    return a.category.localeCompare(b.category)
+  }
+}
+```
+
+By defining `primaryAsc`, you can query all items in a category using `primaryEqual`:
+```typescript
+tree.where({ primaryEqual: { category: 'electronics' } })
+```
+
