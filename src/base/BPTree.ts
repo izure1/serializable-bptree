@@ -272,6 +272,24 @@ export abstract class BPTree<K, V> {
     return best
   }
 
+  /**
+   * Verified if the value satisfies the condition.
+   * 
+   * @param nodeValue The value to verify.
+   * @param condition The condition to verify against.
+   * @returns Returns true if the value satisfies the condition.
+   */
+  public verify(nodeValue: V, condition: BPTreeCondition<V>): boolean {
+    for (const key in condition) {
+      const verify = this.verifierMap[key as keyof BPTreeCondition<V>]
+      const condValue = condition[key as keyof BPTreeCondition<V>] as V
+      if (!verify(nodeValue, condValue)) {
+        return false
+      }
+    }
+    return true
+  }
+
   protected constructor(
     strategy: SerializeStrategy<K, V>,
     comparator: ValueComparator<V>,

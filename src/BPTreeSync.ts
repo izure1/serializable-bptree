@@ -635,6 +635,36 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
     this._nodeDeleteBuffer.clear()
   }
 
+  /**
+   * Retrieves the value associated with the given key (PK).
+   * Note: This method performs a full scan of leaf nodes as the tree is ordered by Value, not Key.
+   * 
+   * @param key The key to search for.
+   * @returns The value associated with the key, or undefined if not found.
+   */
+  public get(key: K): V | undefined {
+    let node = this.leftestNode() as BPTreeLeafNode<K, V>
+
+    while (true) {
+      if (node.values) {
+        const len = node.values.length
+        for (let i = 0; i < len; i++) {
+          const keys = node.keys[i]
+          for (let j = 0; j < keys.length; j++) {
+            if (keys[j] === key) {
+              return node.values[i]
+            }
+          }
+        }
+      }
+
+      if (!node.next) break
+      node = this.getNode(node.next) as BPTreeLeafNode<K, V>
+    }
+
+    return undefined
+  }
+
   public *keysStream(
     condition: BPTreeCondition<V>,
     filterValues?: Set<K>,

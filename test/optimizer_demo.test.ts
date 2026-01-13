@@ -162,16 +162,57 @@ describe('Rule-based Optimizer Demo', () => {
   })
 
   test('ChooseDriver: Should return the candidate with highest priority condition', () => {
-    // BPTreeSync.chooseDriver uses conditionPriority to select the best driver
+    // BPTreeSync.ChooseDriver uses conditionPriority to select the best driver
     // Priority: equal(100) > or(80) > gt/lt(50) > like(30) > notEqual(10)
 
     const driver = BPTreeSync.ChooseDriver([
-      { tree: idxAge, condition: { gt: 10 } },      // priority 50
-      { tree: idxId, condition: { equal: 100 } },   // priority 100
+      { tree: idxAge, condition: { gt: 10 } as any },      // priority 50
+      { tree: idxId, condition: { equal: 100 } as any },   // priority 100
     ])
 
     expect(driver).not.toBeNull()
     expect(driver!.tree).toBe(idxId)
     expect(driver!.condition).toEqual({ equal: 100 })
+  })
+
+  test('Execution: Should verify records using get() and verify()', () => {
+    // Scenario: Pure B+Tree engine without external row storage
+    // Query: ID = 999 AND Age > 60
+
+    // Insert additional record: Elder (id=999, age=80)
+    // Note: insert(key=PK, value=Column)
+    const pk = 999
+    idxId.insert(pk, 999)
+    idxAge.insert(pk, 80)
+
+    const query: Query = {
+      id: { equal: 999 },
+      age: { gt: 60 }
+    }
+
+    // 1. Driver Selection
+    const driver = BPTreeSync.ChooseDriver([
+      { tree: idxId, condition: query.id! as any },
+      { tree: idxAge, condition: query.age! as any }
+    ])!
+
+    expect(driver.tree).toBe(idxId) // ID equality has higher priority
+
+    // 2. Execution
+    let resultPk: number | null = null
+
+    // Stream from driver
+    for (const [pk, val] of driver.tree.whereStream(driver.condition as any)) {
+      // In a real engine, we check all other conditions
+      // Check Age condition using idxAge.get(pk)
+      const age = idxAge.get(pk)
+
+      // verify() checks if the value satisfies the condition
+      if (age !== undefined && idxAge.verify(age, query.age!)) {
+        resultPk = pk
+      }
+    }
+
+    expect(resultPk).toBe(999)
   })
 })

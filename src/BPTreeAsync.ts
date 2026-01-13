@@ -658,6 +658,38 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
     this._nodeDeleteBuffer.clear()
   }
 
+  /**
+   * Retrieves the value associated with the given key (PK).
+   * Note: This method performs a full scan of leaf nodes as the tree is ordered by Value, not Key.
+   * 
+   * @param key The key to search for.
+   * @returns The value associated with the key, or undefined if not found.
+   */
+  public async get(key: K): Promise<V | undefined> {
+    return this.readLock(async () => {
+      let node = await this.leftestNode() as BPTreeLeafNode<K, V>
+
+      while (true) {
+        if (node.values) {
+          const len = node.values.length
+          for (let i = 0; i < len; i++) {
+            const keys = node.keys[i]
+            for (let j = 0; j < keys.length; j++) {
+              if (keys[j] === key) {
+                return node.values[i]
+              }
+            }
+          }
+        }
+
+        if (!node.next) break
+        node = await this.getNode(node.next) as BPTreeLeafNode<K, V>
+      }
+
+      return undefined
+    })
+  }
+
   public async *keysStream(
     condition: BPTreeCondition<V>,
     filterValues?: Set<K>,
