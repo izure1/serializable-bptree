@@ -206,6 +206,72 @@ export abstract class BPTree<K, V> {
     like: false,
   }
 
+  /**
+   * Priority map for condition types.
+   * Higher value = higher selectivity (fewer expected results).
+   * Used by `chooseDriver` to select the most selective index.
+   */
+  protected static readonly conditionPriority: Record<keyof BPTreeCondition<unknown>, number> = {
+    equal: 100,
+    primaryEqual: 100,
+    or: 80,
+    primaryOr: 80,
+    gt: 50,
+    gte: 50,
+    lt: 50,
+    lte: 50,
+    primaryGt: 50,
+    primaryGte: 50,
+    primaryLt: 50,
+    primaryLte: 50,
+    like: 30,
+    notEqual: 10,
+    primaryNotEqual: 10,
+  }
+
+  /**
+   * Selects the best driver tree from multiple tree/condition pairs.
+   * Uses rule-based optimization to choose the tree with highest estimated selectivity.
+   * 
+   * @param candidates Array of { tree, condition } pairs to evaluate
+   * @returns The candidate with highest priority condition, or null if empty
+   * 
+   * @example
+   * ```typescript
+   * const driver = BPTreeSync.chooseDriver([
+   *   { tree: idxId, condition: { equal: 100 } },
+   *   { tree: idxAge, condition: { gt: 20 } }
+   * ])
+   * // Returns { tree: idxId, condition: { equal: 100 } } because 'equal' has higher priority
+   * ```
+   */
+  static ChooseDriver<T>(
+    candidates: Array<{ tree: T, condition: BPTreeCondition<unknown> }>
+  ): { tree: T, condition: BPTreeCondition<unknown> } | null {
+    if (candidates.length === 0) return null
+    if (candidates.length === 1) return candidates[0]
+
+    let best = candidates[0]
+    let bestScore = 0
+
+    for (const candidate of candidates) {
+      let score = 0
+      for (const key in candidate.condition) {
+        const condKey = key as keyof BPTreeCondition<unknown>
+        const priority = BPTree.conditionPriority[condKey] ?? 0
+        if (priority > score) {
+          score = priority
+        }
+      }
+      if (score > bestScore) {
+        bestScore = score
+        best = candidate
+      }
+    }
+
+    return best
+  }
+
   protected constructor(
     strategy: SerializeStrategy<K, V>,
     comparator: ValueComparator<V>,
@@ -231,28 +297,6 @@ export abstract class BPTree<K, V> {
     })
   }
 
-  protected abstract getPairsRightToLeft(
-    value: V,
-    startNode: BPTreeLeafNode<K, V>,
-    endNode: BPTreeLeafNode<K, V> | null,
-    comparator: (nodeValue: V, value: V) => boolean,
-    earlyTerminate: boolean
-  ): Deferred<BPTreePair<K, V>>
-  protected abstract getPairsLeftToRight(
-    value: V,
-    startNode: BPTreeLeafNode<K, V>,
-    endNode: BPTreeLeafNode<K, V> | null,
-    comparator: (nodeValue: V, value: V) => boolean,
-    earlyTerminate: boolean
-  ): Deferred<BPTreePair<K, V>>
-  protected abstract getPairs(
-    value: V,
-    startNode: BPTreeLeafNode<K, V>,
-    endNode: BPTreeLeafNode<K, V> | null,
-    comparator: (nodeValue: V, value: V) => boolean,
-    direction: -1 | 1,
-    earlyTerminate: boolean
-  ): Deferred<BPTreePair<K, V>>
   protected abstract _createNodeId(isLeaf: boolean): Deferred<string>
   protected abstract _createNode(
     isLeaf: boolean,

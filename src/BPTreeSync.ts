@@ -34,99 +34,72 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
     })
   }
 
-  protected getPairsRightToLeft(
-    value: V,
-    startNode: BPTreeLeafNode<K, V>,
-    endNode: BPTreeLeafNode<K, V> | null,
-    comparator: (nodeValue: V, value: V) => boolean,
-    earlyTerminate: boolean
-  ): BPTreePair<K, V> {
-    const pairs: [K, V][] = []
-    let node = startNode
-    let done = false
-    let hasMatched = false
-    while (!done) {
-      if (endNode && node.id === endNode.id) {
-        done = true
-        break
-      }
-      let i = node.values.length
-      while (i--) {
-        const nValue = node.values[i]
-        const keys = node.keys[i]
-        if (comparator(nValue, value)) {
-          hasMatched = true
-          let j = keys.length
-          while (j--) {
-            pairs.push([keys[j], nValue])
-          }
-        } else if (earlyTerminate && hasMatched) {
-          done = true
-          break
-        }
-      }
-      if (done) break
-      if (!node.prev) {
-        done = true
-        break
-      }
-      node = this.getNode(node.prev) as BPTreeLeafNode<K, V>
-    }
-    return new Map(pairs.reverse())
-  }
-
-  protected getPairsLeftToRight(
-    value: V,
-    startNode: BPTreeLeafNode<K, V>,
-    endNode: BPTreeLeafNode<K, V> | null,
-    comparator: (nodeValue: V, value: V) => boolean,
-    earlyTerminate: boolean
-  ): BPTreePair<K, V> {
-    const pairs: [K, V][] = []
-    let node = startNode
-    let done = false
-    let hasMatched = false
-    while (!done) {
-      if (endNode && node.id === endNode.id) {
-        done = true
-        break
-      }
-      for (let i = 0, len = node.values.length; i < len; i++) {
-        const nValue = node.values[i]
-        const keys = node.keys[i]
-        if (comparator(nValue, value)) {
-          hasMatched = true
-          for (let j = 0, len = keys.length; j < len; j++) {
-            const key = keys[j]
-            pairs.push([key, nValue])
-          }
-        } else if (earlyTerminate && hasMatched) {
-          done = true
-          break
-        }
-      }
-      if (done) break
-      if (!node.next) {
-        done = true
-        break
-      }
-      node = this.getNode(node.next) as BPTreeLeafNode<K, V>
-    }
-    return new Map(pairs)
-  }
-
-  protected getPairs(
+  protected *getPairsGenerator(
     value: V,
     startNode: BPTreeLeafNode<K, V>,
     endNode: BPTreeLeafNode<K, V> | null,
     comparator: (nodeValue: V, value: V) => boolean,
     direction: 1 | -1,
     earlyTerminate: boolean
-  ): BPTreePair<K, V> {
-    switch (direction) {
-      case -1: return this.getPairsRightToLeft(value, startNode, endNode, comparator, earlyTerminate)
-      case +1: return this.getPairsLeftToRight(value, startNode, endNode, comparator, earlyTerminate)
-      default: throw new Error(`Direction must be -1 or 1. but got a ${direction}`)
+  ): Generator<[K, V]> {
+    let node = startNode
+    let done = false
+    let hasMatched = false
+
+    while (!done) {
+      if (endNode && node.id === endNode.id) {
+        done = true
+        break
+      }
+
+      const len = node.values.length
+      if (direction === 1) {
+        for (let i = 0; i < len; i++) {
+          const nValue = node.values[i]
+          const keys = node.keys[i]
+          if (comparator(nValue, value)) {
+            hasMatched = true
+            for (let j = 0; j < keys.length; j++) {
+              yield [keys[j], nValue]
+            }
+          } else if (earlyTerminate && hasMatched) {
+            done = true
+            break
+          }
+        }
+      } else {
+        let i = len
+        while (i--) {
+          const nValue = node.values[i]
+          const keys = node.keys[i]
+          if (comparator(nValue, value)) {
+            hasMatched = true
+            let j = keys.length
+            while (j--) {
+              yield [keys[j], nValue]
+            }
+          } else if (earlyTerminate && hasMatched) {
+            done = true
+            break
+          }
+        }
+      }
+
+      if (done) break
+
+      if (direction === 1) {
+        if (!node.next) {
+          done = true
+          break
+        }
+        node = this.getNode(node.next) as BPTreeLeafNode<K, V>
+      } else {
+        if (!node.prev) {
+          done = true
+          break
+        }
+        node = this.getNode(node.prev) as BPTreeLeafNode<K, V>
+      }
     }
   }
 
@@ -662,59 +635,105 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
     this._nodeDeleteBuffer.clear()
   }
 
-  public keys(condition: BPTreeCondition<V>, filterValues?: Set<K>): Set<K> {
-    for (const k in condition) {
-      const key = k as keyof BPTreeCondition<V>
-      const value = condition[key] as V
-      const startNode = this.verifierStartNode[key](value) as BPTreeLeafNode<K, V>
-      const endNode = this.verifierEndNode[key](value) as BPTreeLeafNode<K, V> | null
-      const direction = this.verifierDirection[key]
-      const comparator = this.verifierMap[key]
-      const earlyTerminate = this.verifierEarlyTerminate[key]
-      const pairs = this.getPairs(value, startNode, endNode, comparator, direction, earlyTerminate)
-      if (!filterValues) {
-        filterValues = new Set(pairs.keys())
+  public *keysStream(
+    condition: BPTreeCondition<V>,
+    filterValues?: Set<K>,
+    limit?: number
+  ): Generator<K> {
+    const stream = this.whereStream(condition, limit)
+    const intersection = filterValues && filterValues.size > 0 ? filterValues : null
+    for (const [key] of stream) {
+      if (intersection && !intersection.has(key)) {
+        continue
       }
-      else {
-        const intersections = new Set<K>()
-        for (const key of filterValues) {
-          const has = pairs.has(key)
-          if (has) {
-            intersections.add(key)
-          }
+      yield key
+    }
+  }
+
+  public *whereStream(
+    condition: BPTreeCondition<V>,
+    limit?: number
+  ): Generator<[K, V]> {
+    let driverKey: keyof BPTreeCondition<V> | null = null
+
+    // Optimizer: Select the driver condition (priority: equal > range > like)
+    if ('primaryEqual' in condition) driverKey = 'primaryEqual'
+    else if ('equal' in condition) driverKey = 'equal'
+    else if ('gt' in condition) driverKey = 'gt'
+    else if ('gte' in condition) driverKey = 'gte'
+    else if ('lt' in condition) driverKey = 'lt'
+    else if ('lte' in condition) driverKey = 'lte'
+    else if ('primaryGt' in condition) driverKey = 'primaryGt'
+    else if ('primaryGte' in condition) driverKey = 'primaryGte'
+    else if ('primaryLt' in condition) driverKey = 'primaryLt'
+    else if ('primaryLte' in condition) driverKey = 'primaryLte'
+    else if ('like' in condition) driverKey = 'like'
+    else if ('notEqual' in condition) driverKey = 'notEqual'
+    else if ('primaryNotEqual' in condition) driverKey = 'primaryNotEqual'
+    else if ('or' in condition) driverKey = 'or'
+    else if ('primaryOr' in condition) driverKey = 'primaryOr'
+
+    if (!driverKey) return
+
+    const value = condition[driverKey] as V
+    const startNode = this.verifierStartNode[driverKey](value) as BPTreeLeafNode<K, V>
+    const endNode = this.verifierEndNode[driverKey](value) as BPTreeLeafNode<K, V> | null
+    const direction = this.verifierDirection[driverKey]
+    const comparator = this.verifierMap[driverKey]
+    const earlyTerminate = this.verifierEarlyTerminate[driverKey]
+
+    const generator = this.getPairsGenerator(
+      value,
+      startNode,
+      endNode,
+      comparator,
+      direction,
+      earlyTerminate
+    )
+
+    let count = 0
+    for (const pair of generator) {
+      const [k, v] = pair
+      let isMatch = true
+
+      // Filter: Check other conditions
+      for (const key in condition) {
+        if (key === driverKey) continue
+        const verify = this.verifierMap[key as keyof BPTreeCondition<V>]
+        const condValue = condition[key as keyof BPTreeCondition<V>] as V
+        if (!verify(v, condValue)) {
+          isMatch = false
+          break
         }
-        filterValues = intersections
+      }
+
+      if (isMatch) {
+        yield pair
+        count++
+        if (limit !== undefined && count >= limit) {
+          break
+        }
       }
     }
-    return filterValues ?? new Set([])
+  }
+
+  public keys(condition: BPTreeCondition<V>, filterValues?: Set<K>): Set<K> {
+    const set = new Set<K>()
+    for (const key of this.keysStream(condition, filterValues)) {
+      set.add(key)
+    }
+    return set
   }
 
   public where(condition: BPTreeCondition<V>): BPTreePair<K, V> {
-    let result: BPTreePair<K, V> | null = null
-    for (const k in condition) {
-      const key = k as keyof BPTreeCondition<V>
-      const value = condition[key] as V
-      const startNode = this.verifierStartNode[key](value) as BPTreeLeafNode<K, V>
-      const endNode = this.verifierEndNode[key](value) as BPTreeLeafNode<K, V> | null
-      const direction = this.verifierDirection[key]
-      const comparator = this.verifierMap[key]
-      const earlyTerminate = this.verifierEarlyTerminate[key]
-      const pairs = this.getPairs(value, startNode, endNode, comparator, direction, earlyTerminate)
-      if (result === null) {
-        result = pairs
-      }
-      else {
-        const intersection = new Map<K, V>()
-        for (const [k, v] of pairs) {
-          if (result.has(k)) {
-            intersection.set(k, v)
-          }
-        }
-        result = intersection
-      }
+    const map = new Map<K, V>()
+    for (const [key, value] of this.whereStream(condition)) {
+      map.set(key, value)
     }
-    return result ?? new Map()
+    return map
   }
+
+
 
   public insert(key: K, value: V): void {
     const before = this.insertableNode(value)
