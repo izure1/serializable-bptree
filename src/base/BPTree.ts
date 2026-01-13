@@ -23,7 +23,6 @@ export type BPTreeCondition<V> = Partial<{
   /** Searches for pairs that satisfy at least one of the conditions. */
   or: Partial<V>[]
   /** Searches for values matching the given pattern. '%' matches zero or more characters, and '_' matches exactly one character. */
-  like: Partial<V>
   /** 
    * Searches for pairs where the primary field equals the given value.
    * Uses `primaryAsc` method for comparison, which compares only the primary sorting field.
@@ -42,6 +41,12 @@ export type BPTreeCondition<V> = Partial<{
   primaryNotEqual: Partial<V>
   /** Searches for pairs where the primary field matches at least one of the given values. */
   primaryOr: Partial<V>[]
+  /** 
+   * Searches for values matching the given pattern on the primary field. 
+   * Uses `match` method for getting string representation.
+   * '%' matches zero or more characters, and '_' matches exactly one character. 
+   */
+  like: string
 }>
 export type BPTreePair<K, V> = Map<K, V>
 
@@ -111,7 +116,7 @@ export abstract class BPTree<K, V> {
       primaryOr: (nv, v) => this.ensureValues(v).some((v) => this.comparator.isPrimarySame(nv, v)),
       like: (nv, v) => {
         const nodeValue = this.comparator.match(nv)
-        const value = this.comparator.match(v as V)
+        const value = v as unknown as string
         const cache = this._cachedRegexp.cache(value)
         const regexp = cache.raw
         return regexp.test(nodeValue)

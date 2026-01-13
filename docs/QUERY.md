@@ -29,7 +29,7 @@ tree.where({ or: [1, 3, 5] })
 
 ### String Matching
 
-- **`like`**: SQL-like string matching using regular expressions.
+- **`like`**: SQL-like string matching using regular expressions. Accepts a string pattern directly.
   - `%`: Matches zero or more characters.
   - `_`: Matches exactly one character.
 

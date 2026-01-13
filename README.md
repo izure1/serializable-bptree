@@ -64,6 +64,7 @@ tree.where({ gt: 1 }) // Map([{ key: 'c', value: 3 }])
 tree.where({ lt: 2 }) // Map([{ key: 'a', value: 1 }])
 tree.where({ gt: 0, lt: 4 }) // Map([{ key: 'a', value: 1 }, { key: 'c', value: 3 }])
 tree.where({ or: [3, 1] }) // Map([{ key: 'a', value: 1 }, { key: 'c', value: 3 }])
+tree.where({ like: 'user_%' }) // Matches values matching the pattern
 
 tree.clear()
 ```

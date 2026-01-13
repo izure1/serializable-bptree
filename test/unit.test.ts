@@ -10,7 +10,7 @@ import {
   SerializeStrategyHead,
   BPTreeNode,
   ValueComparator
-} from 'serializable-bptree'
+} from '../src'
 import {
   readFileSync,
   writeFileSync,
@@ -763,18 +763,18 @@ describe('composite-value-test', () => {
       tree.insert(++i, country)
     }
 
-    expect(tree.where({ like: { name: 'J%' } })).toEqual(new Map([
+    expect(tree.where({ like: 'J%' })).toEqual(new Map([
       [6, { name: 'Japan', capital: 'Tokyo' }],
     ]))
-    expect(tree.where({ like: { name: 'C%' } })).toEqual(new Map([
+    expect(tree.where({ like: 'C%' })).toEqual(new Map([
       [3, { name: 'China', capital: 'Beijing' }],
       [4, { name: 'Colombia', capital: 'Bogota' }],
     ]))
-    expect(tree.where({ like: { name: '%or%' } })).toEqual(new Map([
+    expect(tree.where({ like: '%or%' })).toEqual(new Map([
       [9, { name: 'Korea', capital: 'Seoul' }],
       [10, { name: 'Portugal', capital: 'Lisbon' }],
     ]))
-    expect(tree.where({ like: { name: '_r%' } })).toEqual(new Map([
+    expect(tree.where({ like: '_r%' })).toEqual(new Map([
       [1, { name: 'Argentina', capital: 'Buenos Aires' }],
       [2, { name: 'Brazil', capital: 'Brasilia' }],
       [5, { name: 'France', capital: 'Paris' }],
@@ -810,18 +810,18 @@ describe('composite-value-test', () => {
       await tree.insert(++i, country)
     }
 
-    expect(await tree.where({ like: { name: 'J%' } })).toEqual(new Map([
+    expect(await tree.where({ like: 'J%' })).toEqual(new Map([
       [6, { name: 'Japan', capital: 'Tokyo' }],
     ]))
-    expect(await tree.where({ like: { name: 'C%' } })).toEqual(new Map([
+    expect(await tree.where({ like: 'C%' })).toEqual(new Map([
       [3, { name: 'China', capital: 'Beijing' }],
       [4, { name: 'Colombia', capital: 'Bogota' }],
     ]))
-    expect(await tree.where({ like: { name: '%or%' } })).toEqual(new Map([
+    expect(await tree.where({ like: '%or%' })).toEqual(new Map([
       [9, { name: 'Korea', capital: 'Seoul' }],
       [10, { name: 'Portugal', capital: 'Lisbon' }],
     ]))
-    expect(await tree.where({ like: { name: '_r%' } })).toEqual(new Map([
+    expect(await tree.where({ like: '_r%' })).toEqual(new Map([
       [1, { name: 'Argentina', capital: 'Buenos Aires' }],
       [2, { name: 'Brazil', capital: 'Brasilia' }],
       [5, { name: 'France', capital: 'Paris' }],
