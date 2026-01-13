@@ -127,13 +127,13 @@ export abstract class BPTree<K, V> {
     keyof BPTreeCondition<V>,
     (value: V) => Deferred<BPTreeLeafNode<K, V>>
   > = {
-      gt: (v) => this.insertableNode(v),
-      gte: (v) => this.insertableNode(v),
-      lt: (v) => this.insertableNode(v),
-      lte: (v) => this.insertableNode(v),
-      equal: (v) => this.insertableNode(v),
+      gt: (v) => this.insertableNodeByPrimary(v),
+      gte: (v) => this.insertableNodeByPrimary(v),
+      lt: (v) => this.insertableNodeByPrimary(v),
+      lte: (v) => this.insertableRightestNodeByPrimary(v),
+      equal: (v) => this.insertableNodeByPrimary(v),
       notEqual: (v) => this.leftestNode(),
-      or: (v) => this.insertableNode(this.lowestValue(this.ensureValues(v))),
+      or: (v) => this.insertableNodeByPrimary(this.lowestPrimaryValue(this.ensureValues(v))),
       primaryGt: (v) => this.insertableNodeByPrimary(v),
       primaryGte: (v) => this.insertableNodeByPrimary(v),
       primaryLt: (v) => this.insertableNodeByPrimary(v),
@@ -162,7 +162,7 @@ export abstract class BPTree<K, V> {
       primaryGte: (v) => null,
       primaryLt: (v) => null,
       primaryLte: (v) => null,
-      primaryEqual: (v) => null,
+      primaryEqual: (v) => this.insertableRightestEndNodeByPrimary(v),
       primaryNotEqual: (v) => null,
       primaryOr: (v) => this.insertableRightestEndNodeByPrimary(
         this.highestPrimaryValue(this.ensureValues(v))

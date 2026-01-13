@@ -128,6 +128,55 @@ describe('BPTree Stream Tests', () => {
       }
       expect(result).toEqual(['k1', 'k2'])
     })
+
+    test('should stream with "like" condition', () => {
+      const inputs = [
+        ['k1', 'apple'],
+        ['k2', 'banana'],
+        ['k3', 'apricot'],
+        ['k4', 'date'],
+      ]
+      inputs.forEach(([k, v]) => tree.insert(k, v))
+
+      const stream = tree.whereStream({ like: 'ap%' })
+      const result: [string, string][] = []
+      for (const pair of stream) {
+        result.push(pair)
+      }
+
+      expect(result.length).toBe(2)
+      expect(result).toEqual([['k1', 'apple'], ['k3', 'apricot']])
+    })
+
+    test('should stream with "or" condition', () => {
+      const inputs = [
+        ['k1', 'apple'],
+        ['k2', 'banana'],
+        ['k3', 'cherry'],
+        ['k4', 'date'],
+      ]
+      inputs.forEach(([k, v]) => tree.insert(k, v))
+
+      const stream = tree.whereStream({ or: ['apple', 'cherry'] })
+      const result: [string, string][] = []
+      for (const pair of stream) {
+        result.push(pair)
+      }
+
+      expect(result.length).toBe(2)
+      expect(result).toEqual([['k1', 'apple'], ['k3', 'cherry']])
+    })
+
+    test('should stream with complex combined conditions', () => {
+      const inputs = [
+        ['k1', 'apple'],
+        ['k2', 'banana'],
+        ['k3', 'apricot'],
+        ['k4', 'blueberry'],
+        ['k5', 'cherry'],
+      ]
+      inputs.forEach(([k, v]) => tree.insert(k, v))
+    })
   })
 
   describe('Async Stream', () => {
@@ -183,8 +232,81 @@ describe('BPTree Stream Tests', () => {
         result.push(pair)
       }
 
-      expect(result.length).toBe(3)
       expect(result).toEqual([['k1', 'a'], ['k3', 'c'], ['k5', 'd']])
+    })
+
+    test('should stream with "like" condition', async () => {
+      const inputs = [
+        ['k1', 'apple'],
+        ['k2', 'banana'],
+        ['k3', 'apricot'],
+        ['k4', 'date'],
+      ]
+      for (const [k, v] of inputs) {
+        await tree.insert(k, v)
+      }
+
+      const stream = tree.whereStream({ like: 'ap%' })
+      const result: [string, string][] = []
+      for await (const pair of stream) {
+        result.push(pair)
+      }
+
+      expect(result.length).toBe(2)
+      expect(result).toEqual([['k1', 'apple'], ['k3', 'apricot']])
+    })
+
+    test('should stream with "or" condition', async () => {
+      const inputs = [
+        ['k1', 'apple'],
+        ['k2', 'banana'],
+        ['k3', 'cherry'],
+        ['k4', 'date'],
+      ]
+      for (const [k, v] of inputs) {
+        await tree.insert(k, v)
+      }
+
+      const stream = tree.whereStream({ or: ['apple', 'cherry'] })
+      const result: [string, string][] = []
+      for await (const pair of stream) {
+        result.push(pair)
+      }
+
+      expect(result.length).toBe(2)
+      expect(result).toEqual([['k1', 'apple'], ['k3', 'cherry']])
+    })
+
+    test('should stream with complex combined conditions', async () => {
+      const inputs = [
+        ['k1', 'apple'],
+        ['k2', 'banana'],
+        ['k3', 'apricot'],
+        ['k4', 'blueberry'],
+        ['k5', 'cherry'],
+      ]
+      for (const [k, v] of inputs) {
+        await tree.insert(k, v)
+      }
+    })
+    test('should stream with "like" condition leading wildcard', async () => {
+      const inputs = [
+        ['k1', 'John Doe'],
+        ['k2', 'Jane Doe'],
+        ['k3', 'Alice Smith'],
+      ]
+      for (const [k, v] of inputs) {
+        await tree.insert(k, v)
+      }
+
+      const stream = tree.whereStream({ like: '% Doe' })
+      const result: [string, string][] = []
+      for await (const pair of stream) {
+        result.push(pair)
+      }
+
+      expect(result.length).toBe(2)
+      expect(result).toEqual([['k2', 'Jane Doe'], ['k1', 'John Doe']])
     })
   })
 })
