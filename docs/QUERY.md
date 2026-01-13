@@ -69,6 +69,41 @@ tree.where({
 })
 ```
 
+## Performance & Optimization
+
+`serializable-bptree` provides tools for efficient querying, especially when dealing with multiple indexes.
+
+### Query Optimizer (`ChooseDriver`)
+
+The `ChooseDriver` static method helps select the best index (driver) based on the query conditions. It evaluates the complexity of conditions and assigns priorities:
+- Higher priority: `equal`, `primaryEqual` (High selectivity)
+- Medium priority: `or`, `primaryOr`, `gt`, `lt`, `gte`, `lte`
+- Lower priority: `like`, `notEqual`
+
+```typescript
+const driver = BPTreeSync.ChooseDriver([
+  { tree: indexA, condition: { equal: 10 } },
+  { tree: indexB, condition: { gt: 100 } }
+])
+// returns the candidate with indexA because 'equal' has higher priority.
+```
+
+### Manual Filtering (`get()` and `verify()`)
+
+For conditions that are not part of the primary index search (the driver), you can use `get()` to retrieve supplemental data and `verify()` to check conditions without manual value comparison.
+
+- **`get(key)`**: Performs a full scan to find a value by its key. Useful for secondary index lookups during a stream.
+- **`verify(value, condition)`**: Checks if a given value satisfies a B+Tree condition.
+
+```typescript
+for (const [pk, val] of driver.tree.whereStream(driver.condition)) {
+  const otherValue = otherIndex.get(pk)
+  if (otherValue !== undefined && otherIndex.verify(otherValue, otherCondition)) {
+    // Result matches both conditions
+  }
+}
+```
+
 ### Performance Note
 
-Primary operators are highly optimized. Operators like `primaryEqual`, `primaryGt`, `primaryGte`, `primaryLt`, `primaryLte`, and `primaryOr` utilize the B+Tree's structure to perform range scans, minimizing the number of nodes processed.
+Primary operators (`primaryEqual`, `primaryGt`, etc.) are highly optimized. They utilize the B+Tree's internal structure to perform range scans, significantly reducing the number of nodes visited compared to generic operators.

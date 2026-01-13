@@ -72,7 +72,15 @@ tree.clear()
 
 Firstly, in most cases, there is no need to use a B+tree in JavaScript. This is because there is a great alternative, the Map object. Nonetheless, if you need to retrieve values in a sorted order, a B+tree can be a good solution. These cases are often related to databases, and you may want to store this state not just in memory, but on a remote server or in a file. In this case, **serializable-bptree** can help you.
 
-Additionally, this library supports asynchronous operations. Please refer to the section below for instructions on using it asynchronously.
+Additionally, this library supports asynchronous operations and rule-based query optimization for multi-index scenarios. Please refer to the sections below for more details.
+
+## Key Features
+
+- **Serializable**: Save and load the B+Tree state to/from any storage (File, DB, Memory, etc.).
+- **Duplicate Values**: Naturally handles duplicate values.
+- **Async/Sync Support**: Provides both synchronous and asynchronous APIs.
+- **Query Optimization**: Rule-based optimizer to choose the best index for complex queries.
+- **TypeScript**: Fully typed for a better developer experience.
 
 ## How to use
 
@@ -122,6 +130,30 @@ Explore the detailed guides and concepts of `serializable-bptree`:
 - **Advanced Topics**
   - [Duplicate Value Handling](./docs/DUPLICATE_VALUES.md): Strategies for managing large amounts of duplicate data.
   - [Concurrency & Synchronization](./docs/CONCURRENCY.md): Multi-instance usage and locking mechanisms.
+  - [Query Optimization Guide](./docs/QUERY.md#performance--optimization): How to use `ChooseDriver`, `get()`, and `verify()` for complex queries.
+
+## Quick Example: Query Optimization
+
+When you have multiple indexes (e.g., an index for `id` and another for `age`), you can use `ChooseDriver` to select the most efficient index for your query.
+
+```typescript
+const query = { id: { equal: 100 }, age: { gt: 20 } }
+
+// 1. Select the best index based on condition priority
+const driver = BPTreeSync.ChooseDriver([
+  { tree: idxId, condition: query.id },
+  { tree: idxAge, condition: query.age }
+])
+
+// 2. Execute query using the selected driver
+for (const [pk, val] of driver.tree.whereStream(driver.condition)) {
+  // 3. Filter other conditions using get() and verify()
+  const age = idxAge.get(pk)
+  if (age !== undefined && idxAge.verify(age, query.age)) {
+    console.log(`Match found! PK: ${pk}`)
+  }
+}
+```
 
 ## Migration from v5.x.x to v6.0.0
 
