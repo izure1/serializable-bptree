@@ -181,17 +181,19 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
       }
     }
 
-    if (this.root.id === node.id && node.keys.length === 1) {
+    if (this.rootId === node.id && node.keys.length === 1) {
       const keys = node.keys as string[]
-      this.bufferForNodeDelete(this.root)
-      this.root = await this.getNode(keys[0])
-      this.root.parent = null
-      this.strategy.head.root = this.root.id
-      this.bufferForNodeUpdate(this.root)
+      this.bufferForNodeDelete(node)
+      const newRoot = await this.getNode(keys[0])
+      this.rootId = newRoot.id
+      newRoot.parent = null
+      this.strategy.head.root = this.rootId
+      this.bufferForNodeUpdate(newRoot)
       return
     }
-    else if (this.root.id === node.id) {
-      this.bufferForNodeUpdate(this.root)
+    else if (this.rootId === node.id) {
+      const root = await this.getNode(this.rootId)
+      this.bufferForNodeUpdate(root)
       return
     }
     else if (
@@ -392,9 +394,9 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
     value: V,
     pointer: BPTreeUnknownNode<K, V>
   ): Promise<void> {
-    if (this.root.id === node.id) {
+    if (this.rootId === node.id) {
       const root = await this._createNode(false, [node.id, pointer.id], [value])
-      this.root = root
+      this.rootId = root.id
       this.strategy.head.root = root.id
       node.parent = root.id
       pointer.parent = root.id
@@ -482,8 +484,9 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
     // first created
     if (head === null) {
       this.order = this.strategy.order
-      this.root = await this._createNode(true, [], [], true)
-      this.strategy.head.root = this.root.id
+      const root = await this._createNode(true, [], [], true)
+      this.rootId = root.id
+      this.strategy.head.root = this.rootId
       await this.commitHeadBuffer()
       await this.commitNodeCreateBuffer()
     }
@@ -492,7 +495,7 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
       const { root, order } = head
       this.strategy.head = head
       this.order = order
-      this.root = await this.getNode(root!)
+      this.rootId = root!
     }
     if (this.order < 3) {
       throw new Error(`The 'order' parameter must be greater than 2. but got a '${this.order}'.`)
@@ -511,7 +514,7 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
   }
 
   protected async insertableNode(value: V): Promise<BPTreeLeafNode<K, V>> {
-    let node = await this.getNode(this.root.id)
+    let node = await this.getNode(this.rootId)
     while (!node.leaf) {
       for (let i = 0, len = node.values.length; i < len; i++) {
         const nValue = node.values[i]
@@ -538,7 +541,7 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
    * This allows finding nodes by primary value only, ignoring unique identifiers.
    */
   protected async insertableNodeByPrimary(value: V): Promise<BPTreeLeafNode<K, V>> {
-    let node = await this.getNode(this.root.id)
+    let node = await this.getNode(this.rootId)
     while (!node.leaf) {
       for (let i = 0, len = node.values.length; i < len; i++) {
         const nValue = node.values[i]
@@ -561,7 +564,7 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
   }
 
   protected async insertableRightestNodeByPrimary(value: V): Promise<BPTreeLeafNode<K, V>> {
-    let node = await this.getNode(this.root.id)
+    let node = await this.getNode(this.rootId)
     while (!node.leaf) {
       for (let i = 0, len = node.values.length; i < len; i++) {
         const nValue = node.values[i]
@@ -612,7 +615,7 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
   }
 
   protected async leftestNode(): Promise<BPTreeLeafNode<K, V>> {
-    let node = this.root
+    let node = await this.getNode(this.rootId)
     while (!node.leaf) {
       const keys = node.keys
       node = await this.getNode(keys[0])
@@ -621,7 +624,7 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
   }
 
   protected async rightestNode(): Promise<BPTreeLeafNode<K, V>> {
-    let node = this.root
+    let node = await this.getNode(this.rootId)
     while (!node.leaf) {
       const keys = node.keys
       node = await this.getNode(keys[keys.length - 1])
@@ -635,6 +638,9 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
     }
     this._strategyDirty = false
     await this.strategy.writeHead(this.strategy.head)
+    if (this.strategy.head.root) {
+      this.nodes.delete(this.strategy.head.root)
+    }
   }
 
   protected async commitNodeCreateBuffer(): Promise<void> {
@@ -647,6 +653,7 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
   protected async commitNodeUpdateBuffer(): Promise<void> {
     for (const node of this._nodeUpdateBuffer.values()) {
       await this.strategy.write(node.id, node)
+      this.nodes.delete(node.id)
     }
     this._nodeUpdateBuffer.clear()
   }
@@ -654,6 +661,7 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
   protected async commitNodeDeleteBuffer(): Promise<void> {
     for (const node of this._nodeDeleteBuffer.values()) {
       await this.strategy.delete(node.id)
+      this.nodes.delete(node.id)
     }
     this._nodeDeleteBuffer.clear()
   }
@@ -835,7 +843,7 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
               keys.splice(keys.indexOf(key), 1)
               this.bufferForNodeUpdate(node)
             }
-            else if (node.id === this.root.id) {
+            else if (node.id === this.rootId) {
               node.values.splice(i, 1)
               node.keys.splice(i, 1)
               this.bufferForNodeUpdate(node)

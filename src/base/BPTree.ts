@@ -89,7 +89,7 @@ export abstract class BPTree<K, V> {
   protected readonly comparator: ValueComparator<V>
   protected readonly option: BPTreeConstructorOption
   protected order!: number
-  protected root!: BPTreeUnknownNode<K, V>
+  protected rootId!: string
 
   protected _strategyDirty: boolean
   protected readonly _nodeCreateBuffer: Map<string, BPTreeUnknownNode<K, V>>
@@ -461,21 +461,21 @@ export abstract class BPTree<K, V> {
   }
 
   protected bufferForNodeCreate(node: BPTreeUnknownNode<K, V>): void {
-    if (node.id === this.root.id) {
+    if (node.id === this.rootId) {
       this._strategyDirty = true
     }
     this._nodeCreateBuffer.set(node.id, node)
   }
 
   protected bufferForNodeUpdate(node: BPTreeUnknownNode<K, V>): void {
-    if (node.id === this.root.id) {
+    if (node.id === this.rootId) {
       this._strategyDirty = true
     }
     this._nodeUpdateBuffer.set(node.id, node)
   }
 
   protected bufferForNodeDelete(node: BPTreeUnknownNode<K, V>): void {
-    if (node.id === this.root.id) {
+    if (node.id === this.rootId) {
       this._strategyDirty = true
     }
     this._nodeDeleteBuffer.set(node.id, node)

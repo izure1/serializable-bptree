@@ -158,17 +158,19 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
       }
     }
 
-    if (this.root.id === node.id && node.keys.length === 1) {
+    if (this.rootId === node.id && node.keys.length === 1) {
       const keys = node.keys as string[]
-      this.bufferForNodeDelete(this.root)
-      this.root = this.getNode(keys[0])
-      this.root.parent = null
-      this.strategy.head.root = this.root.id
-      this.bufferForNodeUpdate(this.root)
+      this.bufferForNodeDelete(node)
+      const newRoot = this.getNode(keys[0])
+      this.rootId = newRoot.id
+      newRoot.parent = null
+      this.strategy.head.root = this.rootId
+      this.bufferForNodeUpdate(newRoot)
       return
     }
-    else if (this.root.id === node.id) {
-      this.bufferForNodeUpdate(this.root)
+    else if (this.rootId === node.id) {
+      const root = this.getNode(this.rootId)
+      this.bufferForNodeUpdate(root)
       return
     }
     else if (
@@ -369,9 +371,9 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
     value: V,
     pointer: BPTreeUnknownNode<K, V>
   ): void {
-    if (this.root.id === node.id) {
+    if (this.rootId === node.id) {
       const root = this._createNode(false, [node.id, pointer.id], [value])
-      this.root = root
+      this.rootId = root.id
       this.strategy.head.root = root.id
       node.parent = root.id
       pointer.parent = root.id
@@ -459,8 +461,9 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
     // first created
     if (head === null) {
       this.order = this.strategy.order
-      this.root = this._createNode(true, [], [], true)
-      this.strategy.head.root = this.root.id
+      const root = this._createNode(true, [], [], true)
+      this.rootId = root.id
+      this.strategy.head.root = this.rootId
       this.commitHeadBuffer()
       this.commitNodeCreateBuffer()
     }
@@ -469,7 +472,7 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
       const { root, order } = head
       this.strategy.head = head
       this.order = order
-      this.root = this.getNode(root!)
+      this.rootId = root!
     }
     if (this.order < 3) {
       throw new Error(`The 'order' parameter must be greater than 2. but got a '${this.order}'.`)
@@ -488,7 +491,7 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
   }
 
   protected insertableNode(value: V): BPTreeLeafNode<K, V> {
-    let node = this.getNode(this.root.id)
+    let node = this.getNode(this.rootId)
     while (!node.leaf) {
       for (let i = 0, len = node.values.length; i < len; i++) {
         const nValue = node.values[i]
@@ -515,7 +518,7 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
    * This allows finding nodes by primary value only, ignoring unique identifiers.
    */
   protected insertableNodeByPrimary(value: V): BPTreeLeafNode<K, V> {
-    let node = this.getNode(this.root.id)
+    let node = this.getNode(this.rootId)
     while (!node.leaf) {
       for (let i = 0, len = node.values.length; i < len; i++) {
         const nValue = node.values[i]
@@ -538,7 +541,7 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
   }
 
   protected insertableRightestNodeByPrimary(value: V): BPTreeLeafNode<K, V> {
-    let node = this.getNode(this.root.id)
+    let node = this.getNode(this.rootId)
     while (!node.leaf) {
       for (let i = 0, len = node.values.length; i < len; i++) {
         const nValue = node.values[i]
@@ -589,7 +592,7 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
   }
 
   protected leftestNode(): BPTreeLeafNode<K, V> {
-    let node = this.root
+    let node = this.getNode(this.rootId)
     while (!node.leaf) {
       const keys = node.keys
       node = this.getNode(keys[0])
@@ -598,7 +601,7 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
   }
 
   protected rightestNode(): BPTreeLeafNode<K, V> {
-    let node = this.root
+    let node = this.getNode(this.rootId)
     while (!node.leaf) {
       const keys = node.keys
       node = this.getNode(keys[keys.length - 1])
@@ -612,6 +615,9 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
     }
     this._strategyDirty = false
     this.strategy.writeHead(this.strategy.head)
+    if (this.strategy.head.root) {
+      this.nodes.delete(this.strategy.head.root)
+    }
   }
 
   protected commitNodeCreateBuffer(): void {
@@ -624,6 +630,7 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
   protected commitNodeUpdateBuffer(): void {
     for (const node of this._nodeUpdateBuffer.values()) {
       this.strategy.write(node.id, node)
+      this.nodes.delete(node.id)
     }
     this._nodeUpdateBuffer.clear()
   }
@@ -631,6 +638,7 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
   protected commitNodeDeleteBuffer(): void {
     for (const node of this._nodeDeleteBuffer.values()) {
       this.strategy.delete(node.id)
+      this.nodes.delete(node.id)
     }
     this._nodeDeleteBuffer.clear()
   }
@@ -805,7 +813,7 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
             keys.splice(keys.indexOf(key), 1)
             this.bufferForNodeUpdate(node)
           }
-          else if (node.id === this.root.id) {
+          else if (node.id === this.rootId) {
             node.values.splice(i, 1)
             node.keys.splice(i, 1)
             this.bufferForNodeUpdate(node)

@@ -309,4 +309,49 @@ describe('BPTree Stream Tests', () => {
       expect(result).toEqual([['k2', 'Jane Doe'], ['k1', 'John Doe']])
     })
   })
+
+  describe('Generic Type Stream', () => {
+    type ComplexType = { k: number, v: string }
+    class ComplexComparator extends ValueComparator<ComplexType> {
+      asc(a: ComplexType, b: ComplexType): number {
+        const diff = a.v.localeCompare(b.v)
+        return diff === 0 ? a.k - b.k : diff
+      }
+      match(value: ComplexType): string {
+        return value.v
+      }
+    }
+
+    let tree: BPTreeAsync<string, ComplexType>
+    let strategy: SerializeStrategyAsync<string, ComplexType>
+    let comparator: ValueComparator<ComplexType>
+
+    beforeEach(async () => {
+      strategy = new InMemoryStoreStrategyAsync(order)
+      comparator = new ComplexComparator()
+      tree = new BPTreeAsync(strategy, comparator)
+      await tree.init()
+    })
+
+    test('should stream with "like" condition on complex type', async () => {
+      const inputs: [string, ComplexType][] = [
+        ['k1', { k: 1, v: 'John Doe' }],
+        ['k2', { k: 2, v: 'Jane Doe' }],
+        ['k3', { k: 3, v: 'Alice Smith' }],
+      ]
+      for (const [k, v] of inputs) {
+        await tree.insert(k, v)
+      }
+
+      const stream = tree.whereStream({ like: '% Doe' })
+      const result: [string, ComplexType][] = []
+      for await (const pair of stream) {
+        result.push(pair)
+      }
+
+      expect(result.length).toBe(2)
+      expect(result[0]).toEqual(['k2', { k: 2, v: 'Jane Doe' }])
+      expect(result[1]).toEqual(['k1', { k: 1, v: 'John Doe' }])
+    })
+  })
 })

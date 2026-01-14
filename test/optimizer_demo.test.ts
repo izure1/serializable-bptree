@@ -1,6 +1,6 @@
 import { BPTreeSync } from '../src/index'
 import { InMemoryStoreStrategySync } from '../src/index'
-import { StringComparator, NumericComparator } from '../src/index'
+import { NumericComparator } from '../src/index'
 import { BPTreeCondition } from '../src/index'
 
 /**
