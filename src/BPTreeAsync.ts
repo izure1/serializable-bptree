@@ -887,8 +887,12 @@ export class BPTreeAsync<K, V> extends BPTree<K, V> {
     })
   }
 
-  public async forceUpdate(): Promise<number> {
+  public async forceUpdate(id?: string): Promise<number> {
     return this.readLock(async () => {
+      if (id) {
+        this.nodes.delete(id)
+        return 1
+      }
       const keys = [...this.nodes.keys()]
       this.nodes.clear()
       await this.init()

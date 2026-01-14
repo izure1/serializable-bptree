@@ -852,7 +852,11 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
     this.commitHeadBuffer()
   }
 
-  public forceUpdate(): number {
+  public forceUpdate(id?: string): number {
+    if (id) {
+      this.nodes.delete(id)
+      return 1
+    }
     const keys = [...this.nodes.keys()]
     this.nodes.clear()
     this.init()

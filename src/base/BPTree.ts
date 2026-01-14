@@ -395,9 +395,11 @@ export abstract class BPTree<K, V> {
   /**
    * This method deletes nodes cached in-memory and caches new nodes from the stored nodes.  
    * Typically, there's no need to use this method, but it can be used to synchronize data in scenarios where the remote storage and the client are in a 1:n relationship.
+   * If you do not specify an ID, all nodes will be updated.
+   * @param id The ID of the node to update.
    * @returns The return value is the total number of nodes updated.
    */
-  public abstract forceUpdate(): Deferred<number>
+  public abstract forceUpdate(id?: string): Deferred<number>
 
   protected ensureValues(v: V | V[]): V[] {
     if (!Array.isArray(v)) {
