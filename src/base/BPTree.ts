@@ -13,6 +13,22 @@ export abstract class BPTree<K, V> {
   protected order!: number
   protected rootId!: string
 
+  /**
+   * Returns the ID of the root node.
+   * @returns The root node ID.
+   */
+  public getRootId(): string {
+    return this.rootId
+  }
+
+  /**
+   * Returns the order of the B+Tree.
+   * @returns The order of the tree.
+   */
+  public getOrder(): number {
+    return this.order
+  }
+
   protected _strategyDirty: boolean
   protected readonly _nodeCreateBuffer: Map<string, BPTreeUnknownNode<K, V>>
   protected readonly _nodeUpdateBuffer: Map<string, BPTreeUnknownNode<K, V>>
@@ -350,7 +366,7 @@ export abstract class BPTree<K, V> {
     return [...v].sort((a, b) => this.comparator.primaryAsc(a, b))[i]
   }
 
-  protected _insertAtLeaf(node: BPTreeLeafNode<K, V>, key: K, value: V): void {
+  protected _insertAtLeaf(node: BPTreeLeafNode<K, V>, key: K, value: V): Deferred<void> {
     if (node.values.length) {
       for (let i = 0, len = node.values.length; i < len; i++) {
         const nValue = node.values[i]
@@ -360,45 +376,42 @@ export abstract class BPTree<K, V> {
             break
           }
           keys.push(key)
-          this.bufferForNodeUpdate(node)
-          break
+          return this.bufferForNodeUpdate(node)
         }
         else if (this.comparator.isLower(value, nValue)) {
           node.values.splice(i, 0, value)
           node.keys.splice(i, 0, [key])
-          this.bufferForNodeUpdate(node)
-          break
+          return this.bufferForNodeUpdate(node)
         }
         else if (i + 1 === node.values.length) {
           node.values.push(value)
           node.keys.push([key])
-          this.bufferForNodeUpdate(node)
-          break
+          return this.bufferForNodeUpdate(node)
         }
       }
     }
     else {
       node.values = [value]
       node.keys = [[key]]
-      this.bufferForNodeUpdate(node)
+      return this.bufferForNodeUpdate(node)
     }
   }
 
-  protected bufferForNodeCreate(node: BPTreeUnknownNode<K, V>): void {
+  protected bufferForNodeCreate(node: BPTreeUnknownNode<K, V>): Deferred<void> {
     if (node.id === this.rootId) {
       this._strategyDirty = true
     }
     this._nodeCreateBuffer.set(node.id, node)
   }
 
-  protected bufferForNodeUpdate(node: BPTreeUnknownNode<K, V>): void {
+  protected bufferForNodeUpdate(node: BPTreeUnknownNode<K, V>): Deferred<void> {
     if (node.id === this.rootId) {
       this._strategyDirty = true
     }
     this._nodeUpdateBuffer.set(node.id, node)
   }
 
-  protected bufferForNodeDelete(node: BPTreeUnknownNode<K, V>): void {
+  protected bufferForNodeDelete(node: BPTreeUnknownNode<K, V>): Deferred<void> {
     if (node.id === this.rootId) {
       this._strategyDirty = true
     }

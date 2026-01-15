@@ -126,6 +126,39 @@ describe('BPTree Transaction (MVCC CoW)', () => {
       tree.init()
       values.forEach(v => expect(tree.get(v)).toBeUndefined())
     })
+
+    test('Stress Test: 500 random operations in a single transaction (Sync)', () => {
+      const initialCount = 100
+      for (let i = 0; i < initialCount; i++) {
+        tree.insert(i, i)
+      }
+
+      const tx = tree.createTransaction()
+      const addedKeys: number[] = []
+      const removedKeys: number[] = []
+
+      // 300 Inserts
+      for (let i = initialCount; i < initialCount + 300; i++) {
+        tx.insert(i, i)
+        addedKeys.push(i)
+      }
+      // 200 Deletes
+      for (let i = 0; i < 200; i++) {
+        const key = Math.floor(Math.random() * (initialCount + 300))
+        tx.delete(key, key)
+        removedKeys.push(key)
+      }
+
+      const result = tx.commit()
+      expect(result.success).toBe(true)
+
+      tree.init()
+      for (const key of addedKeys) {
+        if (!removedKeys.includes(key)) {
+          expect(tree.get(key)).toBe(key)
+        }
+      }
+    })
   })
 
   describe('Async Transaction', () => {

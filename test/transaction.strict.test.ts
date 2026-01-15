@@ -9,7 +9,7 @@ import { BPTreeLeafNode, BPTreeInternalNode, BPTreeUnknownNode } from '../src/ty
 // Helper function to validate B+Tree structure integrity and return all values
 async function validateAsyncTreeStructure(tree: BPTreeAsync<number, number>, expectedCount: number): Promise<number[]> {
   await tree.init()
-  const rootId = (tree as any).rootId
+  const rootId = tree.getRootId()
 
   if (expectedCount === 0 && !rootId) return []
 

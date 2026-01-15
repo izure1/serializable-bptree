@@ -106,7 +106,7 @@ export abstract class BPTreeAsyncBase<K, V> extends BPTree<K, V> {
     isLeaf: boolean,
     keys: string[] | K[][],
     values: V[],
-    leaf = false,
+    leaf = isLeaf,
     parent: string | null = null,
     next: string | null = null,
     prev: string | null = null
@@ -116,12 +116,12 @@ export abstract class BPTreeAsyncBase<K, V> extends BPTree<K, V> {
       id,
       keys,
       values,
-      leaf,
+      leaf: leaf as any,
       parent,
       next,
-      prev,
-    } as BPTreeUnknownNode<K, V>
-    this._nodeCreateBuffer.set(id, node)
+      prev
+    } as any as BPTreeUnknownNode<K, V>
+    await this.bufferForNodeCreate(node)
     return node
   }
 
@@ -131,37 +131,36 @@ export abstract class BPTreeAsyncBase<K, V> extends BPTree<K, V> {
     value: V
   ): Promise<void> {
     if (!node.leaf) {
+      let keyIndex = -1
       for (let i = 0, len = node.keys.length; i < len; i++) {
-        const nKey = node.keys[i]
-        if (nKey === key) {
-          node.keys.splice(i, 1)
-          this.bufferForNodeUpdate(node)
+        if (node.keys[i] === key) {
+          keyIndex = i
           break
         }
       }
-      for (let i = 0, len = node.values.length; i < len; i++) {
-        const nValue = node.values[i]
-        if (this.comparator.isSame(value, nValue)) {
-          node.values.splice(i, 1)
-          this.bufferForNodeUpdate(node)
-          break
-        }
+
+      if (keyIndex !== -1) {
+        node.keys.splice(keyIndex, 1)
+        // In internal node, we remove the separator that corresponds to the key.
+        const valueIndex = keyIndex > 0 ? keyIndex - 1 : 0
+        node.values.splice(valueIndex, 1)
+        await this.bufferForNodeUpdate(node)
       }
     }
 
     if (this.rootId === node.id && node.keys.length === 1 && !node.leaf) {
       const keys = node.keys as string[]
-      this.bufferForNodeDelete(node)
+      await this.bufferForNodeDelete(node)
       const newRoot = await this.getNode(keys[0])
       this.rootId = newRoot.id
       newRoot.parent = null
       this.strategy.head.root = this.rootId
-      this.bufferForNodeUpdate(newRoot)
+      await this.bufferForNodeUpdate(newRoot)
       return
     }
     else if (this.rootId === node.id) {
       const root = await this.getNode(this.rootId)
-      this.bufferForNodeUpdate(root)
+      await this.bufferForNodeUpdate(root)
       return
     }
     else if (
@@ -232,7 +231,7 @@ export abstract class BPTreeAsyncBase<K, V> extends BPTree<K, V> {
           if (pointer.next) {
             const n = await this.getNode(pointer.next)
             n.prev = pointer.id
-            this.bufferForNodeUpdate(n)
+            await this.bufferForNodeUpdate(n)
           }
         }
         pointer.values.push(...node.values)
@@ -242,13 +241,13 @@ export abstract class BPTreeAsyncBase<K, V> extends BPTree<K, V> {
           for (const key of keys) {
             const n = await this.getNode(key)
             n.parent = pointer.id
-            this.bufferForNodeUpdate(n)
+            await this.bufferForNodeUpdate(n)
           }
         }
 
         await this._deleteEntry(await this.getNode(node.parent!), node.id, guess!)
-        this.bufferForNodeUpdate(pointer)
-        this.bufferForNodeDelete(node)
+        await this.bufferForNodeUpdate(pointer)
+        await this.bufferForNodeDelete(node)
       }
       else {
         if (isPredecessor) {
@@ -260,13 +259,10 @@ export abstract class BPTreeAsyncBase<K, V> extends BPTree<K, V> {
             node.keys = [pointerPm, ...node.keys]
             node.values = [guess!, ...node.values]
             parentNode = await this.getNode(node.parent!) as BPTreeInternalNode<K, V>
-            for (let i = 0, len = parentNode.values.length; i < len; i++) {
-              const nValue = parentNode.values[i]
-              if (this.comparator.isSame(guess!, nValue)) {
-                parentNode.values[i] = pointerKm
-                this.bufferForNodeUpdate(parentNode)
-                break
-              }
+            const nodeIndex = parentNode.keys.indexOf(node.id)
+            if (nodeIndex > 0) {
+              parentNode.values[nodeIndex - 1] = pointerKm
+              await this.bufferForNodeUpdate(parentNode)
             }
           }
           else {
@@ -275,17 +271,14 @@ export abstract class BPTreeAsyncBase<K, V> extends BPTree<K, V> {
             node.keys = [pointerPm, ...node.keys]
             node.values = [pointerKm, ...node.values]
             parentNode = await this.getNode(node.parent!) as BPTreeInternalNode<K, V>
-            for (let i = 0, len = parentNode.values.length; i < len; i++) {
-              const nValue = parentNode.values[i]
-              if (this.comparator.isSame(guess!, nValue)) {
-                parentNode.values[i] = pointerKm
-                this.bufferForNodeUpdate(parentNode)
-                break
-              }
+            const nodeIndex = parentNode.keys.indexOf(node.id)
+            if (nodeIndex > 0) {
+              parentNode.values[nodeIndex - 1] = pointerKm
+              await this.bufferForNodeUpdate(parentNode)
             }
           }
-          this.bufferForNodeUpdate(node)
-          this.bufferForNodeUpdate(pointer)
+          await this.bufferForNodeUpdate(node)
+          await this.bufferForNodeUpdate(pointer)
         }
         else {
           let pointerP0
@@ -296,13 +289,10 @@ export abstract class BPTreeAsyncBase<K, V> extends BPTree<K, V> {
             node.keys = [...node.keys, pointerP0]
             node.values = [...node.values, guess!]
             parentNode = await this.getNode(node.parent!) as BPTreeInternalNode<K, V>
-            for (let i = 0, len = parentNode.values.length; i < len; i++) {
-              const nValue = parentNode.values[i]
-              if (this.comparator.isSame(guess!, nValue)) {
-                parentNode.values[i] = pointerK0
-                this.bufferForNodeUpdate(parentNode)
-                break
-              }
+            const pointerIndex = parentNode.keys.indexOf(pointer.id)
+            if (pointerIndex > 0) {
+              parentNode.values[pointerIndex - 1] = pointerK0
+              await this.bufferForNodeUpdate(parentNode)
             }
           }
           else {
@@ -311,24 +301,21 @@ export abstract class BPTreeAsyncBase<K, V> extends BPTree<K, V> {
             node.keys = [...node.keys, pointerP0]
             node.values = [...node.values, pointerK0]
             parentNode = await this.getNode(node.parent!) as BPTreeInternalNode<K, V>
-            for (let i = 0, len = parentNode.values.length; i < len; i++) {
-              const nValue = parentNode.values[i]
-              if (this.comparator.isSame(guess!, nValue)) {
-                parentNode.values[i] = pointer.values[0]
-                this.bufferForNodeUpdate(parentNode)
-                break
-              }
+            const pointerIndex = parentNode.keys.indexOf(pointer.id)
+            if (pointerIndex > 0) {
+              parentNode.values[pointerIndex - 1] = pointer.values[0]
+              await this.bufferForNodeUpdate(parentNode)
             }
           }
-          this.bufferForNodeUpdate(node)
-          this.bufferForNodeUpdate(pointer)
+          await this.bufferForNodeUpdate(node)
+          await this.bufferForNodeUpdate(pointer)
         }
         if (!pointer.leaf) {
           const keys = pointer.keys as string[]
           for (const key of keys) {
             const n = await this.getNode(key)
             n.parent = pointer.id
-            this.bufferForNodeUpdate(n)
+            await this.bufferForNodeUpdate(n)
           }
         }
         if (!node.leaf) {
@@ -336,7 +323,7 @@ export abstract class BPTreeAsyncBase<K, V> extends BPTree<K, V> {
           for (const key of keys) {
             const n = await this.getNode(key)
             n.parent = node.id
-            this.bufferForNodeUpdate(n)
+            await this.bufferForNodeUpdate(n)
           }
         }
         if (!parentNode.leaf) {
@@ -344,10 +331,12 @@ export abstract class BPTreeAsyncBase<K, V> extends BPTree<K, V> {
           for (const key of keys) {
             const n = await this.getNode(key)
             n.parent = parentNode.id
-            this.bufferForNodeUpdate(n)
+            await this.bufferForNodeUpdate(n)
           }
         }
       }
+    } else {
+      await this.bufferForNodeUpdate(node)
     }
   }
 
@@ -364,50 +353,47 @@ export abstract class BPTreeAsyncBase<K, V> extends BPTree<K, V> {
       pointer.parent = root.id
 
       if (pointer.leaf) {
-        (node as any).next = pointer.id;
-        (pointer as any).prev = node.id
+        const nNode = node as any
+        nNode.next = pointer.id
+        const nPointer = pointer as any
+        nPointer.prev = node.id
       }
 
-      this.bufferForNodeUpdate(node)
-      this.bufferForNodeUpdate(pointer)
+      await this.bufferForNodeUpdate(node)
+      await this.bufferForNodeUpdate(pointer)
       return
     }
     const parentNode = await this.getNode(node.parent!) as BPTreeInternalNode<K, V>
 
-    let insertIndex = 0
-    for (let i = 0; i < parentNode.values.length; i++) {
-      if (this.comparator.asc(value, parentNode.values[i]) > 0) {
-        insertIndex = i + 1
-      } else {
-        break
-      }
+    const nodeIndex = parentNode.keys.indexOf(node.id)
+    if (nodeIndex === -1) {
+      throw new Error(`Node ${node.id} not found in parent ${parentNode.id}`)
     }
+    const insertIndex = nodeIndex
 
     parentNode.values.splice(insertIndex, 0, value)
     parentNode.keys.splice(insertIndex + 1, 0, pointer.id)
     pointer.parent = parentNode.id
 
     if (pointer.leaf) {
-      const leftSiblingId = parentNode.keys[insertIndex] as string
-      const rightSiblingId = parentNode.keys[insertIndex + 2] as string | undefined
+      const leftSibling = node as BPTreeLeafNode<K, V>
+      const oldNextId = leftSibling.next
 
-      if (leftSiblingId) {
-        const leftSibling = await this.getNode(leftSiblingId) as any
-        (pointer as any).prev = leftSibling.id;
-        (pointer as any).next = leftSibling.next;
-        leftSibling.next = pointer.id
-        this.bufferForNodeUpdate(leftSibling)
-      }
+      pointer.prev = leftSibling.id
+      pointer.next = oldNextId
+      leftSibling.next = pointer.id
 
-      if (rightSiblingId) {
-        const rightSibling = await this.getNode(rightSiblingId) as any
-        rightSibling.prev = pointer.id
-        this.bufferForNodeUpdate(rightSibling)
+      await this.bufferForNodeUpdate(leftSibling)
+
+      if (oldNextId) {
+        const oldNext = await this.getNode(oldNextId) as BPTreeLeafNode<K, V>
+        oldNext.prev = pointer.id
+        await this.bufferForNodeUpdate(oldNext)
       }
     }
 
-    this.bufferForNodeUpdate(parentNode)
-    this.bufferForNodeUpdate(pointer)
+    await this.bufferForNodeUpdate(parentNode)
+    await this.bufferForNodeUpdate(pointer)
 
     if (parentNode.keys.length > this.order) {
       const parentPointer = await this._createNode(false, [], []) as BPTreeInternalNode<K, V>
@@ -421,20 +407,21 @@ export abstract class BPTreeAsyncBase<K, V> extends BPTree<K, V> {
       for (const k of parentNode.keys) {
         const n = await this.getNode(k)
         n.parent = parentNode.id
-        this.bufferForNodeUpdate(n)
+        await this.bufferForNodeUpdate(n)
       }
       for (const k of parentPointer.keys) {
         const n = await this.getNode(k)
         n.parent = parentPointer.id
-        this.bufferForNodeUpdate(n)
+        await this.bufferForNodeUpdate(n)
       }
 
       await this._insertInParent(parentNode, midValue, parentPointer)
-      this.bufferForNodeUpdate(parentNode)
+      await this.bufferForNodeUpdate(parentNode)
     }
   }
 
   async init(): Promise<void> {
+    this.clear()
     const head = await this.strategy.readHead()
     if (head === null) {
       this.order = this.strategy.order
@@ -468,20 +455,37 @@ export abstract class BPTreeAsyncBase<K, V> extends BPTree<K, V> {
 
   protected async insertableNode(value: V): Promise<BPTreeLeafNode<K, V>> {
     let node = await this.getNode(this.rootId)
+    if (node.parent !== null) {
+      node.parent = null
+      await this.bufferForNodeUpdate(node)
+    }
     while (!node.leaf) {
+      const parentId = node.id
       for (let i = 0, len = node.values.length; i < len; i++) {
         const nValue = node.values[i]
         const k = node.keys
         if (this.comparator.isSame(value, nValue)) {
           node = await this.getNode((node.keys as string[])[i + 1])
+          if (node.parent !== parentId) {
+            node.parent = parentId
+            await this.bufferForNodeUpdate(node)
+          }
           break
         }
         else if (this.comparator.isLower(value, nValue)) {
           node = await this.getNode((node.keys as string[])[i])
+          if (node.parent !== parentId) {
+            node.parent = parentId
+            await this.bufferForNodeUpdate(node)
+          }
           break
         }
         else if (i + 1 === node.values.length) {
           node = await this.getNode((node.keys as string[])[i + 1])
+          if (node.parent !== parentId) {
+            node.parent = parentId
+            await this.bufferForNodeUpdate(node)
+          }
           break
         }
       }
@@ -491,20 +495,37 @@ export abstract class BPTreeAsyncBase<K, V> extends BPTree<K, V> {
 
   protected async insertableNodeByPrimary(value: V): Promise<BPTreeLeafNode<K, V>> {
     let node = await this.getNode(this.rootId)
+    if (node.parent !== null) {
+      node.parent = null
+      await this.bufferForNodeUpdate(node)
+    }
     while (!node.leaf) {
+      const parentId = node.id
       for (let i = 0, len = node.values.length; i < len; i++) {
         const nValue = node.values[i]
         const k = node.keys
         if (this.comparator.isPrimarySame(value, nValue)) {
           node = await this.getNode((node.keys as string[])[i])
+          if (node.parent !== parentId) {
+            node.parent = parentId
+            await this.bufferForNodeUpdate(node)
+          }
           break
         }
         else if (this.comparator.isPrimaryLower(value, nValue)) {
           node = await this.getNode((node.keys as string[])[i])
+          if (node.parent !== parentId) {
+            node.parent = parentId
+            await this.bufferForNodeUpdate(node)
+          }
           break
         }
         else if (i + 1 === node.values.length) {
           node = await this.getNode((node.keys as string[])[i + 1])
+          if (node.parent !== parentId) {
+            node.parent = parentId
+            await this.bufferForNodeUpdate(node)
+          }
           break
         }
       }
@@ -514,16 +535,29 @@ export abstract class BPTreeAsyncBase<K, V> extends BPTree<K, V> {
 
   protected async insertableRightestNodeByPrimary(value: V): Promise<BPTreeLeafNode<K, V>> {
     let node = await this.getNode(this.rootId)
+    if (node.parent !== null) {
+      node.parent = null
+      await this.bufferForNodeUpdate(node)
+    }
     while (!node.leaf) {
+      const parentId = node.id
       for (let i = 0, len = node.values.length; i < len; i++) {
         const nValue = node.values[i]
         const k = node.keys
         if (this.comparator.isPrimaryLower(value, nValue)) {
           node = await this.getNode((node.keys as string[])[i])
+          if (node.parent !== parentId) {
+            node.parent = parentId
+            await this.bufferForNodeUpdate(node)
+          }
           break
         }
         if (i + 1 === node.values.length) {
           node = await this.getNode((node.keys as string[])[i + 1])
+          if (node.parent !== parentId) {
+            node.parent = parentId
+            await this.bufferForNodeUpdate(node)
+          }
           break
         }
       }
@@ -561,18 +595,36 @@ export abstract class BPTreeAsyncBase<K, V> extends BPTree<K, V> {
 
   protected async leftestNode(): Promise<BPTreeLeafNode<K, V>> {
     let node = await this.getNode(this.rootId)
+    if (node.parent !== null) {
+      node.parent = null
+      await this.bufferForNodeUpdate(node)
+    }
     while (!node.leaf) {
+      const parentId = node.id
       const keys = node.keys
       node = await this.getNode((node.keys as string[])[0])
+      if (node.parent !== parentId) {
+        node.parent = parentId
+        await this.bufferForNodeUpdate(node)
+      }
     }
     return node as BPTreeLeafNode<K, V>
   }
 
   protected async rightestNode(): Promise<BPTreeLeafNode<K, V>> {
     let node = await this.getNode(this.rootId)
+    if (node.parent !== null) {
+      node.parent = null
+      await this.bufferForNodeUpdate(node)
+    }
     while (!node.leaf) {
+      const parentId = node.id
       const keys = node.keys
       node = await this.getNode((node.keys as string[])[node.keys.length - 1])
+      if (node.parent !== parentId) {
+        node.parent = parentId
+        await this.bufferForNodeUpdate(node)
+      }
     }
     return node as BPTreeLeafNode<K, V>
   }
@@ -758,7 +810,7 @@ export abstract class BPTreeAsyncBase<K, V> extends BPTree<K, V> {
   public async insert(key: K, value: V): Promise<void> {
     await this.writeLock(async () => {
       const before = await this.insertableNode(value)
-      this._insertAtLeaf(before, key, value)
+      await this._insertAtLeaf(before, key, value)
 
       if (before.values.length === this.order) {
         const after = await this._createNode(
@@ -776,7 +828,7 @@ export abstract class BPTreeAsyncBase<K, V> extends BPTree<K, V> {
         before.values = before.values.slice(0, mid + 1)
         before.keys = before.keys.slice(0, mid + 1)
         await this._insertInParent(before, after.values[0], after)
-        this.bufferForNodeUpdate(before)
+        await this.bufferForNodeUpdate(before)
       }
 
       await this.commitHeadBuffer()
@@ -801,12 +853,14 @@ export abstract class BPTreeAsyncBase<K, V> extends BPTree<K, V> {
               node.values.splice(i, 1)
             }
             await this._deleteEntry(node, key as any, value)
+            await this.bufferForNodeUpdate(node)
             break
           }
         }
       }
 
       await this.commitHeadBuffer()
+      await this.commitNodeCreateBuffer()
       await this.commitNodeUpdateBuffer()
       await this.commitNodeDeleteBuffer()
     })

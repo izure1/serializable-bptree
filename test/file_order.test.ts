@@ -8,10 +8,10 @@ import {
 } from '../src'
 import { join } from 'path'
 import { writeFileSync, readFileSync, existsSync, mkdirSync, unlinkSync, readdirSync } from 'fs'
-import { randomUUID } from 'crypto'
 
 class FileIOStrategySync extends SerializeStrategySync<string, number> {
   protected readonly dir: string
+  private counter = 0
 
   constructor(order: number, dir: string) {
     super(order)
@@ -26,7 +26,7 @@ class FileIOStrategySync extends SerializeStrategySync<string, number> {
   }
 
   id(isLeaf: boolean): string {
-    return randomUUID()
+    return (this.counter++).toString()
   }
 
   read(id: string): BPTreeNode<string, number> {
@@ -69,9 +69,11 @@ describe('file-order-test', () => {
     tree.init()
 
     // Insert enough data to create depth
+    const tx1 = tree.createTransaction()
     for (let i = 1; i <= 200; i++) {
-      tree.insert((Math.random() * 100000).toString(), i)
+      tx1.insert((Math.random() * 100000).toString(), i)
     }
+    tx1.commit()
 
     // Now inspect files directly
     const files = readdirSync(testDir)

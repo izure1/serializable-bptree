@@ -106,7 +106,7 @@ export abstract class BPTreeSyncBase<K, V> extends BPTree<K, V> {
     isLeaf: boolean,
     keys: string[] | K[][],
     values: V[],
-    leaf = false,
+    leaf = isLeaf,
     parent: string | null = null,
     next: string | null = null,
     prev: string | null = null
@@ -121,7 +121,7 @@ export abstract class BPTreeSyncBase<K, V> extends BPTree<K, V> {
       next,
       prev,
     } as BPTreeUnknownNode<K, V>
-    this._nodeCreateBuffer.set(id, node)
+    this.bufferForNodeCreate(node)
     return node
   }
 
@@ -131,21 +131,22 @@ export abstract class BPTreeSyncBase<K, V> extends BPTree<K, V> {
     value: V
   ): void {
     if (!node.leaf) {
+      let keyIndex = -1
       for (let i = 0, len = node.keys.length; i < len; i++) {
-        const nKey = node.keys[i]
-        if (nKey === key) {
-          node.keys.splice(i, 1)
-          this.bufferForNodeUpdate(node)
+        if (node.keys[i] === key) {
+          keyIndex = i
           break
         }
       }
-      for (let i = 0, len = node.values.length; i < len; i++) {
-        const nValue = node.values[i]
-        if (this.comparator.isSame(value, nValue)) {
-          node.values.splice(i, 1)
-          this.bufferForNodeUpdate(node)
-          break
-        }
+
+      if (keyIndex !== -1) {
+        node.keys.splice(keyIndex, 1)
+        // In internal node, we remove the separator that corresponds to the key.
+        // If it's not the first key, the separator is at keyIndex - 1.
+        // If it's the first key, the separator is at 0.
+        const valueIndex = keyIndex > 0 ? keyIndex - 1 : 0
+        node.values.splice(valueIndex, 1)
+        this.bufferForNodeUpdate(node)
       }
     }
 
@@ -260,13 +261,10 @@ export abstract class BPTreeSyncBase<K, V> extends BPTree<K, V> {
             node.keys = [pointerPm, ...node.keys]
             node.values = [guess!, ...node.values]
             parentNode = this.getNode(node.parent!) as BPTreeInternalNode<K, V>
-            for (let i = 0, len = parentNode.values.length; i < len; i++) {
-              const nValue = parentNode.values[i]
-              if (this.comparator.isSame(guess!, nValue)) {
-                parentNode.values[i] = pointerKm
-                this.bufferForNodeUpdate(parentNode)
-                break
-              }
+            const nodeIndex = parentNode.keys.indexOf(node.id)
+            if (nodeIndex > 0) {
+              parentNode.values[nodeIndex - 1] = pointerKm
+              this.bufferForNodeUpdate(parentNode)
             }
           }
           else {
@@ -275,13 +273,10 @@ export abstract class BPTreeSyncBase<K, V> extends BPTree<K, V> {
             node.keys = [pointerPm, ...node.keys]
             node.values = [pointerKm, ...node.values]
             parentNode = this.getNode(node.parent!) as BPTreeInternalNode<K, V>
-            for (let i = 0, len = parentNode.values.length; i < len; i++) {
-              const nValue = parentNode.values[i]
-              if (this.comparator.isSame(guess!, nValue)) {
-                parentNode.values[i] = pointerKm
-                this.bufferForNodeUpdate(parentNode)
-                break
-              }
+            const nodeIndex = parentNode.keys.indexOf(node.id)
+            if (nodeIndex > 0) {
+              parentNode.values[nodeIndex - 1] = pointerKm
+              this.bufferForNodeUpdate(parentNode)
             }
           }
           this.bufferForNodeUpdate(node)
@@ -296,13 +291,10 @@ export abstract class BPTreeSyncBase<K, V> extends BPTree<K, V> {
             node.keys = [...node.keys, pointerP0]
             node.values = [...node.values, guess!]
             parentNode = this.getNode(node.parent!) as BPTreeInternalNode<K, V>
-            for (let i = 0, len = parentNode.values.length; i < len; i++) {
-              const nValue = parentNode.values[i]
-              if (this.comparator.isSame(guess!, nValue)) {
-                parentNode.values[i] = pointerK0
-                this.bufferForNodeUpdate(parentNode)
-                break
-              }
+            const pointerIndex = parentNode.keys.indexOf(pointer.id)
+            if (pointerIndex > 0) {
+              parentNode.values[pointerIndex - 1] = pointerK0
+              this.bufferForNodeUpdate(parentNode)
             }
           }
           else {
@@ -311,13 +303,10 @@ export abstract class BPTreeSyncBase<K, V> extends BPTree<K, V> {
             node.keys = [...node.keys, pointerP0]
             node.values = [...node.values, pointerK0]
             parentNode = this.getNode(node.parent!) as BPTreeInternalNode<K, V>
-            for (let i = 0, len = parentNode.values.length; i < len; i++) {
-              const nValue = parentNode.values[i]
-              if (this.comparator.isSame(guess!, nValue)) {
-                parentNode.values[i] = pointer.values[0]
-                this.bufferForNodeUpdate(parentNode)
-                break
-              }
+            const pointerIndex = parentNode.keys.indexOf(pointer.id)
+            if (pointerIndex > 0) {
+              parentNode.values[pointerIndex - 1] = pointer.values[0]
+              this.bufferForNodeUpdate(parentNode)
             }
           }
           this.bufferForNodeUpdate(node)
@@ -345,6 +334,8 @@ export abstract class BPTreeSyncBase<K, V> extends BPTree<K, V> {
           }
         }
       }
+    } else {
+      this.bufferForNodeUpdate(node)
     }
   }
 
@@ -361,7 +352,7 @@ export abstract class BPTreeSyncBase<K, V> extends BPTree<K, V> {
       pointer.parent = root.id
 
       if (pointer.leaf) {
-        node.next = pointer.id;
+        node.next = pointer.id
         pointer.prev = node.id
       }
 
@@ -371,35 +362,30 @@ export abstract class BPTreeSyncBase<K, V> extends BPTree<K, V> {
     }
     const parentNode = this.getNode(node.parent!) as BPTreeInternalNode<K, V>
 
-    let insertIndex = 0
-    for (let i = 0; i < parentNode.values.length; i++) {
-      if (this.comparator.asc(value, parentNode.values[i]) > 0) {
-        insertIndex = i + 1
-      } else {
-        break
-      }
+    const nodeIndex = parentNode.keys.indexOf(node.id)
+    if (nodeIndex === -1) {
+      throw new Error(`Node ${node.id} not found in parent ${parentNode.id}`)
     }
+    const insertIndex = nodeIndex
 
     parentNode.values.splice(insertIndex, 0, value)
     parentNode.keys.splice(insertIndex + 1, 0, pointer.id)
     pointer.parent = parentNode.id
 
     if (pointer.leaf) {
-      const leftSiblingId = parentNode.keys[insertIndex] as string
-      const rightSiblingId = parentNode.keys[insertIndex + 2] as string | undefined
+      const leftSibling = node as BPTreeLeafNode<K, V>
+      const oldNextId = leftSibling.next
 
-      if (leftSiblingId) {
-        const leftSibling = this.getNode(leftSiblingId)
-        pointer.prev = leftSibling.id
-        pointer.next = leftSibling.next
-        leftSibling.next = pointer.id
-        this.bufferForNodeUpdate(leftSibling)
-      }
+      pointer.prev = leftSibling.id
+      pointer.next = oldNextId
+      leftSibling.next = pointer.id
 
-      if (rightSiblingId) {
-        const rightSibling = this.getNode(rightSiblingId)
-        rightSibling.prev = pointer.id
-        this.bufferForNodeUpdate(rightSibling)
+      this.bufferForNodeUpdate(leftSibling)
+
+      if (oldNextId) {
+        const oldNext = this.getNode(oldNextId) as BPTreeLeafNode<K, V>
+        oldNext.prev = pointer.id
+        this.bufferForNodeUpdate(oldNext)
       }
     }
 
@@ -432,6 +418,7 @@ export abstract class BPTreeSyncBase<K, V> extends BPTree<K, V> {
   }
 
   init(): void {
+    this.clear()
     const head = this.strategy.readHead()
     if (head === null) {
       this.order = this.strategy.order
@@ -465,67 +452,114 @@ export abstract class BPTreeSyncBase<K, V> extends BPTree<K, V> {
 
   protected insertableNode(value: V): BPTreeLeafNode<K, V> {
     let node = this.getNode(this.rootId)
+    if (node.parent !== null) {
+      node.parent = null
+      this.bufferForNodeUpdate(node)
+    }
     while (!node.leaf) {
+      const parentId = node.id
       for (let i = 0, len = node.values.length; i < len; i++) {
         const nValue = node.values[i]
         const k = node.keys
         if (this.comparator.isSame(value, nValue)) {
           node = this.getNode(k[i + 1])
+          if (node.parent !== parentId) {
+            node.parent = parentId
+            this.bufferForNodeUpdate(node)
+          }
           break
         }
         else if (this.comparator.isLower(value, nValue)) {
           node = this.getNode(k[i])
+          if (node.parent !== parentId) {
+            node.parent = parentId
+            this.bufferForNodeUpdate(node)
+          }
           break
         }
         else if (i + 1 === node.values.length) {
           node = this.getNode(k[i + 1])
+          if (node.parent !== parentId) {
+            node.parent = parentId
+            this.bufferForNodeUpdate(node)
+          }
           break
         }
       }
     }
-    return node
+    return node as BPTreeLeafNode<K, V>
   }
 
   protected insertableNodeByPrimary(value: V): BPTreeLeafNode<K, V> {
     let node = this.getNode(this.rootId)
+    if (node.parent !== null) {
+      node.parent = null
+      this.bufferForNodeUpdate(node)
+    }
     while (!node.leaf) {
+      const parentId = node.id
       for (let i = 0, len = node.values.length; i < len; i++) {
         const nValue = node.values[i]
         const k = node.keys
         if (this.comparator.isPrimarySame(value, nValue)) {
           node = this.getNode(k[i])
+          if (node.parent !== parentId) {
+            node.parent = parentId
+            this.bufferForNodeUpdate(node)
+          }
           break
         }
         else if (this.comparator.isPrimaryLower(value, nValue)) {
           node = this.getNode(k[i])
+          if (node.parent !== parentId) {
+            node.parent = parentId
+            this.bufferForNodeUpdate(node)
+          }
           break
         }
         else if (i + 1 === node.values.length) {
           node = this.getNode(k[i + 1])
+          if (node.parent !== parentId) {
+            node.parent = parentId
+            this.bufferForNodeUpdate(node)
+          }
           break
         }
       }
     }
-    return node
+    return node as BPTreeLeafNode<K, V>
   }
 
   protected insertableRightestNodeByPrimary(value: V): BPTreeLeafNode<K, V> {
     let node = this.getNode(this.rootId)
+    if (node.parent !== null) {
+      node.parent = null
+      this.bufferForNodeUpdate(node)
+    }
     while (!node.leaf) {
+      const parentId = node.id
       for (let i = 0, len = node.values.length; i < len; i++) {
         const nValue = node.values[i]
         const k = node.keys
         if (this.comparator.isPrimaryLower(value, nValue)) {
           node = this.getNode(k[i])
+          if (node.parent !== parentId) {
+            node.parent = parentId
+            this.bufferForNodeUpdate(node)
+          }
           break
         }
         if (i + 1 === node.values.length) {
           node = this.getNode(k[i + 1])
+          if (node.parent !== parentId) {
+            node.parent = parentId
+            this.bufferForNodeUpdate(node)
+          }
           break
         }
       }
     }
-    return node
+    return node as BPTreeLeafNode<K, V>
   }
 
   protected insertableRightestEndNodeByPrimary(value: V): BPTreeLeafNode<K, V> | null {
@@ -558,20 +592,38 @@ export abstract class BPTreeSyncBase<K, V> extends BPTree<K, V> {
 
   protected leftestNode(): BPTreeLeafNode<K, V> {
     let node = this.getNode(this.rootId)
+    if (node.parent !== null) {
+      node.parent = null
+      this.bufferForNodeUpdate(node)
+    }
     while (!node.leaf) {
+      const parentId = node.id
       const keys = node.keys
       node = this.getNode(keys[0])
+      if (node.parent !== parentId) {
+        node.parent = parentId
+        this.bufferForNodeUpdate(node)
+      }
     }
-    return node
+    return node as BPTreeLeafNode<K, V>
   }
 
   protected rightestNode(): BPTreeLeafNode<K, V> {
     let node = this.getNode(this.rootId)
+    if (node.parent !== null) {
+      node.parent = null
+      this.bufferForNodeUpdate(node)
+    }
     while (!node.leaf) {
+      const parentId = node.id
       const keys = node.keys
       node = this.getNode(keys[keys.length - 1])
+      if (node.parent !== parentId) {
+        node.parent = parentId
+        this.bufferForNodeUpdate(node)
+      }
     }
-    return node
+    return node as BPTreeLeafNode<K, V>
   }
 
   public exists(key: K, value: V): boolean {

@@ -11,6 +11,7 @@ export class BPTreeSync<K, V> extends BPTreeSyncBase<K, V> {
     option?: BPTreeConstructorOption
   ) {
     super(strategy, comparator, option)
+    this.init()
   }
 
   /**

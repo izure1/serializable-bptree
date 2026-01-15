@@ -17,8 +17,9 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeAsyncBase<K, V> {
   private readonly realBaseStrategy: SerializeStrategyAsync<K, V>
 
   private txNodes: Map<string, BPTreeUnknownNode<K, V>> = new Map()
-  private dirtyIds: Set<string> = new Set()
-  private createdInTx: Set<string> = new Set()
+  protected readonly dirtyIds: Set<string>
+  protected readonly createdInTx: Set<string>
+  protected readonly deletedIds: Set<string>
 
   private initialRootId: string
   private transactionRootId: string
@@ -27,8 +28,12 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeAsyncBase<K, V> {
     super((baseTree as any).strategy, (baseTree as any).comparator, (baseTree as any).option)
     this.realBaseTree = baseTree
     this.realBaseStrategy = (baseTree as any).strategy
+    this.order = baseTree.getOrder()
     this.initialRootId = ''
     this.transactionRootId = ''
+    this.dirtyIds = new Set()
+    this.createdInTx = new Set()
+    this.deletedIds = new Set()
   }
 
   /**
@@ -36,7 +41,18 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeAsyncBase<K, V> {
    */
   public async initTransaction(): Promise<void> {
     const head = await this.realBaseStrategy.readHead()
-    this.initialRootId = head?.root ?? (this.realBaseTree as any).rootId
+    if (head) {
+      this.order = head.order
+      this.initialRootId = head.root!
+    } else {
+      this.initialRootId = this.realBaseTree.getRootId()
+    }
+
+    if (!this.initialRootId) {
+      const root = await this._createNode(true, [], [], true)
+      this.initialRootId = root.id
+    }
+
     this.transactionRootId = this.initialRootId
     this.rootId = this.transactionRootId
 
@@ -46,11 +62,16 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeAsyncBase<K, V> {
     this.txNodes.clear()
     this.dirtyIds.clear()
     this.createdInTx.clear()
+    this.deletedIds.clear()
   }
 
   protected async getNode(id: string): Promise<BPTreeUnknownNode<K, V>> {
     if (this.txNodes.has(id)) {
       return this.txNodes.get(id)!
+    }
+
+    if (this.deletedIds.has(id)) {
+      throw new Error(`The tree attempted to reference deleted node '${id}'`)
     }
 
     const baseNode = await this.realBaseStrategy.read(id)
@@ -61,26 +82,60 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeAsyncBase<K, V> {
   }
 
   protected async bufferForNodeUpdate(node: BPTreeUnknownNode<K, V>): Promise<void> {
+    if (this.dirtyIds.has(node.id) && this.txNodes.has(node.id) && (node as any)._p) {
+      this.txNodes.set(node.id, node)
+      return
+    }
+    (node as any)._p = true
     this.txNodes.set(node.id, node)
     this.dirtyIds.add(node.id)
+    if (node.leaf) {
+      if (node.next && !this.dirtyIds.has(node.next) && !this.deletedIds.has(node.next)) {
+        try {
+          await this.bufferForNodeUpdate(await this.getNode(node.next))
+        } catch (e) { }
+      }
+      if (node.prev && !this.dirtyIds.has(node.prev) && !this.deletedIds.has(node.prev)) {
+        try {
+          await this.bufferForNodeUpdate(await this.getNode(node.prev))
+        } catch (e) { }
+      }
+    }
     await this.markPathDirty(node)
+    delete (node as any)._p
   }
 
   protected async bufferForNodeCreate(node: BPTreeUnknownNode<K, V>): Promise<void> {
     this.txNodes.set(node.id, node)
     this.dirtyIds.add(node.id)
     this.createdInTx.add(node.id)
+    if (node.leaf) {
+      if (node.next && !this.dirtyIds.has(node.next) && !this.deletedIds.has(node.next)) {
+        try {
+          await this.bufferForNodeUpdate(await this.getNode(node.next))
+        } catch (e) { }
+      }
+      if (node.prev && !this.dirtyIds.has(node.prev) && !this.deletedIds.has(node.prev)) {
+        try {
+          await this.bufferForNodeUpdate(await this.getNode(node.prev))
+        } catch (e) { }
+      }
+    }
     await this.markPathDirty(node)
   }
 
   protected async bufferForNodeDelete(node: BPTreeUnknownNode<K, V>): Promise<void> {
     this.txNodes.delete(node.id)
     this.dirtyIds.add(node.id)
+    this.deletedIds.add(node.id)
   }
 
   private async markPathDirty(node: BPTreeUnknownNode<K, V>): Promise<void> {
     let curr = node
     while (curr.parent) {
+      if (this.deletedIds.has(curr.parent)) {
+        break
+      }
       if (this.dirtyIds.has(curr.parent) && this.txNodes.has(curr.parent)) {
         break
       }
@@ -97,17 +152,17 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeAsyncBase<K, V> {
     isLeaf: boolean,
     keys: string[] | K[][],
     values: V[],
-    leaf = false,
+    leaf = isLeaf,
     parent: string | null = null,
     next: string | null = null,
     prev: string | null = null
   ): Promise<BPTreeUnknownNode<K, V>> {
-    const id = await this.realBaseStrategy.id(isLeaf)!
+    const id = (await this.strategy.id(isLeaf))!
     const node: BPTreeUnknownNode<K, V> = {
       id,
       keys,
       values,
-      leaf: isLeaf as any,
+      leaf: leaf as any,
       parent,
       next,
       prev,
@@ -171,9 +226,9 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeAsyncBase<K, V> {
       newCreatedIds.push(newId)
     }
 
-    let newRootId = this.transactionRootId
-    if (idMapping.has(this.transactionRootId)) {
-      newRootId = idMapping.get(this.transactionRootId)!
+    let newRootId = this.rootId
+    if (idMapping.has(this.rootId)) {
+      newRootId = idMapping.get(this.rootId)!
     }
 
     for (const node of finalNodes) {
