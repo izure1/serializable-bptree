@@ -1,4 +1,4 @@
-import type { BPTreeCondition, BPTreeConstructorOption, BPTreeUnknownNode, Deferred, BPTreeLeafNode, BPTreeNodeKey, BPTreePair, SerializableData } from '../types'
+import type { BPTreeCondition, BPTreeConstructorOption, BPTreeUnknownNode, Deferred, BPTreeLeafNode, BPTreeNodeKey, BPTreePair, SerializableData, BPTreeTransactionResult } from '../types'
 import { CacheEntanglementSync, CacheEntanglementAsync } from 'cache-entanglement'
 import { ValueComparator } from './ValueComparator'
 import { SerializeStrategy } from './SerializeStrategy'

@@ -1,6 +1,5 @@
-import { BPTreeNode } from './base/BPTree'
-import { SerializeStrategy, SerializeStrategyHead } from './base/SerializeStrategy'
-import { Json } from './utils/types'
+import { BPTreeNode, SerializeStrategyHead, Json } from './types'
+import { SerializeStrategy } from './base/SerializeStrategy'
 
 export abstract class SerializeStrategySync<K, V> extends SerializeStrategy<K, V> {
   abstract id(isLeaf: boolean): string
@@ -28,6 +27,15 @@ export abstract class SerializeStrategySync<K, V> extends SerializeStrategy<K, V
     this.setHeadData(key, next)
     return current
   }
+
+  compareAndSwapHead(oldRoot: string | null, newRoot: string): boolean {
+    if (this.head.root !== oldRoot) {
+      return false
+    }
+    this.head.root = newRoot
+    this.writeHead(this.head)
+    return true
+  }
 }
 
 export class InMemoryStoreStrategySync<K, V> extends SerializeStrategySync<K, V> {
@@ -46,7 +54,9 @@ export class InMemoryStoreStrategySync<K, V> extends SerializeStrategySync<K, V>
     if (!Object.hasOwn(this.node, id)) {
       throw new Error(`The tree attempted to reference node '${id}', but couldn't find the corresponding node.`)
     }
-    return this.node[id] as BPTreeNode<K, V>
+    const node = this.node[id]
+    // Return a deep clone to prevent in-place modification leakage between transactions
+    return JSON.parse(JSON.stringify(node)) as any
   }
 
   write(id: string, node: BPTreeNode<K, V>): void {

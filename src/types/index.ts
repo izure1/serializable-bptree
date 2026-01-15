@@ -77,6 +77,16 @@ export interface BPTreeLeafNode<K, V> extends BPTreeNode<K, V> {
   keys: K[][]
 }
 
+/** Result of a transaction commit operation. */
+export interface BPTreeTransactionResult {
+  /** Whether the transaction was successfully committed. */
+  success: boolean
+  /** IDs of new nodes created and written to storage during the transaction. */
+  createdIds: string[]
+  /** IDs of nodes that became obsolete and can be deleted after a successful commit. */
+  obsoleteIds: string[]
+}
+
 export type SerializableData = Record<string, Json>
 
 export interface SerializeStrategyHead {
@@ -85,12 +95,5 @@ export interface SerializeStrategyHead {
   data: SerializableData
 }
 
-type Primitive = string | number | null | boolean
-type Json = Primitive | Primitive[] | Json[] | { [key: string]: Json }
-
-export type { Json }
-
-export interface Transaction<K, V> {
-  commit(): Deferred<void>
-  rollback(): Deferred<void>
-}
+export type Primitive = string | number | null | boolean
+export type Json = Primitive | Primitive[] | Json[] | { [key: string]: Json }

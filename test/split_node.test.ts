@@ -55,10 +55,12 @@ describe('split-node-test', () => {
 
     await tree.init()
 
+    const tx = await tree.createTransaction()
     for (let i = 1; i <= 1200; i++) {
       const v = i * 1000
-      await tree.insert(v, i)
+      await tx.insert(v, i)
     }
+    await tx.commit()
 
     tree.clear()
   }, 100000)

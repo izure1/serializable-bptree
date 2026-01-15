@@ -60,6 +60,15 @@ export abstract class SerializeStrategy<K, V> {
   abstract writeHead(head: SerializeStrategyHead): void | Promise<void>
 
   /**
+   * Atomically updates the head if the current root matches the expected value.
+   * Required for Optimistic Concurrency Control (CoW).
+   * @param oldRoot The expected current root ID.
+   * @param newRoot The new root ID to set.
+   * @returns True if successful, False if the root has changed.
+   */
+  abstract compareAndSwapHead(oldRoot: string | null, newRoot: string): boolean | Promise<boolean>
+
+  /**
    * Retrieves the data stored in the tree.
    * If no value is stored in the tree, it stores a `defaultValue` and then returns that value.
    * @param key The key of the data stored in the tree.

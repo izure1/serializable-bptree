@@ -77,6 +77,7 @@ Additionally, this library supports asynchronous operations and rule-based query
 
 ## Key Features
 
+- **Transactions**: Supports ACID transactions with Snapshot Isolation (MVCC).
 - **Serializable**: Save and load the B+Tree state to/from any storage (File, DB, Memory, etc.).
 - **Duplicate Values**: Naturally handles duplicate values.
 - **Async/Sync Support**: Provides both synchronous and asynchronous APIs.
@@ -114,7 +115,7 @@ import {
     ValueComparator,
     NumericComparator,
     StringComparator
-  } from 'https://cdn.jsdelivr.net/npm/serializable-bptree@6/+esm'
+  } from 'https://cdn.jsdelivr.net/npm/serializable-bptree@7/+esm'
 </script>
 ```
 
@@ -129,6 +130,8 @@ Explore the detailed guides and concepts of `serializable-bptree`:
   - [Query Conditions](./docs/QUERY.md): Detailed explanation of the `where()` operators.
   - [Asynchronous Usage](./docs/ASYNC.md): How to use the tree in an async environment.
 - **Advanced Topics**
+  - [Transaction System (MVCC)](./docs/TRANSACTION.md): ACID transactions, Snapshot Isolation, and Optimistic Locking.
+  - [Best Practices](./docs/BEST_PRACTICES.md): Tips for bulk insertion and performance optimization.
   - [Duplicate Value Handling](./docs/DUPLICATE_VALUES.md): Strategies for managing large amounts of duplicate data.
   - [Concurrency & Synchronization](./docs/CONCURRENCY.md): Multi-instance usage and locking mechanisms.
   - [Query Optimization Guide](./docs/QUERY.md#performance--optimization): How to use `ChooseDriver`, `get()`, and `verify()` for complex queries.
