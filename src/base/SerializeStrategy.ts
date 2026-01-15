@@ -1,13 +1,4 @@
-import { BPTreeNode } from './BPTree'
-import type { Json } from '../utils/types'
-
-export type SerializableData = Record<string, Json>
-
-export interface SerializeStrategyHead {
-  root: string | null
-  order: number
-  data: SerializableData
-}
+import type { BPTreeNode, Json, SerializeStrategyHead } from '../types'
 
 export abstract class SerializeStrategy<K, V> {
   readonly order: number

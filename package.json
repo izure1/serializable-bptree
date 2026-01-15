@@ -1,6 +1,6 @@
 {
   "name": "serializable-bptree",
-  "version": "6.2.3",
+  "version": "6.3.0",
   "description": "Store the B+tree flexibly, not only in-memory.",
   "types": "./dist/types/index.d.ts",
   "main": "./dist/cjs/index.cjs",

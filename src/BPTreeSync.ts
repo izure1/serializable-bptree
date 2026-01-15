@@ -1,17 +1,8 @@
+import type { BPTreeCondition, BPTreeLeafNode, BPTreePair, BPTreeNodeKey, BPTreeUnknownNode, BPTreeInternalNode, BPTreeConstructorOption, SerializableData } from './types'
 import { CacheEntanglementSync } from 'cache-entanglement'
-import {
-  BPTree,
-  BPTreeCondition,
-  BPTreeLeafNode,
-  BPTreePair,
-  BPTreeNodeKey,
-  BPTreeUnknownNode,
-  BPTreeInternalNode,
-  BPTreeConstructorOption,
-} from './base/BPTree'
 import { SerializeStrategySync } from './SerializeStrategySync'
+import { BPTree } from './base/BPTree'
 import { ValueComparator } from './base/ValueComparator'
-import { SerializableData } from './base/SerializeStrategy'
 
 export class BPTreeSync<K, V> extends BPTree<K, V> {
   declare protected readonly strategy: SerializeStrategySync<K, V>
@@ -546,7 +537,6 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
       for (let i = 0, len = node.values.length; i < len; i++) {
         const nValue = node.values[i]
         const k = node.keys
-
         // If the search value is smaller than the node value, go to the left child
         if (this.comparator.isPrimaryLower(value, nValue)) {
           node = this.getNode(k[i])
@@ -652,24 +642,18 @@ export class BPTreeSync<K, V> extends BPTree<K, V> {
    */
   public get(key: K): V | undefined {
     let node = this.leftestNode() as BPTreeLeafNode<K, V>
-
     while (true) {
-      if (node.values) {
-        const len = node.values.length
-        for (let i = 0; i < len; i++) {
-          const keys = node.keys[i]
-          for (let j = 0; j < keys.length; j++) {
-            if (keys[j] === key) {
-              return node.values[i]
-            }
+      for (let i = 0, len = node.values.length; i < len; i++) {
+        const keys = node.keys[i]
+        for (let j = 0, kLen = keys.length; j < kLen; j++) {
+          if (keys[j] === key) {
+            return node.values[i]
           }
         }
       }
-
       if (!node.next) break
       node = this.getNode(node.next) as BPTreeLeafNode<K, V>
     }
-
     return undefined
   }
 
