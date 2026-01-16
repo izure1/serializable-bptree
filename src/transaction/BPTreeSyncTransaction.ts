@@ -261,12 +261,21 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeSyncBase<K, V> {
 
   /**
    * Rolls back the transaction by clearing all buffered changes.
-   * Internal use only.
+   * If cleanup is `true`, it also clears the transaction nodes.
+   * @param cleanup Whether to clear the transaction nodes.
+   * @returns The IDs of nodes that were created in this transaction.
    */
-  protected rollback(): void {
+  rollback(cleanup: boolean = true): string[] {
+    const createdIds = Array.from(this.createdInTx)
     this.txNodes.clear()
     this.dirtyIds.clear()
     this.createdInTx.clear()
+    if (cleanup) {
+      for (const id of createdIds) {
+        this.realBaseStrategy.delete(id)
+      }
+    }
+    return createdIds
   }
 
   // Override to do nothing, as transaction handles its own commits
