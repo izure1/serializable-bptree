@@ -5,6 +5,12 @@ export abstract class SerializeStrategy<K, V> {
   head: SerializeStrategyHead
   protected lastCommittedTransactionId: number = 0
 
+  /**
+   * Shared cache for nodes that have been deleted but may still be needed by active transactions.
+   * This supports snapshot isolation by preserving deleted node data.
+   */
+  public readonly sharedDeleteCache: Map<string, BPTreeNode<K, V>> = new Map()
+
   constructor(order: number) {
     this.order = order
     this.head = {

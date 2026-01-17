@@ -82,7 +82,12 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeAsyncBase<K, V> {
       throw new Error(`The tree attempted to reference deleted node '${id}'`)
     }
 
-    const baseNode = await this.realBaseStrategy.read(id)
+    // Check shared delete cache first (for nodes deleted by other committed transactions)
+    let baseNode: any = this.realBaseStrategy.sharedDeleteCache.get(id)
+    if (!baseNode) {
+      baseNode = await this.realBaseStrategy.read(id)
+    }
+
     // [NEW] Cache the original node state if not already cached
     // We clone it to ensure we have the pristine state from before the transaction modified it
     if (!this.originalNodes.has(id) && !this.createdInTx.has(id)) {
@@ -281,9 +286,13 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeAsyncBase<K, V> {
 
       // [NEW] Immediate Deletion: Delete obsolete nodes from disk immediately
       // This prevents "garbage" files from remaining if the process crashes later.
-      // The data is preserved in memory via `this.obsoleteNodes` for snapshot purposes.
+      // The data is preserved in memory via `this.obsoleteNodes` and `sharedDeleteCache` for snapshot purposes.
       if (cleanup) {
         for (const obsoleteId of distinctObsolete) {
+          // Save to shared delete cache before deletion (for active transactions' snapshot isolation)
+          if (this.originalNodes.has(obsoleteId)) {
+            this.realBaseStrategy.sharedDeleteCache.set(obsoleteId, this.originalNodes.get(obsoleteId)!)
+          }
           await this.realBaseStrategy.delete(obsoleteId)
         }
       }

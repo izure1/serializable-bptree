@@ -21,6 +21,9 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeSyncBase<K, V> {
   protected readonly createdInTx: Set<string>
   protected readonly deletedIds: Set<string>
 
+  public readonly obsoleteNodes: Map<string, BPTreeUnknownNode<K, V>> = new Map() // [NEW] Public property to access obsolete nodes
+  private readonly originalNodes: Map<string, BPTreeUnknownNode<K, V>> = new Map() // [NEW] Cache for original node states
+
   private initialRootId: string
   private transactionRootId: string
 
@@ -79,7 +82,17 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeSyncBase<K, V> {
       throw new Error(`The tree attempted to reference deleted node '${id}'`)
     }
 
-    const baseNode = this.realBaseStrategy.read(id)
+    // Check shared delete cache first (for nodes deleted by other committed transactions)
+    let baseNode: any = this.realBaseStrategy.sharedDeleteCache.get(id)
+    if (!baseNode) {
+      baseNode = this.realBaseStrategy.read(id)
+    }
+
+    // [NEW] Cache the original node state if not already cached
+    // We clone it to ensure we have the pristine state from before the transaction modified it
+    if (!this.originalNodes.has(id) && !this.createdInTx.has(id)) {
+      this.originalNodes.set(id, JSON.parse(JSON.stringify(baseNode)))
+    }
     const clone = JSON.parse(JSON.stringify(baseNode))
 
     this.txNodes.set(id, clone)
@@ -254,10 +267,30 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeSyncBase<K, V> {
     if (success) {
       const distinctObsolete = new Set<string>()
       for (const oldId of this.dirtyIds) {
-        if (!this.createdInTx.has(oldId) && this.txNodes.has(oldId)) {
-          distinctObsolete.add(oldId)
+        if (!this.createdInTx.has(oldId)) {
+          if (this.txNodes.has(oldId) || this.deletedIds.has(oldId)) {
+            distinctObsolete.add(oldId)
+            // [NEW] Populate obsoleteNodes from originalNodes cache
+            if (this.originalNodes.has(oldId)) {
+              this.obsoleteNodes.set(oldId, this.originalNodes.get(oldId)!)
+            }
+          }
         }
       }
+
+      // [NEW] Immediate Deletion: Delete obsolete nodes from disk immediately
+      // This prevents "garbage" files from remaining if the process crashes later.
+      // The data is preserved in memory via `this.obsoleteNodes` and `sharedDeleteCache` for snapshot purposes.
+      if (cleanup) {
+        for (const obsoleteId of distinctObsolete) {
+          // Save to shared delete cache before deletion (for active transactions' snapshot isolation)
+          if (this.originalNodes.has(obsoleteId)) {
+            this.realBaseStrategy.sharedDeleteCache.set(obsoleteId, this.originalNodes.get(obsoleteId)!)
+          }
+          this.realBaseStrategy.delete(obsoleteId)
+        }
+      }
+
       return {
         success: true,
         createdIds: newCreatedIds,
@@ -290,6 +323,14 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeSyncBase<K, V> {
       }
     }
     return createdIds
+  }
+
+  protected readLock<T>(fn: () => T): T {
+    return fn()
+  }
+
+  protected writeLock<T>(fn: () => T): T {
+    return fn()
   }
 
   // Override to do nothing, as transaction handles its own commits

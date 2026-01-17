@@ -34,6 +34,10 @@ export abstract class BPTree<K, V> {
   protected readonly _nodeUpdateBuffer: Map<string, BPTreeUnknownNode<K, V>>
   protected readonly _nodeDeleteBuffer: Map<string, BPTreeUnknownNode<K, V>>
 
+  protected readonly sharedDeleteCache: Map<string, { node: BPTreeUnknownNode<K, V>, obsoleteAt: number }> = new Map()
+  protected readonly activeTransactions: Set<number> = new Set()
+  private lastTransactionId: number = 0
+
   protected readonly verifierMap: Record<
     keyof BPTreeCondition<V>,
     (nodeValue: V, value: V | V[]) => boolean
@@ -434,5 +438,43 @@ export abstract class BPTree<K, V> {
   clear(): void {
     this._cachedRegexp.clear()
     this.nodes.clear()
+  }
+
+  public registerTransaction(txId: number): void {
+    this.activeTransactions.add(txId)
+  }
+
+  public unregisterTransaction(txId: number): void {
+    this.activeTransactions.delete(txId)
+  }
+
+  public pruneObsoleteNodes(): void {
+    if (this.activeTransactions.size === 0) {
+      this.sharedDeleteCache.clear()
+      return
+    }
+    const minActiveTxId = Math.min(...this.activeTransactions)
+    for (const [id, entry] of this.sharedDeleteCache) {
+      if (entry.obsoleteAt < minActiveTxId) {
+        this.sharedDeleteCache.delete(id)
+      }
+    }
+  }
+
+  public getObsoleteNode(id: string): BPTreeUnknownNode<K, V> | undefined {
+    return this.sharedDeleteCache.get(id)?.node
+  }
+
+  public addObsoleteNode(node: BPTreeUnknownNode<K, V>, obsoleteAt: number): void {
+    this.sharedDeleteCache.set(node.id, { node, obsoleteAt })
+  }
+
+  public getNextTransactionId(): number {
+    let nextId = Date.now()
+    if (nextId <= this.lastTransactionId) {
+      nextId = this.lastTransactionId + 0.001
+    }
+    this.lastTransactionId = nextId
+    return nextId
   }
 }

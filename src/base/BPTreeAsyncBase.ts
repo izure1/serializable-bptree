@@ -686,6 +686,8 @@ export abstract class BPTreeAsyncBase<K, V> extends BPTree<K, V> {
 
   protected async commitNodeDeleteBuffer(): Promise<void> {
     for (const node of this._nodeDeleteBuffer.values()) {
+      // Save to shared delete cache before deletion (for active transactions' snapshot isolation)
+      this.strategy.sharedDeleteCache.set(node.id, node)
       await this.strategy.delete(node.id)
       this.nodes.delete(node.id)
     }
