@@ -61,6 +61,12 @@ class FileIOStrategySync extends SerializeStrategySync<string, number> {
 describe('file-order-test', () => {
   const testDir = join(__dirname, 'temp_storage_order_test')
 
+  beforeAll(() => {
+    if (existsSync(testDir)) {
+      unlinkSync(testDir)
+    }
+  })
+
   test('verify-file-content-order', () => {
     const tree = new BPTreeSync(
       new FileIOStrategySync(4, testDir),
