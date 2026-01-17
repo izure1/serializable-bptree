@@ -21,7 +21,6 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeSyncBase<K, V> {
   protected readonly createdInTx: Set<string>
   protected readonly deletedIds: Set<string>
 
-  public readonly obsoleteNodes: Map<string, BPTreeUnknownNode<K, V>> = new Map()
   private readonly originalNodes: Map<string, BPTreeUnknownNode<K, V>> = new Map()
 
   private initialRootId: string
@@ -270,19 +269,17 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeSyncBase<K, V> {
     if (success) {
       const distinctObsolete = new Set<string>()
       for (const oldId of this.dirtyIds) {
-        if (!this.createdInTx.has(oldId)) {
-          if (this.txNodes.has(oldId) || this.deletedIds.has(oldId)) {
-            distinctObsolete.add(oldId)
-            if (this.originalNodes.has(oldId)) {
-              this.obsoleteNodes.set(oldId, this.originalNodes.get(oldId)!)
-            }
-          }
+        if (this.createdInTx.has(oldId)) {
+          continue
+        }
+        if (this.txNodes.has(oldId) || this.deletedIds.has(oldId)) {
+          distinctObsolete.add(oldId)
         }
       }
 
       // Immediate Deletion: Delete obsolete nodes from disk immediately
       // This prevents "garbage" files from remaining if the process crashes later.
-      // The data is preserved in memory via `this.obsoleteNodes` and `sharedDeleteCache` for snapshot purposes.
+      // The data is preserved in memory via `sharedDeleteCache` for snapshot purposes.
       if (cleanup) {
         for (const obsoleteId of distinctObsolete) {
           // Save to shared delete cache before deletion (for active transactions' snapshot isolation)
@@ -298,6 +295,7 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeSyncBase<K, V> {
 
       // Unregister this transaction (GC will be handled separately when safe)
       this.realBaseTree.unregisterTransaction(this.transactionId)
+      this.realBaseTree.pruneObsoleteNodes()
 
       return {
         success: true,
@@ -333,6 +331,7 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeSyncBase<K, V> {
 
     // Unregister this transaction (GC will be handled separately when safe)
     this.realBaseTree.unregisterTransaction(this.transactionId)
+    this.realBaseTree.pruneObsoleteNodes()
 
     return createdIds
   }

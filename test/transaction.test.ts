@@ -317,9 +317,8 @@ describe('BPTree Transaction (MVCC CoW)', () => {
       expect(result.success).toBe(true)
 
       // 5. Verify obsoleteNodes are populated
-      expect(tx.obsoleteNodes.size).toBeGreaterThan(0)
-      const obsoleteIdsFromProp = Array.from(tx.obsoleteNodes.keys())
-      expect(result.obsoleteIds.sort()).toEqual(obsoleteIdsFromProp.sort())
+      expect(result.obsoleteIds.length).toBeGreaterThan(0)
+      const obsoleteIdsFromProp = result.obsoleteIds
 
       // 6. Verify immediate deletion from disk
       expect(deleteSpy).toHaveBeenCalled()
@@ -342,10 +341,8 @@ describe('BPTree Transaction (MVCC CoW)', () => {
       const result = await tx.commit(false)
       expect(result.success).toBe(true)
 
-      expect(tx.obsoleteNodes.size).toBeGreaterThan(0)
-      const obsoleteIdsFromProp = Array.from(tx.obsoleteNodes.keys())
-      // Obsolete IDs should be returned regardless of cleanup flag (as per API)
-      expect(result.obsoleteIds.sort()).toEqual(obsoleteIdsFromProp.sort())
+      expect(result.obsoleteIds.length).toBeGreaterThan(0)
+      const obsoleteIdsFromProp = result.obsoleteIds
 
       // Verify NO immediate deletion from disk
       expect(deleteSpy).not.toHaveBeenCalled()
