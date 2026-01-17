@@ -21,8 +21,8 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeAsyncBase<K, V> {
   protected readonly createdInTx: Set<string>
   protected readonly deletedIds: Set<string>
 
-  public readonly obsoleteNodes: Map<string, BPTreeUnknownNode<K, V>> = new Map() // [NEW] Public property to access obsolete nodes
-  private readonly originalNodes: Map<string, BPTreeUnknownNode<K, V>> = new Map() // [NEW] Cache for original node states
+  public readonly obsoleteNodes: Map<string, BPTreeUnknownNode<K, V>> = new Map()
+  private readonly originalNodes: Map<string, BPTreeUnknownNode<K, V>> = new Map()
 
   private initialRootId: string
   private transactionRootId: string
@@ -91,7 +91,7 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeAsyncBase<K, V> {
       baseNode = await this.realBaseStrategy.read(id)
     }
 
-    // [NEW] Cache the original node state if not already cached
+    // Cache the original node state if not already cached
     // We clone it to ensure we have the pristine state from before the transaction modified it
     if (!this.originalNodes.has(id) && !this.createdInTx.has(id)) {
       this.originalNodes.set(id, JSON.parse(JSON.stringify(baseNode)))
@@ -279,7 +279,6 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeAsyncBase<K, V> {
         if (!this.createdInTx.has(oldId)) {
           if (this.txNodes.has(oldId) || this.deletedIds.has(oldId)) {
             distinctObsolete.add(oldId)
-            // [NEW] Populate obsoleteNodes from originalNodes cache
             if (this.originalNodes.has(oldId)) {
               this.obsoleteNodes.set(oldId, this.originalNodes.get(oldId)!)
             }
@@ -287,7 +286,7 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeAsyncBase<K, V> {
         }
       }
 
-      // [NEW] Immediate Deletion: Delete obsolete nodes from disk immediately
+      // Immediate Deletion: Delete obsolete nodes from disk immediately
       // This prevents "garbage" files from remaining if the process crashes later.
       // The data is preserved in memory via `this.obsoleteNodes` and `sharedDeleteCache` for snapshot purposes.
       if (cleanup) {
