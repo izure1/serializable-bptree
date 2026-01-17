@@ -264,7 +264,7 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeSyncBase<K, V> {
         obsoleteIds: Array.from(distinctObsolete)
       }
     } else {
-      this.rollback()
+      this.rollback(cleanup)
       return {
         success: false,
         createdIds: newCreatedIds,

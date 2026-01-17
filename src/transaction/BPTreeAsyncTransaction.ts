@@ -21,6 +21,9 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeAsyncBase<K, V> {
   protected readonly createdInTx: Set<string>
   protected readonly deletedIds: Set<string>
 
+  public readonly obsoleteNodes: Map<string, BPTreeUnknownNode<K, V>> = new Map() // [NEW] Public property to access obsolete nodes
+  private readonly originalNodes: Map<string, BPTreeUnknownNode<K, V>> = new Map() // [NEW] Cache for original node states
+
   private initialRootId: string
   private transactionRootId: string
 
@@ -80,6 +83,11 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeAsyncBase<K, V> {
     }
 
     const baseNode = await this.realBaseStrategy.read(id)
+    // [NEW] Cache the original node state if not already cached
+    // We clone it to ensure we have the pristine state from before the transaction modified it
+    if (!this.originalNodes.has(id) && !this.createdInTx.has(id)) {
+      this.originalNodes.set(id, JSON.parse(JSON.stringify(baseNode)))
+    }
     const clone = JSON.parse(JSON.stringify(baseNode))
 
     this.txNodes.set(id, clone)
@@ -260,17 +268,33 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeAsyncBase<K, V> {
     if (success) {
       const distinctObsolete = new Set<string>()
       for (const oldId of this.dirtyIds) {
-        if (!this.createdInTx.has(oldId) && this.txNodes.has(oldId)) {
-          distinctObsolete.add(oldId)
+        if (!this.createdInTx.has(oldId)) {
+          if (this.txNodes.has(oldId) || this.deletedIds.has(oldId)) {
+            distinctObsolete.add(oldId)
+            // [NEW] Populate obsoleteNodes from originalNodes cache
+            if (this.originalNodes.has(oldId)) {
+              this.obsoleteNodes.set(oldId, this.originalNodes.get(oldId)!)
+            }
+          }
         }
       }
+
+      // [NEW] Immediate Deletion: Delete obsolete nodes from disk immediately
+      // This prevents "garbage" files from remaining if the process crashes later.
+      // The data is preserved in memory via `this.obsoleteNodes` for snapshot purposes.
+      if (cleanup) {
+        for (const obsoleteId of distinctObsolete) {
+          await this.realBaseStrategy.delete(obsoleteId)
+        }
+      }
+
       return {
         success: true,
         createdIds: newCreatedIds,
         obsoleteIds: Array.from(distinctObsolete)
       }
     } else {
-      await this.rollback()
+      await this.rollback(cleanup)
       return {
         success: false,
         createdIds: newCreatedIds,

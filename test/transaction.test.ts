@@ -297,5 +297,62 @@ describe('BPTree Transaction (MVCC CoW)', () => {
       expect(await tx.get(2)).toBeUndefined()
       expect(await tx.get(1)).toBe(1)
     })
+
+    test('should populate obsoleteNodes and delete from storage on commit (cleanup=true)', async () => {
+      // 1. Insert initial data
+      await tree.insert(10, 10)
+      const strategyAny = strategy as any
+      const initialStore = { ...strategyAny.node }
+
+      // 2. Start transaction and modify data
+      const tx = await tree.createTransaction()
+      await tx.delete(10, 10)
+
+      // 3. Spy on the delete method
+      const deleteSpy = jest.spyOn(strategy, 'delete')
+
+      // 4. Commit (cleanup=true explicitly)
+      const result = await tx.commit(true)
+      expect(result.success).toBe(true)
+
+      // 5. Verify obsoleteNodes are populated
+      expect(tx.obsoleteNodes.size).toBeGreaterThan(0)
+      const obsoleteIdsFromProp = Array.from(tx.obsoleteNodes.keys())
+      expect(result.obsoleteIds.sort()).toEqual(obsoleteIdsFromProp.sort())
+
+      // 6. Verify immediate deletion from disk
+      expect(deleteSpy).toHaveBeenCalled()
+      for (const id of obsoleteIdsFromProp) {
+        expect(strategyAny.node[id]).toBeUndefined()
+      }
+
+      deleteSpy.mockRestore()
+    })
+
+    test('should populate obsoleteNodes BUT NOT delete from storage on commit(cleanup=false)', async () => {
+      await tree.insert(20, 20)
+      const strategyAny = strategy as any
+
+      const tx = await tree.createTransaction()
+      await tx.delete(20, 20)
+
+      const deleteSpy = jest.spyOn(strategy, 'delete')
+
+      const result = await tx.commit(false)
+      expect(result.success).toBe(true)
+
+      expect(tx.obsoleteNodes.size).toBeGreaterThan(0)
+      const obsoleteIdsFromProp = Array.from(tx.obsoleteNodes.keys())
+      // Obsolete IDs should be returned regardless of cleanup flag (as per API)
+      expect(result.obsoleteIds.sort()).toEqual(obsoleteIdsFromProp.sort())
+
+      // Verify NO immediate deletion from disk
+      expect(deleteSpy).not.toHaveBeenCalled()
+      for (const id of obsoleteIdsFromProp) {
+        expect(strategyAny.node[id]).toBeDefined()
+      }
+
+      deleteSpy.mockRestore()
+    })
   })
 })
