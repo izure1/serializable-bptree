@@ -13,22 +13,6 @@ export abstract class BPTree<K, V> {
   protected order!: number
   protected rootId!: string
 
-  /**
-   * Returns the ID of the root node.
-   * @returns The root node ID.
-   */
-  public getRootId(): string {
-    return this.rootId
-  }
-
-  /**
-   * Returns the order of the B+Tree.
-   * @returns The order of the tree.
-   */
-  public getOrder(): number {
-    return this.order
-  }
-
   protected _strategyDirty: boolean
   protected readonly _nodeCreateBuffer: Map<string, BPTreeUnknownNode<K, V>>
   protected readonly _nodeUpdateBuffer: Map<string, BPTreeUnknownNode<K, V>>
@@ -217,6 +201,22 @@ export abstract class BPTree<K, V> {
     }
 
     return best
+  }
+
+  /**
+   * Returns the ID of the root node.
+   * @returns The root node ID.
+   */
+  public getRootId(): string {
+    return this.rootId
+  }
+
+  /**
+   * Returns the order of the B+Tree.
+   * @returns The order of the tree.
+   */
+  public getOrder(): number {
+    return this.order
   }
 
   /**
