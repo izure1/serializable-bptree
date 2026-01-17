@@ -285,17 +285,18 @@ describe('BPTree Transaction (MVCC CoW)', () => {
       await tree.insert(1, 1)
       const tx = await tree.createTransaction()
 
-      // Update base tree
+      // Update base tree (this internally creates and commits a transaction)
       await tree.insert(2, 2)
       await tree.init()
       expect(await tree.get(2)).toBe(2)
 
       // Transaction should still use snapshot of root from its init time.
-      // Note: tree.get() in our implementation uses the tree instance's current root. 
-      // If we want to test TX's view, we'd need tx.get().
-      // Currently BPTreeSyncTransaction inherits BPTreeSync, so tx.get() uses its own rootId.
+      // tx should not see key 2 (committed after tx's snapshot was taken)
       expect(await tx.get(2)).toBeUndefined()
       expect(await tx.get(1)).toBe(1)
+
+      // Clean up tx
+      await tx.rollback()
     })
 
     test('should populate obsoleteNodes and delete from storage on commit (cleanup=true)', async () => {

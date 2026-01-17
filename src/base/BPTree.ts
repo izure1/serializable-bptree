@@ -34,7 +34,7 @@ export abstract class BPTree<K, V> {
   protected readonly _nodeUpdateBuffer: Map<string, BPTreeUnknownNode<K, V>>
   protected readonly _nodeDeleteBuffer: Map<string, BPTreeUnknownNode<K, V>>
 
-  protected readonly sharedDeleteCache: Map<string, { node: BPTreeUnknownNode<K, V>, obsoleteAt: number }> = new Map()
+  public readonly sharedDeleteCache: Map<string, { node: BPTreeUnknownNode<K, V>, obsoleteAt: number }> = new Map()
   protected readonly activeTransactions: Set<number> = new Set()
   private lastTransactionId: number = 0
 

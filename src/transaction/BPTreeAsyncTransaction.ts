@@ -71,6 +71,9 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeAsyncBase<K, V> {
     this.dirtyIds.clear()
     this.createdInTx.clear()
     this.deletedIds.clear()
+
+    // Register this transaction for GC protection
+    this.realBaseTree.registerTransaction(this.transactionId)
   }
 
   protected async getNode(id: string): Promise<BPTreeUnknownNode<K, V>> {
@@ -83,7 +86,7 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeAsyncBase<K, V> {
     }
 
     // Check shared delete cache first (for nodes deleted by other committed transactions)
-    let baseNode: any = this.realBaseStrategy.sharedDeleteCache.get(id)
+    let baseNode: any = this.realBaseTree.getObsoleteNode(id)
     if (!baseNode) {
       baseNode = await this.realBaseStrategy.read(id)
     }
@@ -291,11 +294,17 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeAsyncBase<K, V> {
         for (const obsoleteId of distinctObsolete) {
           // Save to shared delete cache before deletion (for active transactions' snapshot isolation)
           if (this.originalNodes.has(obsoleteId)) {
-            this.realBaseStrategy.sharedDeleteCache.set(obsoleteId, this.originalNodes.get(obsoleteId)!)
+            this.realBaseTree.addObsoleteNode(
+              this.originalNodes.get(obsoleteId)!,
+              this.transactionId
+            )
           }
           await this.realBaseStrategy.delete(obsoleteId)
         }
       }
+
+      // Unregister this transaction (GC will be handled separately when safe)
+      this.realBaseTree.unregisterTransaction(this.transactionId)
 
       return {
         success: true,
@@ -328,6 +337,10 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeAsyncBase<K, V> {
         await this.realBaseStrategy.delete(id)
       }
     }
+
+    // Unregister this transaction (GC will be handled separately when safe)
+    this.realBaseTree.unregisterTransaction(this.transactionId)
+
     return createdIds
   }
 

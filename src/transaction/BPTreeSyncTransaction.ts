@@ -71,6 +71,9 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeSyncBase<K, V> {
     this.dirtyIds.clear()
     this.createdInTx.clear()
     this.deletedIds.clear()
+
+    // Register this transaction for GC protection
+    this.realBaseTree.registerTransaction(this.transactionId)
   }
 
   protected getNode(id: string): BPTreeUnknownNode<K, V> {
@@ -83,7 +86,7 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeSyncBase<K, V> {
     }
 
     // Check shared delete cache first (for nodes deleted by other committed transactions)
-    let baseNode: any = this.realBaseStrategy.sharedDeleteCache.get(id)
+    let baseNode: any = this.realBaseTree.getObsoleteNode(id)
     if (!baseNode) {
       baseNode = this.realBaseStrategy.read(id)
     }
@@ -285,11 +288,17 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeSyncBase<K, V> {
         for (const obsoleteId of distinctObsolete) {
           // Save to shared delete cache before deletion (for active transactions' snapshot isolation)
           if (this.originalNodes.has(obsoleteId)) {
-            this.realBaseStrategy.sharedDeleteCache.set(obsoleteId, this.originalNodes.get(obsoleteId)!)
+            this.realBaseTree.addObsoleteNode(
+              this.originalNodes.get(obsoleteId)!,
+              this.transactionId
+            )
           }
           this.realBaseStrategy.delete(obsoleteId)
         }
       }
+
+      // Unregister this transaction (GC will be handled separately when safe)
+      this.realBaseTree.unregisterTransaction(this.transactionId)
 
       return {
         success: true,
@@ -322,6 +331,10 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeSyncBase<K, V> {
         this.realBaseStrategy.delete(id)
       }
     }
+
+    // Unregister this transaction (GC will be handled separately when safe)
+    this.realBaseTree.unregisterTransaction(this.transactionId)
+
     return createdIds
   }
 
