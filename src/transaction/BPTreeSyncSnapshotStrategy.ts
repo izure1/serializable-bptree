@@ -46,8 +46,12 @@ export class BPTreeSyncSnapshotStrategy<K, V> extends SerializeStrategySync<K, V
     this.snapshotHead.data = { ...head.data }
   }
 
-  compareAndSwapHead(oldRoot: string | null, newRoot: string): boolean {
-    return this.baseStrategy.compareAndSwapHead(oldRoot, newRoot)
+  compareAndSwapHead(newRoot: string, newTxId: number): void {
+    this.baseStrategy.compareAndSwapHead(newRoot, newTxId)
+  }
+
+  getLastCommittedTransactionId(): number {
+    return this.baseStrategy.getLastCommittedTransactionId()
   }
 
   getHeadData(key: string, defaultValue: Json): Json {

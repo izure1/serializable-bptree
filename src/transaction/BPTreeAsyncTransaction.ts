@@ -24,6 +24,9 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeAsyncBase<K, V> {
   private initialRootId: string
   private transactionRootId: string
 
+  private transactionId: number
+  private initialLastCommittedTransactionId: number = 0
+
   constructor(baseTree: BPTreeAsyncBase<K, V>) {
     super((baseTree as any).strategy, (baseTree as any).comparator, (baseTree as any).option)
     this.realBaseTree = baseTree
@@ -34,6 +37,7 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeAsyncBase<K, V> {
     this.dirtyIds = new Set()
     this.createdInTx = new Set()
     this.deletedIds = new Set()
+    this.transactionId = Date.now() + Math.random()
   }
 
   /**
@@ -52,6 +56,7 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeAsyncBase<K, V> {
       const root = await this._createNode(true, [], [], true)
       this.initialRootId = root.id
     }
+    this.initialLastCommittedTransactionId = await this.realBaseStrategy.getLastCommittedTransactionId()
 
     this.transactionRootId = this.initialRootId
     this.rootId = this.transactionRootId
@@ -176,9 +181,10 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeAsyncBase<K, V> {
    * Attempts to commit the transaction.
    * Uses Optimistic Locking (Compare-And-Swap) on the root node ID to detect conflicts.
    * 
+   * @param cleanup Whether to clean up obsolete nodes after commit. Defaults to true.
    * @returns A promise that resolves to the transaction result.
    */
-  public async commit(): Promise<BPTreeTransactionResult> {
+  public async commit(cleanup: boolean = true): Promise<BPTreeTransactionResult> {
     const idMapping: Map<string, string> = new Map()
     const finalNodes: BPTreeUnknownNode<K, V>[] = []
 
@@ -231,11 +237,19 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeAsyncBase<K, V> {
       newRootId = idMapping.get(this.rootId)!
     }
 
-    for (const node of finalNodes) {
-      await this.realBaseStrategy.write(node.id, node)
+    // OCC Check: Only commit if base strategy's lastCommittedTransactionId hasn't changed
+    let success = false
+    if (finalNodes.length === 0) {
+      // No changes made in this transaction (Read-only or no-op)
+      success = true
+    } else if ((await this.realBaseStrategy.getLastCommittedTransactionId()) === this.initialLastCommittedTransactionId) {
+      // Perform writes only when OCC check passes
+      for (const node of finalNodes) {
+        await this.realBaseStrategy.write(node.id, node)
+      }
+      await this.realBaseStrategy.compareAndSwapHead(newRootId, this.transactionId)
+      success = true
     }
-
-    const success = await (this.realBaseStrategy as any).compareAndSwapHead(this.initialRootId, newRootId)
 
     if (success) {
       const distinctObsolete = new Set<string>()

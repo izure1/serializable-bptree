@@ -28,13 +28,14 @@ export abstract class SerializeStrategySync<K, V> extends SerializeStrategy<K, V
     return current
   }
 
-  compareAndSwapHead(oldRoot: string | null, newRoot: string): boolean {
-    if (this.head.root !== oldRoot) {
-      return false
-    }
+  getLastCommittedTransactionId(): number {
+    return this.lastCommittedTransactionId
+  }
+
+  compareAndSwapHead(newRoot: string, newTxId: number): void {
     this.head.root = newRoot
+    this.lastCommittedTransactionId = newTxId
     this.writeHead(this.head)
-    return true
   }
 }
 

@@ -28,13 +28,14 @@ export abstract class SerializeStrategyAsync<K, V> extends SerializeStrategy<K, 
     return current
   }
 
-  async compareAndSwapHead(oldRoot: string | null, newRoot: string): Promise<boolean> {
-    if (this.head.root !== oldRoot) {
-      return false
-    }
+  async getLastCommittedTransactionId(): Promise<number> {
+    return this.lastCommittedTransactionId
+  }
+
+  async compareAndSwapHead(newRoot: string, newTxId: number): Promise<void> {
     this.head.root = newRoot
+    this.lastCommittedTransactionId = newTxId
     await this.writeHead(this.head)
-    return true
   }
 }
 

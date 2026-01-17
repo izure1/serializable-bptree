@@ -3,6 +3,8 @@ import type { BPTreeNode, Json, SerializeStrategyHead } from '../types'
 export abstract class SerializeStrategy<K, V> {
   readonly order: number
   head: SerializeStrategyHead
+  protected lastCommittedTransactionId: number = 0
+
   constructor(order: number) {
     this.order = order
     this.head = {
@@ -60,13 +62,17 @@ export abstract class SerializeStrategy<K, V> {
   abstract writeHead(head: SerializeStrategyHead): void | Promise<void>
 
   /**
-   * Atomically updates the head if the current root matches the expected value.
+   * Atomically updates the head with the new root and transaction ID.
    * Required for Optimistic Concurrency Control (CoW).
-   * @param oldRoot The expected current root ID.
    * @param newRoot The new root ID to set.
-   * @returns True if successful, False if the root has changed.
+   * @param newTxId The new transaction ID.
    */
-  abstract compareAndSwapHead(oldRoot: string | null, newRoot: string): boolean | Promise<boolean>
+  abstract compareAndSwapHead(newRoot: string, newTxId: number): void | Promise<void>
+
+  /**
+   * Returns the last committed transaction ID (in-memory only).
+   */
+  abstract getLastCommittedTransactionId(): number | Promise<number>
 
   /**
    * Retrieves the data stored in the tree.

@@ -46,8 +46,12 @@ export class BPTreeAsyncSnapshotStrategy<K, V> extends SerializeStrategyAsync<K,
     this.snapshotHead.data = { ...head.data }
   }
 
-  async compareAndSwapHead(oldRoot: string | null, newRoot: string): Promise<boolean> {
-    return await this.baseStrategy.compareAndSwapHead(oldRoot, newRoot)
+  async compareAndSwapHead(newRoot: string, newTxId: number): Promise<void> {
+    await this.baseStrategy.compareAndSwapHead(newRoot, newTxId)
+  }
+
+  async getLastCommittedTransactionId(): Promise<number> {
+    return await this.baseStrategy.getLastCommittedTransactionId()
   }
 
   async getHeadData(key: string, defaultValue: Json): Promise<Json> {
