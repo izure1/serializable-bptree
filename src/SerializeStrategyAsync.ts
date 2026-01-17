@@ -1,4 +1,5 @@
 import { BPTreeNode, SerializeStrategyHead, Json } from './types'
+import { Ryoiki } from 'ryoiki'
 import { SerializeStrategy } from './base/SerializeStrategy'
 
 export abstract class SerializeStrategyAsync<K, V> extends SerializeStrategy<K, V> {
@@ -8,6 +9,18 @@ export abstract class SerializeStrategyAsync<K, V> extends SerializeStrategy<K, 
   abstract delete(id: string): Promise<void>
   abstract readHead(): Promise<SerializeStrategyHead | null>
   abstract writeHead(head: SerializeStrategyHead): Promise<void>
+
+  private lock: Ryoiki = new Ryoiki()
+
+  async acquireLock<T>(action: () => Promise<T>): Promise<T> {
+    let lockId: string
+    return this.lock.writeLock((_lockId) => {
+      lockId = _lockId
+      return action()
+    }).finally(() => {
+      this.lock.writeUnlock(lockId)
+    })
+  }
 
   async getHeadData(key: string, defaultValue: Json): Promise<Json> {
     if (!Object.hasOwn(this.head.data, key)) {

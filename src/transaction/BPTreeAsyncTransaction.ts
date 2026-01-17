@@ -242,13 +242,19 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeAsyncBase<K, V> {
     if (finalNodes.length === 0) {
       // No changes made in this transaction (Read-only or no-op)
       success = true
-    } else if ((await this.realBaseStrategy.getLastCommittedTransactionId()) === this.initialLastCommittedTransactionId) {
-      // Perform writes only when OCC check passes
-      for (const node of finalNodes) {
-        await this.realBaseStrategy.write(node.id, node)
-      }
-      await this.realBaseStrategy.compareAndSwapHead(newRootId, this.transactionId)
-      success = true
+    } else {
+      // Use acquireLock for atomic OCC check and write
+      success = await this.realBaseStrategy.acquireLock(async () => {
+        if ((await this.realBaseStrategy.getLastCommittedTransactionId()) === this.initialLastCommittedTransactionId) {
+          // Perform writes only when OCC check passes
+          for (const node of finalNodes) {
+            await this.realBaseStrategy.write(node.id, node)
+          }
+          await this.realBaseStrategy.compareAndSwapHead(newRootId, this.transactionId)
+          return true
+        }
+        return false
+      })
     }
 
     if (success) {
