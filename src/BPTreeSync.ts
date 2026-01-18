@@ -11,7 +11,6 @@ export class BPTreeSync<K, V> extends BPTreeSyncBase<K, V> {
     option?: BPTreeConstructorOption
   ) {
     super(strategy, comparator, option)
-    this.init()
   }
 
   /**
@@ -28,7 +27,6 @@ export class BPTreeSync<K, V> extends BPTreeSyncBase<K, V> {
     const tx = this.createTransaction()
     tx.insert(key, value)
     const { success } = tx.commit()
-    this.init()
     if (!success) {
       throw new Error('Transaction failed: Commit failed due to conflict')
     }
@@ -38,7 +36,6 @@ export class BPTreeSync<K, V> extends BPTreeSyncBase<K, V> {
     const tx = this.createTransaction()
     tx.delete(key, value)
     const { success } = tx.commit()
-    this.init()
     if (!success) {
       throw new Error('Transaction failed: Commit failed due to conflict')
     }

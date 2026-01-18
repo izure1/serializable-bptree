@@ -84,10 +84,11 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeSyncBase<K, V> {
       throw new Error(`The tree attempted to reference deleted node '${id}'`)
     }
 
-    // Check shared delete cache first (for nodes deleted by other committed transactions)
-    let baseNode: any = this.realBaseTree.getObsoleteNode(id)
-    if (!baseNode) {
-      baseNode = this.realBaseStrategy.read(id)
+    let baseNode: BPTreeUnknownNode<K, V>
+    try {
+      baseNode = this.realBaseStrategy.read(id) as BPTreeUnknownNode<K, V>
+    } catch (e) {
+      baseNode = this.realBaseTree.getObsoleteNode(id) as BPTreeUnknownNode<K, V>
     }
 
     // Cache the original node state if not already cached
@@ -209,7 +210,7 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeSyncBase<K, V> {
       } else {
         const node = this.txNodes.get(oldId)
         if (node) {
-          const newId = this.realBaseStrategy.id(node.leaf as any)!
+          const newId = this.realBaseStrategy.id(node.leaf)
           idMapping.set(oldId, newId)
         }
       }
@@ -252,12 +253,13 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeSyncBase<K, V> {
       newRootId = idMapping.get(this.rootId)!
     }
 
-    // OCC Check: Only commit if base strategy's lastCommittedTransactionId hasn't changed
     let success = false
+    // No changes made in this transaction (Read-only or no-op)
     if (finalNodes.length === 0) {
-      // No changes made in this transaction (Read-only or no-op)
       success = true
-    } else if (this.realBaseStrategy.getLastCommittedTransactionId() === this.initialLastCommittedTransactionId) {
+    }
+    // OCC Check: Only commit if base strategy's lastCommittedTransactionId hasn't changed
+    else if (this.realBaseStrategy.getLastCommittedTransactionId() === this.initialLastCommittedTransactionId) {
       // Perform writes only when OCC check passes
       for (const node of finalNodes) {
         this.realBaseStrategy.write(node.id, node)
@@ -296,6 +298,7 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeSyncBase<K, V> {
       // Unregister this transaction (GC will be handled separately when safe)
       this.realBaseTree.unregisterTransaction(this.transactionId)
       this.realBaseTree.pruneObsoleteNodes()
+      this.realBaseTree.init()
 
       return {
         success: true,

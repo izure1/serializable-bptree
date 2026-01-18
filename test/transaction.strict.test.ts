@@ -188,7 +188,6 @@ describe('Strict BPTree Transaction Tests', () => {
         // simulated
       }
 
-      syncTree.init()
       expect(syncTree.get(2)).toBeUndefined()
     })
   })

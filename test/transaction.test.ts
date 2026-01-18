@@ -45,7 +45,6 @@ describe('BPTree Transaction (MVCC CoW)', () => {
       // Actually BPTreeSync holds `this.rootId`. The transaction updates `strategy.head.root`. 
       // The base tree instance `tree` won't know `this.rootId` changed until we tell it or it re-inits.
 
-      tree.init() // Re-read head
       expect(tree.get(3)).toBe(3)
     })
 
@@ -55,8 +54,6 @@ describe('BPTree Transaction (MVCC CoW)', () => {
       tx.insert(20, 20)
 
       // Transaction is simply discarded without commit
-
-      tree.init()
       expect(tree.get(10)).toBe(10)
       expect(tree.get(20)).toBeUndefined()
     })
@@ -73,7 +70,6 @@ describe('BPTree Transaction (MVCC CoW)', () => {
       const result = tx.commit()
       expect(result.success).toBe(true)
 
-      tree.init()
       expect(tree.get(10)).toBe(10)
       expect(tree.get(20)).toBe(20)
       expect(tree.get(30)).toBe(30)
@@ -94,7 +90,6 @@ describe('BPTree Transaction (MVCC CoW)', () => {
       const res2 = tx2.commit()
       expect(res2.success).toBe(false) // CAS fail because root changed by tx1
 
-      tree.init()
       expect(tree.get(2)).toBe(2)
       expect(tree.get(3)).toBeUndefined()
     })
@@ -123,7 +118,6 @@ describe('BPTree Transaction (MVCC CoW)', () => {
       const res = tx.commit()
       expect(res.success).toBe(true)
 
-      tree.init()
       values.forEach(v => expect(tree.get(v)).toBeUndefined())
     })
 
@@ -152,7 +146,6 @@ describe('BPTree Transaction (MVCC CoW)', () => {
       const result = tx.commit()
       expect(result.success).toBe(true)
 
-      tree.init()
       for (const key of addedKeys) {
         if (!removedKeys.includes(key)) {
           expect(tree.get(key)).toBe(key)
@@ -177,14 +170,12 @@ describe('BPTree Transaction (MVCC CoW)', () => {
       const tx = await tree.createTransaction()
       await tx.insert(2, 2)
 
-      await tree.init()
       expect(await tree.get(1)).toBe(1)
       expect(await tree.get(2)).toBeUndefined() // Isolation
 
       const result = await tx.commit()
       expect(result.success).toBe(true)
 
-      await tree.init()
       expect(await tree.get(1)).toBe(1)
       expect(await tree.get(2)).toBe(2)
     })
@@ -203,7 +194,6 @@ describe('BPTree Transaction (MVCC CoW)', () => {
       const result = await tx.commit()
       expect(result.success).toBe(true)
 
-      await tree.init()
       for (const v of values) {
         expect(await tree.get(v)).toBeUndefined()
       }
@@ -234,7 +224,6 @@ describe('BPTree Transaction (MVCC CoW)', () => {
       const result = await tx.commit()
       expect(result.success).toBe(true)
 
-      await tree.init()
       // Verification of some state
       for (const key of addedKeys) {
         if (!removedKeys.includes(key)) {
@@ -271,7 +260,6 @@ describe('BPTree Transaction (MVCC CoW)', () => {
       // only the very first one that finishes swap will succeed because they all share same initialRootId.
       expect(successCount).toBe(1)
 
-      await tree.init()
       // Only one of the changes should be persistent
       const val100 = await tree.get(100)
       const val1 = await tree.get(1)
@@ -287,7 +275,6 @@ describe('BPTree Transaction (MVCC CoW)', () => {
 
       // Update base tree (this internally creates and commits a transaction)
       await tree.insert(2, 2)
-      await tree.init()
       expect(await tree.get(2)).toBe(2)
 
       // Transaction should still use snapshot of root from its init time.

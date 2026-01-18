@@ -1,4 +1,4 @@
-import type { BPTreeConstructorOption, BPTreeTransactionResult } from './types'
+import type { BPTreeConstructorOption } from './types'
 import { SerializeStrategyAsync } from './SerializeStrategyAsync'
 import { ValueComparator } from './base/ValueComparator'
 import { BPTreeAsyncBase } from './base/BPTreeAsyncBase'
@@ -27,7 +27,6 @@ export class BPTreeAsync<K, V> extends BPTreeAsyncBase<K, V> {
     const tx = await this.createTransaction()
     await tx.insert(key, value)
     const { success } = await tx.commit()
-    await this.init()
     if (!success) {
       throw new Error('Transaction failed: Commit failed due to conflict')
     }
@@ -37,7 +36,6 @@ export class BPTreeAsync<K, V> extends BPTreeAsyncBase<K, V> {
     const tx = await this.createTransaction()
     await tx.delete(key, value)
     const { success } = await tx.commit()
-    await this.init()
     if (!success) {
       throw new Error('Transaction failed: Commit failed due to conflict')
     }

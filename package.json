@@ -16,7 +16,7 @@
     "dist/**/*"
   ],
   "scripts": {
-    "test": "jest",
+    "test": "jest --runInBand",
     "build": "node build/index.js && tsc"
   },
   "author": "izure <admin@izure.org>",
@@ -44,6 +44,7 @@
   },
   "dependencies": {
     "cache-entanglement": "^1.7.1",
+    "mvcc-api": "^1.0.2",
     "ryoiki": "^1.2.0"
   }
 }
