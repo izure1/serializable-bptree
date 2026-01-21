@@ -166,7 +166,7 @@ describe('Persistence Test', () => {
     // 1. Setup initial data
     let tree = new BPTreeSync(new FileIOStrategySync(4, testDir), new NumericComparator())
     tree.init()
-    tree.insert('shared', 0)
+    tree.insert('shared', -1)
 
     // 2. Create 5 concurrent transactions
     const txs = Array.from({ length: 5 }, () => tree.createTransaction())
@@ -174,7 +174,7 @@ describe('Persistence Test', () => {
     // 3. Modify data in each transaction
     // All modify 'shared' key -> Conflict
     txs.forEach((tx, i) => {
-      tx.delete('shared', 0) // Explicitly delete the old value
+      tx.delete('shared', -1) // Explicitly delete the old value
       tx.insert('shared', i + 1) // Each tries to set a different value
       tx.insert(`unique_${i}`, i) // And a unique value
     })
@@ -194,14 +194,10 @@ describe('Persistence Test', () => {
 
     // console.log(`Winner Index: ${winnerIndex}, Winner Value: ${winnerValue}`)
 
-    // 5. Verify in current instance
-    // Re-init to see changes (BPTreeSync needs init/re-read to see changes if root ID changed by tx commit)
-    // console.log(`Tree Root ID before init: ${(tree as any).rootId}`)
-    tree.init()
-    // console.log(`Tree Root ID after init: ${(tree as any).rootId}`)
-
     const sharedVal = tree.get('shared')
     // console.log(`Tree get('shared'): ${sharedVal}`)
+
+    console.log(results, winnerIndex, winnerValue)
 
     expect(sharedVal).toBe(winnerValue)
     expect(tree.get(`unique_${winnerIndex}`)).toBe(winnerIndex)

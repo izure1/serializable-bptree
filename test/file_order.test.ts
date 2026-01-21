@@ -7,7 +7,7 @@ import {
   SerializeStrategyHead
 } from '../src'
 import { join } from 'path'
-import { writeFileSync, readFileSync, existsSync, mkdirSync, unlinkSync, readdirSync } from 'fs'
+import { writeFileSync, readFileSync, existsSync, mkdirSync, unlinkSync, readdirSync, rmSync } from 'fs'
 
 class FileIOStrategySync extends SerializeStrategySync<string, number> {
   protected readonly dir: string
@@ -63,7 +63,7 @@ describe('file-order-test', () => {
 
   beforeAll(() => {
     if (existsSync(testDir)) {
-      unlinkSync(testDir)
+      rmSync(testDir, { recursive: true, force: true })
     }
   })
 

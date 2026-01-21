@@ -85,6 +85,8 @@ export interface BPTreeTransactionResult {
   createdIds: string[]
   /** IDs of nodes that became obsolete and can be deleted after a successful commit. */
   obsoleteIds: string[]
+  /** Error message if the transaction failed. */
+  error?: string
 }
 
 export type SerializableData = Record<string, Json>

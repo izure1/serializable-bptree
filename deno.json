@@ -1,6 +1,6 @@
 {
   "name": "@izure/serializable-bptree",
-  "version": "7.0.4",
+  "version": "7.1.0",
   "description": "Store the B+tree flexibly, not only in-memory.",
   "author": "izure1 <admin@izure.org>",
   "license": "MIT",
@@ -14,7 +14,7 @@
   "imports": {
     "cache-entanglement": "jsr:@izure/cache-entanglement@^1.7.1",
     "ryoiki": "jsr:@izure/ryoiki@^1.2.0",
-    "mvcc-api": "jsr:@izure/mvcc-api@^1.0.2"
+    "mvcc-api": "jsr:@izure/mvcc-api@^1.2.5"
   },
   "publish": {
     "include": [

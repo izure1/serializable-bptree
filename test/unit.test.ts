@@ -571,7 +571,7 @@ class FileIOStrategySync extends SerializeStrategySync<string, number> {
   }
 
   delete(id: string): void {
-    unlinkSync(this._filePath(id))
+    if (existsSync(this._filePath(id))) unlinkSync(this._filePath(id))
   }
 
   readHead(): SerializeStrategyHead | null {
@@ -623,7 +623,11 @@ class FileIOStrategyAsync extends SerializeStrategyAsync<string, number> {
   }
 
   async delete(id: string): Promise<void> {
-    await unlink(this._filePath(id))
+    try {
+      await unlink(this._filePath(id))
+    } catch (e: any) {
+      if (e.code !== 'ENOENT') throw e
+    }
   }
 
   async readHead(): Promise<SerializeStrategyHead | null> {

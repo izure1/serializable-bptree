@@ -6,6 +6,7 @@ export type {
   BPTreePair,
   BPTreeUnknownNode,
   BPTreeCondition,
+  BPTreeTransactionResult,
   SerializeStrategyHead,
   SerializableData
 } from './types'

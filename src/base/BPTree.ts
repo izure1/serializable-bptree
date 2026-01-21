@@ -1,4 +1,4 @@
-import type { BPTreeCondition, BPTreeConstructorOption, BPTreeUnknownNode, Deferred, BPTreeLeafNode, BPTreeNodeKey, BPTreePair, SerializableData, BPTreeTransactionResult } from '../types'
+import type { BPTreeCondition, BPTreeConstructorOption, BPTreeUnknownNode, Deferred, BPTreeLeafNode, BPTreeNodeKey, BPTreePair, SerializableData } from '../types'
 import { CacheEntanglementSync, CacheEntanglementAsync } from 'cache-entanglement'
 import { ValueComparator } from './ValueComparator'
 import { SerializeStrategy } from './SerializeStrategy'
@@ -17,10 +17,6 @@ export abstract class BPTree<K, V> {
   protected readonly _nodeCreateBuffer: Map<string, BPTreeUnknownNode<K, V>>
   protected readonly _nodeUpdateBuffer: Map<string, BPTreeUnknownNode<K, V>>
   protected readonly _nodeDeleteBuffer: Map<string, BPTreeUnknownNode<K, V>>
-
-  public readonly sharedDeleteCache: Map<string, { node: BPTreeUnknownNode<K, V>, obsoleteAt: number }> = new Map()
-  protected readonly activeTransactions: Set<number> = new Set()
-  private lastTransactionId: number = 0
 
   protected readonly verifierMap: Record<
     keyof BPTreeCondition<V>,
@@ -427,6 +423,24 @@ export abstract class BPTree<K, V> {
    * This value can be set using the `setHeadData` method. If no data has been previously inserted, the default value is returned, and the default value is `{}`.
    * @returns User-defined data stored in the head of the tree.
    */
+
+  public applyCommit(rootId: string, order: number, changes: { created: string[], deleted: string[], updated: string[] }): void | Promise<void> {
+    this.rootId = rootId
+    this.order = order
+    this.strategy.head.root = rootId
+    this.strategy.head.order = order
+
+    for (const id of changes.created) {
+      this.nodes.delete(id)
+    }
+    for (const id of changes.updated) {
+      this.nodes.delete(id)
+    }
+    for (const id of changes.deleted) {
+      this.nodes.delete(id)
+    }
+  }
+
   getHeadData(): SerializableData {
     return this.strategy.head.data
   }
@@ -438,43 +452,5 @@ export abstract class BPTree<K, V> {
   clear(): void {
     this._cachedRegexp.clear()
     this.nodes.clear()
-  }
-
-  public registerTransaction(txId: number): void {
-    this.activeTransactions.add(txId)
-  }
-
-  public unregisterTransaction(txId: number): void {
-    this.activeTransactions.delete(txId)
-  }
-
-  public pruneObsoleteNodes(): void {
-    if (this.activeTransactions.size === 0) {
-      this.sharedDeleteCache.clear()
-      return
-    }
-    const minActiveTxId = Math.min(...this.activeTransactions)
-    for (const [id, entry] of this.sharedDeleteCache) {
-      if (entry.obsoleteAt < minActiveTxId) {
-        this.sharedDeleteCache.delete(id)
-      }
-    }
-  }
-
-  public getObsoleteNode(id: string): BPTreeUnknownNode<K, V> | undefined {
-    return this.sharedDeleteCache.get(id)?.node
-  }
-
-  public addObsoleteNode(node: BPTreeUnknownNode<K, V>, obsoleteAt: number): void {
-    this.sharedDeleteCache.set(node.id, { node, obsoleteAt })
-  }
-
-  public getNextTransactionId(): number {
-    let nextId = Date.now()
-    if (nextId <= this.lastTransactionId) {
-      nextId = this.lastTransactionId + 0.001
-    }
-    this.lastTransactionId = nextId
-    return nextId
   }
 }

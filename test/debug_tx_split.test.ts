@@ -15,8 +15,8 @@ describe('Debug TX Split', () => {
     tx.insert(2, 2)
     tx.insert(3, 3) // With order 3, this SHOULD cause a split if order is set.
 
-    const rootId = (tx as any).transactionRootId
-    const rootNode = (tx as any).txNodes.get(rootId)
+    const rootId = (tx as any).rootId
+    const rootNode = (tx as any).getNode(rootId)
 
     console.log('Root Node values length:', rootNode.values.length)
     console.log('Is root leaf?', rootNode.leaf)
