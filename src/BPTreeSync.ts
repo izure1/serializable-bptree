@@ -1,21 +1,25 @@
-import type { BPTreeConstructorOption, BPTreeUnknownNode } from './types'
+import type { BPTreeConstructorOption } from './types'
 import { SyncMVCCTransaction } from 'mvcc-api'
 import { SerializeStrategySync } from './SerializeStrategySync'
 import { ValueComparator } from './base/ValueComparator'
-import { BPTreeSyncBase } from './base/BPTreeSyncBase'
 import { BPTreeSyncTransaction } from './transaction/BPTreeSyncTransaction'
 import { BPTreeMVCCStrategySync } from './transaction/BPTreeMVCCStrategySync'
 
-export class BPTreeSync<K, V> extends BPTreeSyncBase<K, V> {
-  public readonly mvccRoot: SyncMVCCTransaction<BPTreeMVCCStrategySync<K, V>, string, BPTreeUnknownNode<K, V> | null>
-
+export class BPTreeSync<K, V> extends BPTreeSyncTransaction<K, V> {
   constructor(
     strategy: SerializeStrategySync<K, V>,
     comparator: ValueComparator<V>,
     option?: BPTreeConstructorOption
   ) {
-    super(strategy, comparator, option)
-    this.mvccRoot = new SyncMVCCTransaction(new BPTreeMVCCStrategySync(strategy))
+    const mvccRoot = new SyncMVCCTransaction(new BPTreeMVCCStrategySync(strategy))
+    super(
+      null as any,
+      mvccRoot as any,
+      mvccRoot as any,
+      strategy,
+      comparator,
+      option,
+    )
   }
 
   /**
@@ -23,32 +27,36 @@ export class BPTreeSync<K, V> extends BPTreeSyncBase<K, V> {
    * @returns A new BPTreeSyncTransaction.
    */
   public createTransaction(): BPTreeSyncTransaction<K, V> {
-    const nestedTx = this.mvccRoot.createNested()
-    const tx = new BPTreeSyncTransaction(this, nestedTx)
-    tx.initTransaction()
+    const nestedTx = this.mvcc.createNested()
+    const tx = new BPTreeSyncTransaction(
+      this,
+      this.mvcc,
+      nestedTx,
+      this.strategy,
+      this.comparator,
+      this.option
+    )
+    tx.init()
     return tx
-  }
-
-  public applyCommit(rootId: string, order: number, changes: { created: string[], deleted: string[], updated: string[] }): void {
-    super.applyCommit(rootId, order, changes)
-    this.strategy.writeHead(this.strategy.head)
   }
 
   public insert(key: K, value: V): void {
     const tx = this.createTransaction()
     tx.insert(key, value)
-    const { success, error } = tx.commit()
-    if (!success) {
-      throw new Error(`Transaction failed: ${error || 'Commit failed due to conflict'}`)
+    const result = tx.commit()
+    if (!result.success) {
+      throw new Error(`Transaction failed: ${result.error || 'Commit failed due to conflict'}`)
     }
+    this.rootId = tx.getRootId()
   }
 
   public delete(key: K, value: V): void {
     const tx = this.createTransaction()
     tx.delete(key, value)
-    const { success, error } = tx.commit()
-    if (!success) {
-      throw new Error(`Transaction failed: ${error || 'Commit failed due to conflict'}`)
+    const result = tx.commit()
+    if (!result.success) {
+      throw new Error(`Transaction failed: ${result.error || 'Commit failed due to conflict'}`)
     }
+    this.rootId = tx.getRootId()
   }
 }

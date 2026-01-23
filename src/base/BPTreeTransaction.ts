@@ -1,22 +1,21 @@
-import type { BPTreeCondition, BPTreeConstructorOption, BPTreeUnknownNode, Deferred, BPTreeLeafNode, BPTreeNodeKey, BPTreePair, SerializableData } from '../types'
+import type { BPTreeCondition, BPTreeConstructorOption, BPTreeUnknownNode, Deferred, BPTreeLeafNode, BPTreeNodeKey, BPTreePair, SerializableData, BPTreeNode, BPTreeMVCC } from '../types'
 import { CacheEntanglementSync, CacheEntanglementAsync } from 'cache-entanglement'
+import { TransactionResult } from 'mvcc-api'
 import { ValueComparator } from './ValueComparator'
 import { SerializeStrategy } from './SerializeStrategy'
 
-export abstract class BPTree<K, V> {
+export abstract class BPTreeTransaction<K, V> {
   private readonly _cachedRegexp: ReturnType<typeof this._createCachedRegexp>
   protected abstract readonly nodes: CacheEntanglementSync<any, any> | CacheEntanglementAsync<any, any>
 
+  protected readonly rootTx: BPTreeTransaction<K, V>
+  protected readonly mvccRoot: BPTreeMVCC<K, V>
+  protected readonly mvcc: BPTreeMVCC<K, V>
   protected readonly strategy: SerializeStrategy<K, V>
   protected readonly comparator: ValueComparator<V>
   protected readonly option: BPTreeConstructorOption
   protected order!: number
   protected rootId!: string
-
-  protected _strategyDirty: boolean
-  protected readonly _nodeCreateBuffer: Map<string, BPTreeUnknownNode<K, V>>
-  protected readonly _nodeUpdateBuffer: Map<string, BPTreeUnknownNode<K, V>>
-  protected readonly _nodeDeleteBuffer: Map<string, BPTreeUnknownNode<K, V>>
 
   protected readonly verifierMap: Record<
     keyof BPTreeCondition<V>,
@@ -185,7 +184,7 @@ export abstract class BPTree<K, V> {
       let score = 0
       for (const key in candidate.condition) {
         const condKey = key as keyof BPTreeCondition<unknown>
-        const priority = BPTree.conditionPriority[condKey] ?? 0
+        const priority = BPTreeTransaction.conditionPriority[condKey] ?? 0
         if (priority > score) {
           score = priority
         }
@@ -234,17 +233,19 @@ export abstract class BPTree<K, V> {
   }
 
   protected constructor(
+    rootTx: BPTreeTransaction<K, V> | null,
+    mvccRoot: BPTreeMVCC<K, V>,
+    mvcc: BPTreeMVCC<K, V>,
     strategy: SerializeStrategy<K, V>,
     comparator: ValueComparator<V>,
     option?: BPTreeConstructorOption
   ) {
+    this.rootTx = rootTx === null ? this : rootTx
+    this.mvccRoot = mvccRoot
+    this.mvcc = mvcc
     this.strategy = strategy
     this.comparator = comparator
     this.option = option ?? {}
-    this._strategyDirty = false
-    this._nodeCreateBuffer = new Map()
-    this._nodeUpdateBuffer = new Map()
-    this._nodeDeleteBuffer = new Map()
     this._cachedRegexp = this._createCachedRegexp()
   }
 
@@ -258,18 +259,17 @@ export abstract class BPTree<K, V> {
     })
   }
 
-  protected abstract _createNodeId(isLeaf: boolean): Deferred<string>
   protected abstract _createNode(
-    isLeaf: boolean,
+    leaf: boolean,
     keys: string[] | K[][],
     values: V[],
-    leaf?: boolean,
     parent?: string | null,
     next?: string | null,
     prev?: string | null
   ): Deferred<BPTreeUnknownNode<K, V>>
   protected abstract _deleteEntry(node: BPTreeUnknownNode<K, V>, key: BPTreeNodeKey<K>, value: V): Deferred<void>
   protected abstract _insertInParent(node: BPTreeUnknownNode<K, V>, value: V, pointer: BPTreeUnknownNode<K, V>): Deferred<void>
+  protected abstract _insertAtLeaf(node: BPTreeUnknownNode<K, V>, key: BPTreeNodeKey<K>, value: V): Deferred<void>
   protected abstract getNode(id: string): Deferred<BPTreeUnknownNode<K, V>>
   protected abstract insertableNode(value: V): Deferred<BPTreeLeafNode<K, V>>
   protected abstract insertableNodeByPrimary(value: V): Deferred<BPTreeLeafNode<K, V>>
@@ -278,9 +278,6 @@ export abstract class BPTree<K, V> {
   protected abstract insertableEndNode(value: V, direction: 1 | -1): Deferred<BPTreeLeafNode<K, V> | null>
   protected abstract leftestNode(): Deferred<BPTreeLeafNode<K, V>>
   protected abstract rightestNode(): Deferred<BPTreeLeafNode<K, V>>
-  protected abstract commitHeadBuffer(): Deferred<void>
-  protected abstract commitNodeCreateBuffer(): Deferred<void>
-  protected abstract commitNodeUpdateBuffer(): Deferred<void>
 
   /**
    * After creating a tree instance, it must be called.  
@@ -366,84 +363,11 @@ export abstract class BPTree<K, V> {
     return [...v].sort((a, b) => this.comparator.primaryAsc(a, b))[i]
   }
 
-  protected _insertAtLeaf(node: BPTreeLeafNode<K, V>, key: K, value: V): Deferred<void> {
-    if (node.values.length) {
-      for (let i = 0, len = node.values.length; i < len; i++) {
-        const nValue = node.values[i]
-        if (this.comparator.isSame(value, nValue)) {
-          const keys = node.keys[i]
-          if (keys.includes(key)) {
-            break
-          }
-          keys.push(key)
-          return this.bufferForNodeUpdate(node)
-        }
-        else if (this.comparator.isLower(value, nValue)) {
-          node.values.splice(i, 0, value)
-          node.keys.splice(i, 0, [key])
-          return this.bufferForNodeUpdate(node)
-        }
-        else if (i + 1 === node.values.length) {
-          node.values.push(value)
-          node.keys.push([key])
-          return this.bufferForNodeUpdate(node)
-        }
-      }
-    }
-    else {
-      node.values = [value]
-      node.keys = [[key]]
-      return this.bufferForNodeUpdate(node)
-    }
-  }
+  abstract getHeadData(): Deferred<SerializableData>
 
-  protected bufferForNodeCreate(node: BPTreeUnknownNode<K, V>): Deferred<void> {
-    if (node.id === this.rootId) {
-      this._strategyDirty = true
-    }
-    this._nodeCreateBuffer.set(node.id, node)
-  }
+  abstract commit(label?: string): Deferred<TransactionResult<string, BPTreeNode<K, V>>>
 
-  protected bufferForNodeUpdate(node: BPTreeUnknownNode<K, V>): Deferred<void> {
-    if (node.id === this.rootId) {
-      this._strategyDirty = true
-    }
-    this._nodeUpdateBuffer.set(node.id, node)
-  }
-
-  protected bufferForNodeDelete(node: BPTreeUnknownNode<K, V>): Deferred<void> {
-    if (node.id === this.rootId) {
-      this._strategyDirty = true
-    }
-    this._nodeDeleteBuffer.set(node.id, node)
-  }
-
-  /**
-   * Returns the user-defined data stored in the head of the tree.
-   * This value can be set using the `setHeadData` method. If no data has been previously inserted, the default value is returned, and the default value is `{}`.
-   * @returns User-defined data stored in the head of the tree.
-   */
-
-  public applyCommit(rootId: string, order: number, changes: { created: string[], deleted: string[], updated: string[] }): void | Promise<void> {
-    this.rootId = rootId
-    this.order = order
-    this.strategy.head.root = rootId
-    this.strategy.head.order = order
-
-    for (const id of changes.created) {
-      this.nodes.delete(id)
-    }
-    for (const id of changes.updated) {
-      this.nodes.delete(id)
-    }
-    for (const id of changes.deleted) {
-      this.nodes.delete(id)
-    }
-  }
-
-  getHeadData(): SerializableData {
-    return this.strategy.head.data
-  }
+  abstract rollback(): TransactionResult<string, BPTreeNode<K, V>>
 
   /**
    * Clears all cached nodes.

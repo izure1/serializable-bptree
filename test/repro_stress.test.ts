@@ -32,8 +32,6 @@ describe('Repro Stress Test', () => {
     const result = tx.commit()
     expect(result.success).toBe(true)
 
-    tree.init()
-
     let missingCount = 0
     for (const key of addedKeys) {
       if (!removedKeys.includes(key)) {

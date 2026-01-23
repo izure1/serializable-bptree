@@ -1,28 +1,28 @@
 import { AsyncMVCCStrategy } from 'mvcc-api'
 import type { SerializeStrategyAsync } from '../SerializeStrategyAsync'
-import type { BPTreeUnknownNode } from '../types'
+import type { BPTreeNode, SerializeStrategyHead } from '../types'
 
 /**
- * MVCC Strategy for asynchronous B+Tree operations.
+ * MVCC Strategy for synchronous B+Tree operations.
  * Uses node ID as key and node data as value.
  */
-export class BPTreeMVCCStrategyAsync<K, V> extends AsyncMVCCStrategy<string, BPTreeUnknownNode<K, V> | null> {
+export class BPTreeMVCCStrategyAsync<K, V, B extends BPTreeNode<K, V>> extends AsyncMVCCStrategy<string, B> {
   constructor(private readonly strategy: SerializeStrategyAsync<K, V>) {
     super()
   }
 
-  async read(key: string): Promise<BPTreeUnknownNode<K, V> | null> {
-    try {
-      return await this.strategy.read(key) as BPTreeUnknownNode<K, V>
-    } catch {
-      return null
+  async read(key: string): Promise<B> {
+    if (key === '__HEAD__') {
+      return await this.strategy.readHead() as unknown as Promise<B>
     }
+    return await this.strategy.read(key) as unknown as Promise<B>
   }
 
-  async write(key: string, value: BPTreeUnknownNode<K, V> | null): Promise<void> {
-    if (value === null) {
-      await this.strategy.delete(key)
-    } else {
+  async write(key: string, value: B): Promise<void> {
+    if (key === '__HEAD__') {
+      await this.strategy.writeHead(value as unknown as SerializeStrategyHead)
+    }
+    else {
       await this.strategy.write(key, value)
     }
   }
@@ -32,6 +32,9 @@ export class BPTreeMVCCStrategyAsync<K, V> extends AsyncMVCCStrategy<string, BPT
   }
 
   async exists(key: string): Promise<boolean> {
+    if (key === '__HEAD__') {
+      return await this.strategy.readHead() !== null
+    }
     try {
       const node = await this.strategy.read(key)
       return node !== null && node !== undefined

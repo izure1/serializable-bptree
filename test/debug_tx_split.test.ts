@@ -15,14 +15,19 @@ describe('Debug TX Split', () => {
     tx.insert(2, 2)
     tx.insert(3, 3) // With order 3, this SHOULD cause a split if order is set.
 
-    const rootId = (tx as any).rootId
-    const rootNode = (tx as any).getNode(rootId)
+    console.log(1, tree.getRootId())
+    const result = tx.commit()
+    expect(result.success).toBe(true)
 
-    console.log('Root Node values length:', rootNode.values.length)
-    console.log('Is root leaf?', rootNode.leaf)
+    const rootId = tree.getRootId()
+    console.log(2, rootId)
+    const rootNode = (tree as any).getNode(rootId)
 
     // If it split, root should be an internal node (leaf: false) with 1 value and 2 children.
     // If it didn't split, root should be a leaf (leaf: true) with 3 values.
+
+    console.log('Root Node values length:', rootNode.values.length)
+    console.log('Is root leaf?', rootNode.leaf)
 
     expect(tx.getOrder()).toBe(3)
     expect(rootNode.values.length).toBeLessThan(3)

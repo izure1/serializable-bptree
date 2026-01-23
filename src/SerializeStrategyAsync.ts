@@ -40,16 +40,6 @@ export abstract class SerializeStrategyAsync<K, V> extends SerializeStrategy<K, 
     await this.setHeadData(key, next)
     return current
   }
-
-  async getLastCommittedTransactionId(): Promise<number> {
-    return this.lastCommittedTransactionId
-  }
-
-  async compareAndSwapHead(newRoot: string, newTxId: number): Promise<void> {
-    this.head.root = newRoot
-    this.lastCommittedTransactionId = newTxId
-    await this.writeHead(this.head)
-  }
 }
 
 export class InMemoryStoreStrategyAsync<K, V> extends SerializeStrategyAsync<K, V> {

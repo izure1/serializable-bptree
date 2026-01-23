@@ -27,16 +27,6 @@ export abstract class SerializeStrategySync<K, V> extends SerializeStrategy<K, V
     this.setHeadData(key, next)
     return current
   }
-
-  getLastCommittedTransactionId(): number {
-    return this.lastCommittedTransactionId
-  }
-
-  compareAndSwapHead(newRoot: string, newTxId: number): void {
-    this.head.root = newRoot
-    this.lastCommittedTransactionId = newTxId
-    this.writeHead(this.head)
-  }
 }
 
 export class InMemoryStoreStrategySync<K, V> extends SerializeStrategySync<K, V> {

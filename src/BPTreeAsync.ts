@@ -1,62 +1,62 @@
-import type { BPTreeConstructorOption, BPTreeUnknownNode } from './types'
+import type { BPTreeConstructorOption } from './types'
 import { AsyncMVCCTransaction } from 'mvcc-api'
 import { SerializeStrategyAsync } from './SerializeStrategyAsync'
 import { ValueComparator } from './base/ValueComparator'
-import { BPTreeAsyncBase } from './base/BPTreeAsyncBase'
 import { BPTreeAsyncTransaction } from './transaction/BPTreeAsyncTransaction'
 import { BPTreeMVCCStrategyAsync } from './transaction/BPTreeMVCCStrategyAsync'
 
-export class BPTreeAsync<K, V> extends BPTreeAsyncBase<K, V> {
-  public readonly mvccRoot: AsyncMVCCTransaction<BPTreeMVCCStrategyAsync<K, V>, string, BPTreeUnknownNode<K, V> | null>
-
+export class BPTreeAsync<K, V> extends BPTreeAsyncTransaction<K, V> {
   constructor(
     strategy: SerializeStrategyAsync<K, V>,
     comparator: ValueComparator<V>,
     option?: BPTreeConstructorOption
   ) {
-    super(strategy, comparator, option)
-    this.mvccRoot = new AsyncMVCCTransaction(new BPTreeMVCCStrategyAsync(strategy))
+    const mvccRoot = new AsyncMVCCTransaction(new BPTreeMVCCStrategyAsync(strategy))
+    super(
+      null as any,
+      mvccRoot as any,
+      mvccRoot as any,
+      strategy,
+      comparator,
+      option,
+    )
   }
 
   /**
    * Creates a new asynchronous transaction.
-   * @returns A promise that resolves to a new BPTreeAsyncTransaction.
+   * @returns A new BPTreeAsyncTransaction.
    */
   public async createTransaction(): Promise<BPTreeAsyncTransaction<K, V>> {
-    const nestedTx = this.mvccRoot.createNested()
-    const tx = new BPTreeAsyncTransaction(this, nestedTx)
-    await tx.initTransaction()
+    const nestedTx = await this.mvcc.createNested()
+    const tx = new BPTreeAsyncTransaction(
+      this,
+      this.mvcc,
+      nestedTx,
+      this.strategy,
+      this.comparator,
+      this.option
+    )
+    await tx.init()
     return tx
   }
 
   public async insert(key: K, value: V): Promise<void> {
     const tx = await this.createTransaction()
     await tx.insert(key, value)
-    const { success, error } = await tx.commit()
-    if (!success) {
-      throw new Error(`Transaction failed: ${error || 'Commit failed due to conflict'}`)
+    const result = await tx.commit()
+    if (!result.success) {
+      throw new Error(`Transaction failed: ${result.error || 'Commit failed due to conflict'}`)
     }
-  }
-
-  public async applyCommit(rootId: string, order: number, changes: { created: string[], deleted: string[], updated: string[] }): Promise<void> {
-    super.applyCommit(rootId, order, changes)
-    await this.strategy.writeHead(this.strategy.head)
+    this.rootId = tx.getRootId()
   }
 
   public async delete(key: K, value: V): Promise<void> {
     const tx = await this.createTransaction()
     await tx.delete(key, value)
-    const { success, error } = await tx.commit()
-    if (!success) {
-      throw new Error(`Transaction failed: ${error || 'Commit failed due to conflict'}`)
+    const result = await tx.commit()
+    if (!result.success) {
+      throw new Error(`Transaction failed: ${result.error || 'Commit failed due to conflict'}`)
     }
-  }
-
-  protected async readLock<T>(fn: () => Promise<T>): Promise<T> {
-    return await fn()
-  }
-
-  protected async writeLock<T>(fn: () => Promise<T>): Promise<T> {
-    return await fn()
+    this.rootId = tx.getRootId()
   }
 }

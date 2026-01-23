@@ -1,28 +1,28 @@
 import { SyncMVCCStrategy } from 'mvcc-api'
 import type { SerializeStrategySync } from '../SerializeStrategySync'
-import type { BPTreeUnknownNode } from '../types'
+import type { BPTreeNode, SerializeStrategyHead } from '../types'
 
 /**
  * MVCC Strategy for synchronous B+Tree operations.
  * Uses node ID as key and node data as value.
  */
-export class BPTreeMVCCStrategySync<K, V> extends SyncMVCCStrategy<string, BPTreeUnknownNode<K, V> | null> {
+export class BPTreeMVCCStrategySync<K, V, B extends BPTreeNode<K, V>> extends SyncMVCCStrategy<string, B> {
   constructor(private readonly strategy: SerializeStrategySync<K, V>) {
     super()
   }
 
-  read(key: string): BPTreeUnknownNode<K, V> | null {
-    try {
-      return this.strategy.read(key) as BPTreeUnknownNode<K, V>
-    } catch {
-      return null
+  read(key: string): B {
+    if (key === '__HEAD__') {
+      return this.strategy.readHead() as unknown as B
     }
+    return this.strategy.read(key) as B
   }
 
-  write(key: string, value: BPTreeUnknownNode<K, V> | null): void {
-    if (value === null) {
-      this.strategy.delete(key)
-    } else {
+  write(key: string, value: B): void {
+    if (key === '__HEAD__') {
+      this.strategy.writeHead(value as unknown as SerializeStrategyHead)
+    }
+    else {
       this.strategy.write(key, value)
     }
   }
@@ -32,6 +32,9 @@ export class BPTreeMVCCStrategySync<K, V> extends SyncMVCCStrategy<string, BPTre
   }
 
   exists(key: string): boolean {
+    if (key === '__HEAD__') {
+      return this.strategy.readHead() !== null
+    }
     try {
       const node = this.strategy.read(key)
       return node !== null && node !== undefined

@@ -33,7 +33,7 @@ describe('BPTree Transaction (MVCC CoW)', () => {
 
       const result = tx.commit()
       expect(result.success).toBe(true)
-      expect(result.createdIds.length).toBeGreaterThan(0)
+      expect(result.created.length).toBeGreaterThan(0)
 
       // After commit, base tree should have 3
       // Note: Because we are swapping HEAD, we need to reload or re-fetch head in base tree 
@@ -286,7 +286,7 @@ describe('BPTree Transaction (MVCC CoW)', () => {
       expect(await tx.get(1)).toBe(1)
 
       // Clean up tx
-      await tx.rollback()
+      tx.rollback()
     })
 
     test('should populate obsoleteNodes and delete from storage on commit', async () => {
@@ -311,9 +311,9 @@ describe('BPTree Transaction (MVCC CoW)', () => {
 
       // 6. Verify immediate persistence
       // With True COW, we expect deletions because old nodes become obsolete.
-      if (result.obsoleteIds.length > 0) {
+      if (result.deleted.length > 0) {
         expect(deleteSpy).toHaveBeenCalled()
-        for (const id of result.obsoleteIds) {
+        for (const id of result.deleted) {
           expect(strategyAny.node[id]).toBeUndefined()
         }
       }

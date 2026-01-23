@@ -1,3 +1,7 @@
+import type { SyncMVCCTransaction, AsyncMVCCTransaction, MVCCTransaction, MVCCStrategy } from 'mvcc-api'
+import { BPTreeMVCCStrategyAsync } from '../transaction/BPTreeMVCCStrategyAsync'
+import { BPTreeMVCCStrategySync } from '../transaction/BPTreeMVCCStrategySync'
+
 export type Sync<T> = T
 export type Async<T> = Promise<T>
 export type Deferred<T> = Sync<T> | Async<T>
@@ -96,6 +100,24 @@ export interface SerializeStrategyHead {
   order: number
   data: SerializableData
 }
+
+export type BPTreeMVCC<K, V> = MVCCTransaction<
+  MVCCStrategy<string, BPTreeNode<K, V>>,
+  string,
+  BPTreeNode<K, V>
+>
+
+export type SyncBPTreeMVCC<K, V> = SyncMVCCTransaction<
+  BPTreeMVCCStrategySync<K, V, BPTreeNode<K, V>>,
+  string,
+  BPTreeNode<K, V>
+>
+
+export type AsyncBPTreeMVCC<K, V> = AsyncMVCCTransaction<
+  BPTreeMVCCStrategyAsync<K, V, BPTreeNode<K, V>>,
+  string,
+  BPTreeNode<K, V>
+>
 
 export type Primitive = string | number | null | boolean
 export type Json = Primitive | Primitive[] | Json[] | { [key: string]: Json }
