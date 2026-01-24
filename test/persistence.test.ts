@@ -192,7 +192,7 @@ describe('Persistence Test', () => {
     const winnerIndex = results.findIndex(r => r.success)
     const winnerValue = winnerIndex + 1
 
-    debugger
+    tree.commit()
 
     // console.log(`Winner Index: ${winnerIndex}, Winner Value: ${winnerValue}`)
 

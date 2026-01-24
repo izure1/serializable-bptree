@@ -710,8 +710,8 @@ describe('strategy-test', () => {
     }
 
     await tree.setHeadData({
-      ...tree.getHeadData(),
-      count: (tree.getHeadData().count as number ?? 0) + 1,
+      ...await tree.getHeadData(),
+      count: ((await tree.getHeadData()).count as number ?? 0) + 1,
       at: Date.now()
     })
     for (let i = 1; i < max; i++) {

@@ -259,6 +259,7 @@ export abstract class BPTreeTransaction<K, V> {
     })
   }
 
+
   protected abstract _createNode(
     leaf: boolean,
     keys: string[] | K[][],
@@ -267,6 +268,7 @@ export abstract class BPTreeTransaction<K, V> {
     next?: string | null,
     prev?: string | null
   ): Deferred<BPTreeUnknownNode<K, V>>
+  protected abstract _copyNode<T extends BPTreeUnknownNode<K, V>>(node: T): Deferred<T>
   protected abstract _deleteEntry(node: BPTreeUnknownNode<K, V>, key: BPTreeNodeKey<K>, value: V): Deferred<void>
   protected abstract _insertInParent(node: BPTreeUnknownNode<K, V>, value: V, pointer: BPTreeUnknownNode<K, V>): Deferred<void>
   protected abstract _insertAtLeaf(node: BPTreeUnknownNode<K, V>, key: BPTreeNodeKey<K>, value: V): Deferred<void>

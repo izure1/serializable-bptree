@@ -43,6 +43,8 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
 
   protected getNode(id: string): BPTreeUnknownNode<K, V> {
     return this.mvcc.read(id) as BPTreeUnknownNode<K, V>
+    // const clone = JSON.parse(JSON.stringify(node))
+    // return clone
   }
 
   /**
@@ -70,8 +72,21 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
     return node
   }
 
+  protected _copyNode<T extends BPTreeUnknownNode<K, V>>(node: T): T {
+    const clone = JSON.parse(JSON.stringify(node))
+    const newNode = this._createNode(
+      clone.leaf,
+      clone.keys,
+      clone.values,
+      clone.parent,
+      clone.next,
+      clone.prev
+    )
+    return newNode as T
+  }
+
   protected _updateNode(node: BPTreeUnknownNode<K, V>): void {
-    this.mvcc.write(node.id, node)
+    this.mvcc.write(node.id, JSON.parse(JSON.stringify(node)))
   }
 
   protected _deleteNode(id: string): void {
@@ -586,8 +601,7 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
 
   protected _deleteEntry(
     node: BPTreeUnknownNode<K, V>,
-    key: BPTreeNodeKey<K>,
-    value: V
+    key: BPTreeNodeKey<K>
   ): void {
     if (!node.leaf) {
       let keyIndex = -1
@@ -613,7 +627,6 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
       const keys = node.keys as string[]
       this._deleteNode(node.id)
       const newRoot = this.getNode(keys[0])
-      // this.rootId = newRoot.id
       newRoot.parent = null
       this._updateNode(newRoot)
       this._writeHead({
@@ -710,7 +723,7 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
           }
         }
 
-        this._deleteEntry(this.getNode(node.parent!), node.id, guess!)
+        this._deleteEntry(this.getNode(node.parent!), node.id)
         this._updateNode(pointer)
         this._deleteNode(node.id)
       }
@@ -816,7 +829,7 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
             node.keys.splice(i, 1)
             node.values.splice(i, 1)
           }
-          this._deleteEntry(node, key, value)
+          this._deleteEntry(node, key)
           break
         }
       }
