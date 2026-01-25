@@ -1,4 +1,16 @@
-import type { AsyncBPTreeMVCC, BPTreeCondition, BPTreeConstructorOption, BPTreeInternalNode, BPTreeLeafNode, BPTreeNode, BPTreeNodeKey, BPTreePair, BPTreeUnknownNode, SerializableData, SerializeStrategyHead } from '../types'
+import type {
+  AsyncBPTreeMVCC,
+  BPTreeCondition,
+  BPTreeConstructorOption,
+  BPTreeInternalNode,
+  BPTreeLeafNode,
+  BPTreeNode,
+  BPTreeNodeKey,
+  BPTreePair,
+  BPTreeUnknownNode,
+  SerializableData,
+  SerializeStrategyHead
+} from '../types'
 import { TransactionResult } from 'mvcc-api'
 import { CacheEntanglementAsync } from 'cache-entanglement'
 import { BPTreeTransaction } from '../base/BPTreeTransaction'
@@ -43,8 +55,6 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
 
   protected async getNode(id: string): Promise<BPTreeUnknownNode<K, V>> {
     return await this.mvcc.read(id) as BPTreeUnknownNode<K, V>
-    // const clone = JSON.parse(JSON.stringify(node))
-    // return clone
   }
 
   /**
@@ -72,25 +82,12 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
     return node
   }
 
-  protected async _copyNode<T extends BPTreeUnknownNode<K, V>>(node: T): Promise<T> {
-    const clone = JSON.parse(JSON.stringify(node))
-    const newNode = await this._createNode(
-      clone.leaf,
-      clone.keys,
-      clone.values,
-      clone.parent,
-      clone.next,
-      clone.prev
-    )
-    return newNode as T
-  }
-
   protected async _updateNode(node: BPTreeUnknownNode<K, V>): Promise<void> {
     await this.mvcc.write(node.id, JSON.parse(JSON.stringify(node)))
   }
 
-  protected async _deleteNode(id: string): Promise<void> {
-    await this.mvcc.delete(id)
+  protected async _deleteNode(node: BPTreeUnknownNode<K, V>): Promise<void> {
+    await this.mvcc.delete(node.id)
   }
 
   protected async _readHead(): Promise<SerializeStrategyHead | null> {
@@ -595,7 +592,6 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
       before.values = before.values.slice(0, mid + 1)
       before.keys = before.keys.slice(0, mid + 1)
       await this._insertInParent(before, after.values[0], after)
-      await this._updateNode(before)
     }
   }
 
@@ -625,7 +621,7 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
 
     if (this.rootId === node.id && node.keys.length === 1 && !node.leaf) {
       const keys = node.keys as string[]
-      await this._deleteNode(node.id)
+      this._deleteNode(node)
       const newRoot = await this.getNode(keys[0])
       newRoot.parent = null
       await this._updateNode(newRoot)
@@ -723,9 +719,9 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
           }
         }
 
-        await this._deleteEntry(await this.getNode(node.parent!), node.id)
+        this._deleteNode(node)
         await this._updateNode(pointer)
-        await this._deleteNode(node.id)
+        await this._deleteEntry(await this.getNode(node.parent!), node.id)
       }
       else {
         if (isPredecessor) {
@@ -816,23 +812,34 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
   }
 
   public async delete(key: K, value: V): Promise<void> {
-    const node = await this.insertableNode(value)
-    let i = node.values.length
-    while (i--) {
-      const nValue = node.values[i]
-      if (this.comparator.isSame(value, nValue)) {
-        const keys = node.keys[i]
-        const keyIndex = keys.indexOf(key)
-        if (keyIndex !== -1) {
-          keys.splice(keyIndex, 1)
-          if (keys.length === 0) {
-            node.keys.splice(i, 1)
-            node.values.splice(i, 1)
+    let node = await this.insertableNodeByPrimary(value)
+    let found = false
+    while (true) {
+      let i = node.values.length
+      while (i--) {
+        const nValue = node.values[i]
+        if (this.comparator.isSame(value, nValue)) {
+          const keys = node.keys[i]
+          const keyIndex = keys.indexOf(key)
+          if (keyIndex !== -1) {
+            keys.splice(keyIndex, 1)
+            if (keys.length === 0) {
+              node.keys.splice(i, 1)
+              node.values.splice(i, 1)
+            }
+            await this._updateNode(node)
+            await this._deleteEntry(node, key)
+            found = true
+            break
           }
-          await this._deleteEntry(node, key)
-          break
         }
       }
+      if (found) break
+      if (node.next) {
+        node = await this.getNode(node.next) as BPTreeLeafNode<K, V>
+        continue
+      }
+      break
     }
   }
 

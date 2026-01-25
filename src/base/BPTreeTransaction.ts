@@ -8,6 +8,7 @@ export abstract class BPTreeTransaction<K, V> {
   private readonly _cachedRegexp: ReturnType<typeof this._createCachedRegexp>
   protected abstract readonly nodes: CacheEntanglementSync<any, any> | CacheEntanglementAsync<any, any>
 
+  protected readonly deletedNodeBuffer: Map<string, BPTreeUnknownNode<K, V>> = new Map()
   protected readonly rootTx: BPTreeTransaction<K, V>
   protected readonly mvccRoot: BPTreeMVCC<K, V>
   protected readonly mvcc: BPTreeMVCC<K, V>
@@ -268,7 +269,6 @@ export abstract class BPTreeTransaction<K, V> {
     next?: string | null,
     prev?: string | null
   ): Deferred<BPTreeUnknownNode<K, V>>
-  protected abstract _copyNode<T extends BPTreeUnknownNode<K, V>>(node: T): Deferred<T>
   protected abstract _deleteEntry(node: BPTreeUnknownNode<K, V>, key: BPTreeNodeKey<K>, value: V): Deferred<void>
   protected abstract _insertInParent(node: BPTreeUnknownNode<K, V>, value: V, pointer: BPTreeUnknownNode<K, V>): Deferred<void>
   protected abstract _insertAtLeaf(node: BPTreeUnknownNode<K, V>, key: BPTreeNodeKey<K>, value: V): Deferred<void>

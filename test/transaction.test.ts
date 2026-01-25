@@ -314,7 +314,7 @@ describe('BPTree Transaction (MVCC CoW)', () => {
       if (result.deleted.length > 0) {
         expect(deleteSpy).toHaveBeenCalled()
         for (const id of result.deleted) {
-          expect(strategyAny.node[id]).toBeUndefined()
+          expect(strategyAny.node[id as any]).toBeUndefined()
         }
       }
 

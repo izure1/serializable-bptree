@@ -180,7 +180,10 @@ describe('Persistence Test', () => {
     })
 
     // 4. Commit all
-    const results = txs.map(tx => tx.commit())
+    const results = txs.map((tx, i) => {
+      const result = tx.commit()
+      return result
+    })
     const successCount = results.filter(r => r.success).length
 
     // console.log(`Success count: ${successCount}`)
@@ -194,12 +197,7 @@ describe('Persistence Test', () => {
 
     tree.commit()
 
-    // console.log(`Winner Index: ${winnerIndex}, Winner Value: ${winnerValue}`)
-
     const sharedVal = tree.get('shared')
-    // console.log(`Tree get('shared'): ${sharedVal}`)
-
-    console.log(results, winnerIndex, winnerValue)
 
     expect(sharedVal).toBe(winnerValue)
     expect(tree.get(`unique_${winnerIndex}`)).toBe(winnerIndex)

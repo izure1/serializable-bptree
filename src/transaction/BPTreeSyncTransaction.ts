@@ -1,4 +1,16 @@
-import type { BPTreeCondition, BPTreeConstructorOption, BPTreeInternalNode, BPTreeLeafNode, BPTreeNode, BPTreeNodeKey, BPTreePair, BPTreeUnknownNode, SerializableData, SerializeStrategyHead, SyncBPTreeMVCC } from '../types'
+import type {
+  BPTreeCondition,
+  BPTreeConstructorOption,
+  BPTreeInternalNode,
+  BPTreeLeafNode,
+  BPTreeNode,
+  BPTreeNodeKey,
+  BPTreePair,
+  BPTreeUnknownNode,
+  SerializableData,
+  SerializeStrategyHead,
+  SyncBPTreeMVCC
+} from '../types'
 import { TransactionResult } from 'mvcc-api'
 import { CacheEntanglementSync } from 'cache-entanglement'
 import { BPTreeTransaction } from '../base/BPTreeTransaction'
@@ -43,8 +55,6 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
 
   protected getNode(id: string): BPTreeUnknownNode<K, V> {
     return this.mvcc.read(id) as BPTreeUnknownNode<K, V>
-    // const clone = JSON.parse(JSON.stringify(node))
-    // return clone
   }
 
   /**
@@ -72,25 +82,12 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
     return node
   }
 
-  protected _copyNode<T extends BPTreeUnknownNode<K, V>>(node: T): T {
-    const clone = JSON.parse(JSON.stringify(node))
-    const newNode = this._createNode(
-      clone.leaf,
-      clone.keys,
-      clone.values,
-      clone.parent,
-      clone.next,
-      clone.prev
-    )
-    return newNode as T
-  }
-
   protected _updateNode(node: BPTreeUnknownNode<K, V>): void {
     this.mvcc.write(node.id, JSON.parse(JSON.stringify(node)))
   }
 
-  protected _deleteNode(id: string): void {
-    this.mvcc.delete(id)
+  protected _deleteNode(node: BPTreeUnknownNode<K, V>): void {
+    this.mvcc.delete(node.id)
   }
 
   protected _readHead(): SerializeStrategyHead | null {
@@ -595,7 +592,6 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
       before.values = before.values.slice(0, mid + 1)
       before.keys = before.keys.slice(0, mid + 1)
       this._insertInParent(before, after.values[0], after)
-      this._updateNode(before)
     }
   }
 
@@ -625,7 +621,7 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
 
     if (this.rootId === node.id && node.keys.length === 1 && !node.leaf) {
       const keys = node.keys as string[]
-      this._deleteNode(node.id)
+      this._deleteNode(node)
       const newRoot = this.getNode(keys[0])
       newRoot.parent = null
       this._updateNode(newRoot)
@@ -637,8 +633,11 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
       return
     }
     else if (this.rootId === node.id) {
-      const root = this.getNode(this.rootId)
-      this._updateNode(root)
+      this._writeHead({
+        root: node.id,
+        order: this.order,
+        data: this.strategy.head.data
+      })
       return
     }
     else if (
@@ -723,9 +722,9 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
           }
         }
 
-        this._deleteEntry(this.getNode(node.parent!), node.id)
+        this._deleteNode(node)
         this._updateNode(pointer)
-        this._deleteNode(node.id)
+        this._deleteEntry(this.getNode(node.parent!), node.id)
       }
       else {
         if (isPredecessor) {
@@ -816,23 +815,34 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
   }
 
   public delete(key: K, value: V): void {
-    const node = this.insertableNode(value)
-    let i = node.values.length
-    while (i--) {
-      const nValue = node.values[i]
-      if (this.comparator.isSame(value, nValue)) {
-        const keys = node.keys[i]
-        const keyIndex = keys.indexOf(key)
-        if (keyIndex !== -1) {
-          keys.splice(keyIndex, 1)
-          if (keys.length === 0) {
-            node.keys.splice(i, 1)
-            node.values.splice(i, 1)
+    let node = this.insertableNodeByPrimary(value)
+    let found = false
+    while (true) {
+      let i = node.values.length
+      while (i--) {
+        const nValue = node.values[i]
+        if (this.comparator.isSame(value, nValue)) {
+          const keys = node.keys[i]
+          const keyIndex = keys.indexOf(key)
+          if (keyIndex !== -1) {
+            keys.splice(keyIndex, 1)
+            if (keys.length === 0) {
+              node.keys.splice(i, 1)
+              node.values.splice(i, 1)
+            }
+            this._updateNode(node)
+            this._deleteEntry(node, key)
+            found = true
+            break
           }
-          this._deleteEntry(node, key)
-          break
         }
       }
+      if (found) break
+      if (node.next) {
+        node = this.getNode(node.next) as BPTreeLeafNode<K, V>
+        continue
+      }
+      break
     }
   }
 

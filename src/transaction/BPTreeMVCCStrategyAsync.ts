@@ -1,6 +1,6 @@
-import { AsyncMVCCStrategy } from 'mvcc-api'
 import type { SerializeStrategyAsync } from '../SerializeStrategyAsync'
 import type { BPTreeNode, SerializeStrategyHead } from '../types'
+import { AsyncMVCCStrategy } from 'mvcc-api'
 
 /**
  * MVCC Strategy for synchronous B+Tree operations.
