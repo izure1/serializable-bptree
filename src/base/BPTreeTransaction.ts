@@ -1,12 +1,12 @@
 import type { BPTreeCondition, BPTreeConstructorOption, BPTreeUnknownNode, Deferred, BPTreeLeafNode, BPTreeNodeKey, BPTreePair, SerializableData, BPTreeNode, BPTreeMVCC } from '../types'
-import { CacheEntanglementSync, CacheEntanglementAsync } from 'cache-entanglement'
+import { CacheEntanglementSync, LRUMap } from 'cache-entanglement'
 import { TransactionResult } from 'mvcc-api'
 import { ValueComparator } from './ValueComparator'
 import { SerializeStrategy } from './SerializeStrategy'
 
 export abstract class BPTreeTransaction<K, V> {
   private readonly _cachedRegexp: ReturnType<typeof this._createCachedRegexp>
-  protected abstract readonly nodes: CacheEntanglementSync<any, any> | CacheEntanglementAsync<any, any>
+  protected readonly nodes: LRUMap<string, BPTreeUnknownNode<K, V>>
 
   protected readonly deletedNodeBuffer: Map<string, BPTreeUnknownNode<K, V>> = new Map()
   protected readonly rootTx: BPTreeTransaction<K, V>
@@ -247,6 +247,7 @@ export abstract class BPTreeTransaction<K, V> {
     this.strategy = strategy
     this.comparator = comparator
     this.option = option ?? {}
+    this.nodes = new LRUMap(this.option.capacity ?? 1000)
     this._cachedRegexp = this._createCachedRegexp()
   }
 

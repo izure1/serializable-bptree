@@ -12,13 +12,11 @@ import type {
   SerializeStrategyHead
 } from '../types'
 import { TransactionResult } from 'mvcc-api'
-import { CacheEntanglementAsync } from 'cache-entanglement'
 import { BPTreeTransaction } from '../base/BPTreeTransaction'
 import { SerializeStrategyAsync } from '../SerializeStrategyAsync'
 import { ValueComparator } from '../base/ValueComparator'
 
 export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
-  protected readonly nodes: ReturnType<typeof this._createCachedNode>
   declare protected readonly rootTx: BPTreeAsyncTransaction<K, V>
   declare protected readonly mvccRoot: AsyncBPTreeMVCC<K, V>
   declare protected readonly mvcc: AsyncBPTreeMVCC<K, V>
@@ -42,18 +40,12 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
       comparator,
       option,
     )
-    this.nodes = this._createCachedNode()
-  }
-
-  private _createCachedNode() {
-    return new CacheEntanglementAsync(async (key) => {
-      return this.mvcc.read(key) as Promise<BPTreeUnknownNode<K, V>>
-    }, {
-      capacity: this.option.capacity ?? 1000
-    })
   }
 
   protected async getNode(id: string): Promise<BPTreeUnknownNode<K, V>> {
+    if (this.nodes.has(id)) {
+      return this.nodes.get(id)!
+    }
     return await this.mvcc.read(id) as BPTreeUnknownNode<K, V>
   }
 
@@ -79,18 +71,24 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
       prev
     } as BPTreeUnknownNode<K, V>
     await this.mvcc.create(id, node)
+    this.nodes.set(id, node)
     return node
   }
 
   protected async _updateNode(node: BPTreeUnknownNode<K, V>): Promise<void> {
     await this.mvcc.write(node.id, JSON.parse(JSON.stringify(node)))
+    this.nodes.set(node.id, node)
   }
 
   protected async _deleteNode(node: BPTreeUnknownNode<K, V>): Promise<void> {
     await this.mvcc.delete(node.id)
+    this.nodes.delete(node.id)
   }
 
   protected async _readHead(): Promise<SerializeStrategyHead | null> {
+    if (this.nodes.has('__HEAD__')) {
+      return this.nodes.get('__HEAD__') as unknown as SerializeStrategyHead ?? null
+    }
     const head = await this.mvcc.read('__HEAD__')
     return head as unknown as SerializeStrategyHead ?? null
   }
@@ -102,6 +100,7 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
     else {
       await this.mvcc.write('__HEAD__', head as any)
     }
+    this.nodes.set('__HEAD__', head as unknown as BPTreeUnknownNode<K, V>)
     this.rootId = head.root!
   }
 
@@ -869,6 +868,17 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
       result = await this.mvccRoot.commit(label)
       if (result.success && this.rootTx !== this) {
         this.rootTx.rootId = this.rootId
+      }
+      if (result.success) {
+        for (const r of result.created) {
+          this.nodes.set(r.key, r.data as BPTreeUnknownNode<K, V>)
+        }
+        for (const r of result.updated) {
+          this.nodes.set(r.key, r.data as BPTreeUnknownNode<K, V>)
+        }
+        for (const r of result.deleted) {
+          this.nodes.delete(r.key)
+        }
       }
     }
     return result
