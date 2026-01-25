@@ -338,6 +338,19 @@ export abstract class BPTreeTransaction<K, V> {
    * @returns The return value is the total number of nodes updated.
    */
   public abstract forceUpdate(id?: string): Deferred<number>
+  /**
+   * Returns the user-defined data stored in the head of the tree.
+   */
+  abstract getHeadData(): Deferred<SerializableData>
+  /**
+   * Commits the transaction and returns the result.
+   * @param label The label of the transaction.
+   */
+  abstract commit(label?: string): Deferred<TransactionResult<string, BPTreeNode<K, V>>>
+  /**
+   * Rolls back the transaction and returns the result.
+   */
+  abstract rollback(): TransactionResult<string, BPTreeNode<K, V>>
 
   protected ensureValues(v: V | V[]): V[] {
     if (!Array.isArray(v)) {
@@ -365,12 +378,6 @@ export abstract class BPTreeTransaction<K, V> {
     const i = v.length - 1
     return [...v].sort((a, b) => this.comparator.primaryAsc(a, b))[i]
   }
-
-  abstract getHeadData(): Deferred<SerializableData>
-
-  abstract commit(label?: string): Deferred<TransactionResult<string, BPTreeNode<K, V>>>
-
-  abstract rollback(): TransactionResult<string, BPTreeNode<K, V>>
 
   /**
    * Clears all cached nodes.
