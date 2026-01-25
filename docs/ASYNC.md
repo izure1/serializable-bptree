@@ -47,4 +47,4 @@ const results = await tree.where({ equal: 100 })
 
 1. **Class Names**: Suffix everything with `Async` (e.g., `BPTreeAsync`, `InMemoryStoreStrategyAsync`).
 2. **Method Returns**: Most methods return `Promise` and must be `await`ed.
-3. **Concurrency**: `BPTreeAsync` includes built-in read/write locks to ensure data integrity during concurrent operations.
+3. **Concurrency**: `BPTreeAsync` utilizes MVCC-based snapshot isolation to manage concurrent operations efficiently without traditional read/write locks.

@@ -14,30 +14,32 @@
 sequenceDiagram
     participant App
     participant Tree
-    participant TX as Transaction (CoW)
-    participant Storage
+    participant TX as Transaction (MVCC)
+    participant MVCC as MVCC-API
+    participant Storage as Strategy
 
     App->>Tree: createTransaction()
-    Tree->>Storage: readHead()
-    Storage-->>Tree: currentRootId
-    Tree-->>TX: init(initialRootId)
+    Tree->>MVCC: createNested()
+    MVCC-->>TX: init(Snapshot)
     
-    Note over TX: Take Snapshot
+    Note over TX: Take Snapshot (Isolated)
     
     App->>TX: insert(key, value)
     TX->>TX: Copy and modify nodes (Copy-on-Write)
-    TX->>TX: Update parent nodes (Bubble-up)
+    TX->>MVCC: write(nodeId, nodeData)
     
     App->>TX: commit()
-    TX->>Storage: write(newNodes)
-    TX->>Storage: compareAndSwapHead(initialRootId, newRootId)
+    TX->>MVCC: commit()
+    MVCC->>Storage: readHead() (Check for conflict)
     
-    alt CAS Success (No Conflict)
-        Storage-->>TX: true
-        TX-->>App: success: true
-    else CAS Failure (Concurrency Conflict)
-        Storage-->>TX: false
-        TX-->>App: success: false
+    alt Success (No Conflict)
+        MVCC->>Storage: write(newNodes)
+        MVCC->>Storage: writeHead(newRootId)
+        MVCC-->>TX: result(success: true)
+        TX-->>App: result(success: true)
+    else Failure (Concurrency Conflict)
+        MVCC-->>TX: result(success: false)
+        TX-->>App: result(success: false)
     end
 ```
 
@@ -104,7 +106,7 @@ const result = await tx.commit();
 
 if (!result.success) {
   // Commit failed, but delete nodes already written to storage
-  for (const id of result.createdIds) {
+  for (const id of result.created) {
     await strategy.delete(id); // Save storage space
   }
 }

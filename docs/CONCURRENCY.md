@@ -12,16 +12,18 @@ You must implement a signaling mechanism (e.g., Redis Pub/Sub, WebSockets) to no
 
 ---
 
-## Concurrency in `BPTreeAsync`
+## Concurrency in v8.0.0+ (MVCC)
 
-As of version 5.x.x, `BPTreeAsync` features a built-in **Read/Write Lock** mechanism.
+From version 8.0.0, the transaction system has been fully migrated to an **MVCC (Multi-Version Concurrency Control)** model via `mvcc-api`.
 
-### Internal Locking
-Public methods like `insert()`, `delete()`, `where()`, and `exists()` automatically acquire the necessary locks.
+### Snapshot Isolation
+Each transaction operates on a consistent snapshot taken at the moment `createTransaction()` is called. No external locks are required during the data operation phase, allowing for excellent read/write concurrency.
 
-### Development Precautions
-- **Protected Methods**: Internal methods (prefixed with `_`) do **not** automatically acquire locks.
-- **Inheritance**: If you extend `BPTreeAsync` and call protected methods directly, you must manually manage locks using `readLock` and `writeLock` to prevent race conditions.
+### Conflict Detection (Optimistic Locking)
+Concurrency conflicts are detected at the time of `commit()`. If another transaction has updated the root of the tree since your snapshot was taken, the commit will fail. This is a form of optimistic locking that scales better than traditional Read/Write locks in distributed or high-latency environments.
+
+### Consistency Guarantee
+Even if a transaction fails due to a conflict, the tree's internal structure remains perfectly consistent because of the **Copy-on-Write** nature of node modifications. Failed transactions never partially overwrite existing data.
 
 ---
 

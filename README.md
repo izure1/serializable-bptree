@@ -159,13 +159,11 @@ for (const [pk, val] of driver.tree.whereStream(driver.condition)) {
 }
 ```
 
-## Migration from v5.x.x to v6.0.0
+## Migration
 
-Version 6.0.0 includes a critical fix for how internal nodes are sorted.
+Instructions for migrating between major versions (e.g., v8.0.0, v6.0.0) can be found in the [Migration Guide](./docs/MIGRATION.md).
 
-> [!IMPORTANT]
-> **Breaking Changes & Incompatibility**
-> v6.0.0 enforces strict value sorting. **Data structures created with v5.x.x or earlier are incompatible** with v6.0.0. It is highly recommended to rebuild your tree from scratch. For more details, see the [Concurrency & Synchronization](./docs/CONCURRENCY.md) guide.
+## LICENSE
 
 ## LICENSE
 
