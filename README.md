@@ -115,7 +115,7 @@ import {
     ValueComparator,
     NumericComparator,
     StringComparator
-  } from 'https://cdn.jsdelivr.net/npm/serializable-bptree@7/+esm'
+  } from 'https://cdn.jsdelivr.net/npm/serializable-bptree@8/+esm'
 </script>
 ```
 
