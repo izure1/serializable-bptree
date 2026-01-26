@@ -1,3 +1,4 @@
+import type { TransactionResult } from 'mvcc-api'
 import type {
   BPTreeCondition,
   BPTreeConstructorOption,
@@ -11,7 +12,6 @@ import type {
   SerializeStrategyHead,
   SyncBPTreeMVCC
 } from '../types'
-import { TransactionResult } from 'mvcc-api'
 import { BPTreeTransaction } from '../base/BPTreeTransaction'
 import { SerializeStrategySync } from '../SerializeStrategySync'
 import { ValueComparator } from '../base/ValueComparator'

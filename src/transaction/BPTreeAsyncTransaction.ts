@@ -1,3 +1,4 @@
+import type { TransactionResult } from 'mvcc-api'
 import type {
   AsyncBPTreeMVCC,
   BPTreeCondition,
@@ -11,7 +12,6 @@ import type {
   SerializableData,
   SerializeStrategyHead
 } from '../types'
-import { TransactionResult } from 'mvcc-api'
 import { BPTreeTransaction } from '../base/BPTreeTransaction'
 import { SerializeStrategyAsync } from '../SerializeStrategyAsync'
 import { ValueComparator } from '../base/ValueComparator'

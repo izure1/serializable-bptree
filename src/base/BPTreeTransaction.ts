@@ -1,6 +1,17 @@
-import type { BPTreeCondition, BPTreeConstructorOption, BPTreeUnknownNode, Deferred, BPTreeLeafNode, BPTreeNodeKey, BPTreePair, SerializableData, BPTreeNode, BPTreeMVCC } from '../types'
+import type { TransactionEntry, TransactionResult } from 'mvcc-api'
+import type {
+  BPTreeCondition,
+  BPTreeConstructorOption,
+  BPTreeUnknownNode,
+  Deferred,
+  BPTreeLeafNode,
+  BPTreeNodeKey,
+  BPTreePair,
+  SerializableData,
+  BPTreeNode,
+  BPTreeMVCC,
+} from '../types'
 import { CacheEntanglementSync, LRUMap } from 'cache-entanglement'
-import { TransactionResult } from 'mvcc-api'
 import { ValueComparator } from './ValueComparator'
 import { SerializeStrategy } from './SerializeStrategy'
 
@@ -261,7 +272,6 @@ export abstract class BPTreeTransaction<K, V> {
     })
   }
 
-
   protected abstract _createNode(
     leaf: boolean,
     keys: string[] | K[][],
@@ -377,6 +387,18 @@ export abstract class BPTreeTransaction<K, V> {
   protected highestPrimaryValue(v: V[]): V {
     const i = v.length - 1
     return [...v].sort((a, b) => this.comparator.primaryAsc(a, b))[i]
+  }
+
+  /**
+   * Returns the result entries of the transaction.
+   * @returns Returns the node entries that will be created, updated, and deleted by this transaction.
+   */
+  getResultEntries(): {
+    created: TransactionEntry<string, BPTreeNode<K, V>>[]
+    updated: TransactionEntry<string, BPTreeNode<K, V>>[]
+    deleted: TransactionEntry<string, BPTreeNode<K, V>>[]
+  } {
+    return this.mvcc.getResultEntries()
   }
 
   /**
