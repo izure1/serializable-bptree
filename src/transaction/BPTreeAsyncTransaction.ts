@@ -407,7 +407,6 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
     if (head === null) {
       this.order = this.strategy.order
       const root = await this._createNode(true, [], [])
-      // this.rootId = root.id
       await this._writeHead({
         root: root.id,
         order: this.order,
@@ -418,7 +417,6 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
       const { root, order } = head
       this.strategy.head = head
       this.order = order
-      // this.rootId = root!
       await this._writeHead({
         root: root,
         order: this.order,
