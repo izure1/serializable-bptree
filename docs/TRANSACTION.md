@@ -81,9 +81,11 @@ if (result.success) {
 
 Methods for safely handling data when a conflict occurs.
 
-### 1. Simple Retry
+### Simple Retry
 
-Conflicts can be temporary, so waiting briefly and retrying is the simplest solution.
+Note that **Simple Retry is mainly for transient external issues** (e.g., network glitches) rather than key conflicts. If a key conflict (duplicate key) occurs, it is a permanent logical issue and should be handled by updating the existing data or using a different key.
+
+For transient concurrency conflicts, waiting briefly and retrying can be an effective solution.
 
 ```typescript
 for (let i = 0; i < 3; i++) {
@@ -93,21 +95,6 @@ for (let i = 0; i < 3; i++) {
   } catch (e) {
     if (i === 2) throw e; // Max retries exceeded
     await new Promise(r => setTimeout(r, 100 * (i + 1))); // Exponential backoff
-  }
-}
-```
-
-### 2. ID Recovery and Cleanup (Garbage Collection)
-
-When using a DB or file system, it is recommended to **delete files (nodes) created by a failed transaction**.
-
-```typescript
-const result = await tx.commit();
-
-if (!result.success) {
-  // Commit failed, but delete nodes already written to storage
-  for (const id of result.created) {
-    await strategy.delete(id); // Save storage space
   }
 }
 ```

@@ -20,7 +20,7 @@ tree.where({ gte: 10, lt: 20 }) // 10 <= x < 20
 
 ### Logical Operators
 
-- **`or`**: Matches if any of the provided conditions are met. Accepts an array of values or nested conditions.
+- **`or`**: Matches if any of the provided conditions are met. Accepts an array of values.
 
 Example:
 ```typescript
