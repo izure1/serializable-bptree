@@ -76,7 +76,7 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
   }
 
   protected _updateNode(node: BPTreeUnknownNode<K, V>): void {
-    this.mvcc.write(node.id, JSON.parse(JSON.stringify(node)))
+    this.mvcc.write(node.id, node)
     this.nodes.set(node.id, node)
   }
 

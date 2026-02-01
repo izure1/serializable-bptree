@@ -76,7 +76,7 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
   }
 
   protected async _updateNode(node: BPTreeUnknownNode<K, V>): Promise<void> {
-    await this.mvcc.write(node.id, JSON.parse(JSON.stringify(node)))
+    await this.mvcc.write(node.id, node)
     this.nodes.set(node.id, node)
   }
 
