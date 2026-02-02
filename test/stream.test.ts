@@ -177,6 +177,82 @@ describe('BPTree Stream Tests', () => {
       ]
       inputs.forEach(([k, v]) => tree.insert(k, v))
     })
+
+    test('should stream in descending order with whereStream', () => {
+      const inputs = [
+        ['k1', 'v1'],
+        ['k2', 'v2'],
+        ['k3', 'v3'],
+        ['k4', 'v4'],
+        ['k5', 'v5'],
+      ]
+      inputs.forEach(([k, v]) => tree.insert(k, v))
+
+      const stream = tree.whereStream({ gte: 'v1' }, undefined, 'desc')
+      const result: [string, string][] = []
+      for (const pair of stream) {
+        result.push(pair)
+      }
+
+      expect(result.length).toBe(5)
+      // Should be in reverse order
+      expect(result).toEqual([
+        ['k5', 'v5'],
+        ['k4', 'v4'],
+        ['k3', 'v3'],
+        ['k2', 'v2'],
+        ['k1', 'v1'],
+      ])
+    })
+
+    test('should stream keys in descending order with keysStream', () => {
+      const inputs = [
+        ['k1', 'v1'],
+        ['k2', 'v2'],
+        ['k3', 'v3'],
+      ]
+      inputs.forEach(([k, v]) => tree.insert(k, v))
+
+      const stream = tree.keysStream({ gte: 'v1' }, undefined, undefined, 'desc')
+      const result: string[] = []
+      for (const key of stream) {
+        result.push(key)
+      }
+
+      expect(result).toEqual(['k3', 'k2', 'k1'])
+    })
+
+    test('should return keys in descending order', () => {
+      const inputs = [
+        ['k1', 'v1'],
+        ['k2', 'v2'],
+        ['k3', 'v3'],
+      ]
+      inputs.forEach(([k, v]) => tree.insert(k, v))
+
+      const keysAsc = tree.keys({ gte: 'v1' })
+      const keysDesc = tree.keys({ gte: 'v1' }, undefined, 'desc')
+
+      // Set order is insertion order
+      expect(Array.from(keysAsc)).toEqual(['k1', 'k2', 'k3'])
+      expect(Array.from(keysDesc)).toEqual(['k3', 'k2', 'k1'])
+    })
+
+    test('should return where results in descending order', () => {
+      const inputs = [
+        ['k1', 'v1'],
+        ['k2', 'v2'],
+        ['k3', 'v3'],
+      ]
+      inputs.forEach(([k, v]) => tree.insert(k, v))
+
+      const whereAsc = tree.where({ gte: 'v1' })
+      const whereDesc = tree.where({ gte: 'v1' }, 'desc')
+
+      // Map iteration order is insertion order
+      expect(Array.from(whereAsc.keys())).toEqual(['k1', 'k2', 'k3'])
+      expect(Array.from(whereDesc.keys())).toEqual(['k3', 'k2', 'k1'])
+    })
   })
 
   describe('Async Stream', () => {
@@ -307,6 +383,34 @@ describe('BPTree Stream Tests', () => {
 
       expect(result.length).toBe(2)
       expect(result).toEqual([['k2', 'Jane Doe'], ['k1', 'John Doe']])
+    })
+
+    test('should stream in descending order with whereStream', async () => {
+      const inputs = [
+        ['k1', 'v1'],
+        ['k2', 'v2'],
+        ['k3', 'v3'],
+        ['k4', 'v4'],
+        ['k5', 'v5'],
+      ]
+      for (const [k, v] of inputs) {
+        await tree.insert(k, v)
+      }
+
+      const stream = tree.whereStream({ gte: 'v1' }, undefined, 'desc')
+      const result: [string, string][] = []
+      for await (const pair of stream) {
+        result.push(pair)
+      }
+
+      expect(result.length).toBe(5)
+      expect(result).toEqual([
+        ['k5', 'v5'],
+        ['k4', 'v4'],
+        ['k3', 'v3'],
+        ['k2', 'v2'],
+        ['k1', 'v1'],
+      ])
     })
   })
 

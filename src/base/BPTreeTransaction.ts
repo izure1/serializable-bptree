@@ -244,6 +244,32 @@ export abstract class BPTreeTransaction<K, V> {
     return true
   }
 
+  /**
+   * Selects the best driver key from a condition object.
+   * The driver key determines the starting point and traversal direction for queries.
+   * 
+   * @param condition The condition to analyze.
+   * @returns The best driver key or null if no valid key found.
+   */
+  protected getDriverKey(condition: BPTreeCondition<V>): keyof BPTreeCondition<V> | null {
+    if ('primaryEqual' in condition) return 'primaryEqual'
+    if ('equal' in condition) return 'equal'
+    if ('gt' in condition) return 'gt'
+    if ('gte' in condition) return 'gte'
+    if ('lt' in condition) return 'lt'
+    if ('lte' in condition) return 'lte'
+    if ('primaryGt' in condition) return 'primaryGt'
+    if ('primaryGte' in condition) return 'primaryGte'
+    if ('primaryLt' in condition) return 'primaryLt'
+    if ('primaryLte' in condition) return 'primaryLte'
+    if ('like' in condition) return 'like'
+    if ('notEqual' in condition) return 'notEqual'
+    if ('primaryNotEqual' in condition) return 'primaryNotEqual'
+    if ('or' in condition) return 'or'
+    if ('primaryOr' in condition) return 'primaryOr'
+    return null
+  }
+
   protected constructor(
     rootTx: BPTreeTransaction<K, V> | null,
     mvccRoot: BPTreeMVCC<K, V>,

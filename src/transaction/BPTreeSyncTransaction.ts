@@ -6,6 +6,7 @@ import type {
   BPTreeLeafNode,
   BPTreeNode,
   BPTreeNodeKey,
+  BPTreeOrder,
   BPTreePair,
   BPTreeUnknownNode,
   SerializableData,
@@ -477,9 +478,10 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
   public *keysStream(
     condition: BPTreeCondition<V>,
     filterValues?: Set<K>,
-    limit?: number
+    limit?: number,
+    order: BPTreeOrder = 'asc'
   ): Generator<K> {
-    const stream = this.whereStream(condition, limit)
+    const stream = this.whereStream(condition, limit, order)
     const intersection = filterValues && filterValues.size > 0 ? filterValues : null
     for (const [key] of stream) {
       if (intersection && !intersection.has(key)) {
@@ -491,41 +493,31 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
 
   public *whereStream(
     condition: BPTreeCondition<V>,
-    limit?: number
+    limit?: number,
+    order: BPTreeOrder = 'asc'
   ): Generator<[K, V]> {
-    let driverKey: keyof BPTreeCondition<V> | null = null
-
-    if ('primaryEqual' in condition) driverKey = 'primaryEqual'
-    else if ('equal' in condition) driverKey = 'equal'
-    else if ('gt' in condition) driverKey = 'gt'
-    else if ('gte' in condition) driverKey = 'gte'
-    else if ('lt' in condition) driverKey = 'lt'
-    else if ('lte' in condition) driverKey = 'lte'
-    else if ('primaryGt' in condition) driverKey = 'primaryGt'
-    else if ('primaryGte' in condition) driverKey = 'primaryGte'
-    else if ('primaryLt' in condition) driverKey = 'primaryLt'
-    else if ('primaryLte' in condition) driverKey = 'primaryLte'
-    else if ('like' in condition) driverKey = 'like'
-    else if ('notEqual' in condition) driverKey = 'notEqual'
-    else if ('primaryNotEqual' in condition) driverKey = 'primaryNotEqual'
-    else if ('or' in condition) driverKey = 'or'
-    else if ('primaryOr' in condition) driverKey = 'primaryOr'
-
+    const driverKey = this.getDriverKey(condition)
     if (!driverKey) return
 
     const value = condition[driverKey] as V
-    const startNode = this.verifierStartNode[driverKey](value) as BPTreeLeafNode<K, V>
-    const endNode = this.verifierEndNode[driverKey](value) as BPTreeLeafNode<K, V> | null
-    const direction = this.verifierDirection[driverKey]
+    let startNode = this.verifierStartNode[driverKey](value) as BPTreeLeafNode<K, V>
+    let endNode = this.verifierEndNode[driverKey](value) as BPTreeLeafNode<K, V> | null
+    let direction = this.verifierDirection[driverKey]
     const comparator = this.verifierMap[driverKey]
     const earlyTerminate = this.verifierEarlyTerminate[driverKey]
+
+    if (order === 'desc') {
+      startNode = endNode ?? this.rightestNode()
+      endNode = null
+      direction *= -1
+    }
 
     const generator = this.getPairsGenerator(
       value,
       startNode,
       endNode,
       comparator,
-      direction,
+      direction as 1 | -1,
       earlyTerminate
     )
 
@@ -554,17 +546,17 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
     }
   }
 
-  public keys(condition: BPTreeCondition<V>, filterValues?: Set<K>): Set<K> {
+  public keys(condition: BPTreeCondition<V>, filterValues?: Set<K>, order: BPTreeOrder = 'asc'): Set<K> {
     const set = new Set<K>()
-    for (const key of this.keysStream(condition, filterValues)) {
+    for (const key of this.keysStream(condition, filterValues, undefined, order)) {
       set.add(key)
     }
     return set
   }
 
-  public where(condition: BPTreeCondition<V>): BPTreePair<K, V> {
+  public where(condition: BPTreeCondition<V>, order: BPTreeOrder = 'asc'): BPTreePair<K, V> {
     const map = new Map<K, V>()
-    for (const [key, value] of this.whereStream(condition)) {
+    for (const [key, value] of this.whereStream(condition, undefined, order)) {
       map.set(key, value)
     }
     return map

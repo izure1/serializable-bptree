@@ -48,6 +48,14 @@ export type BPTreeCondition<V> = Partial<{
    */
   like: string
 }>
+
+/**
+ * Specifies the traversal order for query results.
+ * - `'asc'`: Ascending order (default) - traverses from left to right
+ * - `'desc'`: Descending order - traverses from right to left
+ */
+export type BPTreeOrder = 'asc' | 'desc'
+
 export type BPTreePair<K, V> = Map<K, V>
 
 export type BPTreeUnknownNode<K, V> = BPTreeInternalNode<K, V> | BPTreeLeafNode<K, V>

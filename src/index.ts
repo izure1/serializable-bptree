@@ -3,6 +3,7 @@ export type {
   BPTreeInternalNode,
   BPTreeLeafNode,
   BPTreeNodeKey,
+  BPTreeOrder,
   BPTreePair,
   BPTreeUnknownNode,
   BPTreeCondition,
