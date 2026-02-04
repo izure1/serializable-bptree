@@ -134,7 +134,7 @@ Explore the detailed guides and concepts of `serializable-bptree`:
   - [Best Practices](./docs/BEST_PRACTICES.md): Tips for bulk insertion and performance optimization.
   - [Duplicate Value Handling](./docs/DUPLICATE_VALUES.md): Strategies for managing large amounts of duplicate data.
   - [Concurrency & Synchronization](./docs/CONCURRENCY.md): Multi-instance usage and locking mechanisms.
-  - [Query Optimization Guide](./docs/QUERY.md#performance--optimization): How to use `ChooseDriver`, `get()`, and `verify()` for complex queries.
+  - [Query Optimization Guide](./docs/QUERY.md#performance--optimization): How to use `ChooseDriver` and `keys()` for complex queries.
 
 ## Quick Example: Query Optimization
 
@@ -144,26 +144,25 @@ When you have multiple indexes (e.g., an index for `id` and another for `age`), 
 const query = { id: { equal: 100 }, age: { gt: 20 } }
 
 // 1. Select the best index based on condition priority
-const driver = BPTreeSync.ChooseDriver([
+const candidates = [
   { tree: idxId, condition: query.id },
   { tree: idxAge, condition: query.age }
-])
+]
+const driver = BPTreeSync.ChooseDriver(candidates)
+const others = candidates.filter((c) => driver.tree !== c.tree)
 
 // 2. Execute query using the selected driver
-for (const [pk, val] of driver.tree.whereStream(driver.condition)) {
-  // 3. Filter other conditions using get() and verify()
-  const age = idxAge.get(pk)
-  if (age !== undefined && idxAge.verify(age, query.age)) {
-    console.log(`Match found! PK: ${pk}`)
-  }
+let keys = driver.tree.keys(driver.condition)
+for (const { tree, condition } of others) {
+  keys = tree.keys(condition, keys)
 }
+
+console.log('Found: ', keys)
 ```
 
 ## Migration
 
 Instructions for migrating between major versions (e.g., v8.0.0, v6.0.0) can be found in the [Migration Guide](./docs/MIGRATION.md).
-
-## LICENSE
 
 ## LICENSE
 

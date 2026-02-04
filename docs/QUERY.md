@@ -88,20 +88,29 @@ const driver = BPTreeSync.ChooseDriver([
 // returns the candidate with indexA because 'equal' has higher priority.
 ```
 
-### Manual Filtering (`get()` and `verify()`)
+### Multi-Index Filtering (`keys()`)
 
-For conditions that are not part of the primary index search (the driver), you can use `get()` to retrieve supplemental data and `verify()` to check conditions without manual value comparison.
-
-- **`get(key)`**: Performs a full scan to find a value by its key. Useful for secondary index lookups during a stream.
-- **`verify(value, condition)`**: Checks if a given value satisfies a B+Tree condition.
+When querying with multiple indexes, you should use `ChooseDriver` to select the most efficient starting index and then refine the results using `keys()` on other indexes. This is much more efficient than manual filtering.
 
 ```typescript
-for (const [pk, val] of driver.tree.whereStream(driver.condition)) {
-  const otherValue = otherIndex.get(pk)
-  if (otherValue !== undefined && otherIndex.verify(otherValue, otherCondition)) {
-    // Result matches both conditions
-  }
+const query = { id: { equal: 100 }, age: { gt: 20 } }
+
+// 1. Select the best index based on condition priority
+const candidates = [
+  { tree: idxId, condition: query.id },
+  { tree: idxAge, condition: query.age }
+]
+const driver = BPTreeSync.ChooseDriver(candidates)
+const others = candidates.filter((c) => driver.tree !== c.tree)
+
+// 2. Execute query using the selected driver
+let keys = driver.tree.keys(driver.condition)
+for (const { tree, condition } of others) {
+  // Refine the key set using other indexes
+  keys = tree.keys(condition, keys)
 }
+
+console.log('Found result keys: ', keys)
 ```
 
 ### Performance Note
