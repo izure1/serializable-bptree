@@ -14,7 +14,7 @@
   "imports": {
     "cache-entanglement": "jsr:@izure/cache-entanglement@^1.7.1",
     "ryoiki": "jsr:@izure/ryoiki@^1.2.0",
-    "mvcc-api": "jsr:@izure/mvcc-api@^1.2.10"
+    "mvcc-api": "jsr:@izure/mvcc-api@^1.2.11"
   },
   "publish": {
     "include": [
