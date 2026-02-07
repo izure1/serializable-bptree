@@ -223,22 +223,8 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
   protected insertableNode(value: V): BPTreeLeafNode<K, V> {
     let node = this.getNode(this.rootId)
     while (!node.leaf) {
-      for (let i = 0, len = node.values.length; i < len; i++) {
-        const nValue = node.values[i]
-        const k = node.keys
-        if (this.comparator.isSame(value, nValue)) {
-          node = this.getNode(k[i + 1])
-          break
-        }
-        else if (this.comparator.isLower(value, nValue)) {
-          node = this.getNode(k[i])
-          break
-        }
-        else if (i + 1 === node.values.length) {
-          node = this.getNode(k[i + 1])
-          break
-        }
-      }
+      const { index } = this._binarySearchValues(node.values, value, false, true)
+      node = this.getNode(node.keys[index])
     }
     return node as BPTreeLeafNode<K, V>
   }
@@ -246,22 +232,8 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
   protected insertableNodeByPrimary(value: V): BPTreeLeafNode<K, V> {
     let node = this.getNode(this.rootId)
     while (!node.leaf) {
-      for (let i = 0, len = node.values.length; i < len; i++) {
-        const nValue = node.values[i]
-        const k = node.keys
-        if (this.comparator.isPrimarySame(value, nValue)) {
-          node = this.getNode(k[i])
-          break
-        }
-        else if (this.comparator.isPrimaryLower(value, nValue)) {
-          node = this.getNode(k[i])
-          break
-        }
-        else if (i + 1 === node.values.length) {
-          node = this.getNode(k[i + 1])
-          break
-        }
-      }
+      const { index } = this._binarySearchValues(node.values, value, true, false)
+      node = this.getNode(node.keys[index])
     }
     return node as BPTreeLeafNode<K, V>
   }
@@ -269,18 +241,8 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
   protected insertableRightestNodeByPrimary(value: V): BPTreeLeafNode<K, V> {
     let node = this.getNode(this.rootId)
     while (!node.leaf) {
-      for (let i = 0, len = node.values.length; i < len; i++) {
-        const nValue = node.values[i]
-        const k = node.keys
-        if (this.comparator.isPrimaryLower(value, nValue)) {
-          node = this.getNode(k[i])
-          break
-        }
-        if (i + 1 === node.values.length) {
-          node = this.getNode(k[i + 1])
-          break
-        }
-      }
+      const { index } = this._binarySearchValues(node.values, value, true, true)
+      node = this.getNode(node.keys[index])
     }
     return node as BPTreeLeafNode<K, V>
   }
@@ -431,12 +393,11 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
 
   public exists(key: K, value: V): boolean {
     const node = this.insertableNode(value)
-    for (let i = 0, len = node.values.length; i < len; i++) {
-      if (this.comparator.isSame(value, node.values[i])) {
-        const keys = node.keys[i]
-        if (keys.includes(key)) {
-          return true
-        }
+    const { index, found } = this._binarySearchValues(node.values, value)
+    if (found) {
+      const keys = node.keys[index]
+      if (keys.includes(key)) {
+        return true
       }
     }
     return false

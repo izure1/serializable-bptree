@@ -223,22 +223,8 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
   protected async insertableNode(value: V): Promise<BPTreeLeafNode<K, V>> {
     let node = await this.getNode(this.rootId)
     while (!node.leaf) {
-      for (let i = 0, len = node.values.length; i < len; i++) {
-        const nValue = node.values[i]
-        const k = node.keys
-        if (this.comparator.isSame(value, nValue)) {
-          node = await this.getNode(k[i + 1])
-          break
-        }
-        else if (this.comparator.isLower(value, nValue)) {
-          node = await this.getNode(k[i])
-          break
-        }
-        else if (i + 1 === node.values.length) {
-          node = await this.getNode(k[i + 1])
-          break
-        }
-      }
+      const { index } = this._binarySearchValues(node.values, value, false, true)
+      node = await this.getNode(node.keys[index])
     }
     return node as BPTreeLeafNode<K, V>
   }
@@ -246,22 +232,8 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
   protected async insertableNodeByPrimary(value: V): Promise<BPTreeLeafNode<K, V>> {
     let node = await this.getNode(this.rootId)
     while (!node.leaf) {
-      for (let i = 0, len = node.values.length; i < len; i++) {
-        const nValue = node.values[i]
-        const k = node.keys
-        if (this.comparator.isPrimarySame(value, nValue)) {
-          node = await this.getNode(k[i])
-          break
-        }
-        else if (this.comparator.isPrimaryLower(value, nValue)) {
-          node = await this.getNode(k[i])
-          break
-        }
-        else if (i + 1 === node.values.length) {
-          node = await this.getNode(k[i + 1])
-          break
-        }
-      }
+      const { index } = this._binarySearchValues(node.values, value, true, false)
+      node = await this.getNode(node.keys[index])
     }
     return node as BPTreeLeafNode<K, V>
   }
@@ -269,18 +241,8 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
   protected async insertableRightestNodeByPrimary(value: V): Promise<BPTreeLeafNode<K, V>> {
     let node = await this.getNode(this.rootId)
     while (!node.leaf) {
-      for (let i = 0, len = node.values.length; i < len; i++) {
-        const nValue = node.values[i]
-        const k = node.keys
-        if (this.comparator.isPrimaryLower(value, nValue)) {
-          node = await this.getNode(k[i])
-          break
-        }
-        if (i + 1 === node.values.length) {
-          node = await this.getNode(k[i + 1])
-          break
-        }
-      }
+      const { index } = this._binarySearchValues(node.values, value, true, true)
+      node = await this.getNode(node.keys[index])
     }
     return node as BPTreeLeafNode<K, V>
   }
@@ -345,11 +307,23 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
     let node = startNode
     let done = false
     let hasMatched = false
+    let nextNodePromise: Promise<BPTreeUnknownNode<K, V>> | null = null
 
     while (!done) {
       if (endNode && node.id === endNode.id) {
         done = true
         break
+      }
+
+      // Read-ahead: Start loading the next node in the background
+      if (direction === 1) {
+        if (node.next && !done) {
+          nextNodePromise = this.getNode(node.next)
+        }
+      } else {
+        if (node.prev && !done) {
+          nextNodePromise = this.getNode(node.prev)
+        }
       }
 
       const len = node.values.length
@@ -385,19 +359,16 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
         }
       }
 
-      if (done) break
-      if (direction === 1) {
-        if (!node.next) {
-          done = true
-          break
-        }
-        node = await this.getNode(node.next) as BPTreeLeafNode<K, V>
+      if (done) {
+        if (nextNodePromise) await nextNodePromise
+        break
+      }
+
+      if (nextNodePromise) {
+        node = await nextNodePromise as BPTreeLeafNode<K, V>
+        nextNodePromise = null
       } else {
-        if (!node.prev) {
-          done = true
-          break
-        }
-        node = await this.getNode(node.prev) as BPTreeLeafNode<K, V>
+        done = true
       }
     }
   }
@@ -431,12 +402,11 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
 
   public async exists(key: K, value: V): Promise<boolean> {
     const node = await this.insertableNode(value)
-    for (let i = 0, len = node.values.length; i < len; i++) {
-      if (this.comparator.isSame(value, node.values[i])) {
-        const keys = node.keys[i]
-        if (keys.includes(key)) {
-          return true
-        }
+    const { index, found } = this._binarySearchValues(node.values, value)
+    if (found) {
+      const keys = node.keys[index]
+      if (keys.includes(key)) {
+        return true
       }
     }
     return false

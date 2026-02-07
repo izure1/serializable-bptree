@@ -435,4 +435,33 @@ export abstract class BPTreeTransaction<K, V> {
     this._cachedRegexp.clear()
     this.nodes.clear()
   }
+
+  protected _binarySearchValues(
+    values: V[],
+    target: V,
+    usePrimary: boolean = false,
+    upperBound: boolean = false
+  ): { index: number, found: boolean } {
+    let low = 0
+    let high = values.length
+    let found = false
+    while (low < high) {
+      const mid = (low + high) >>> 1
+      const cmp = usePrimary
+        ? this.comparator.primaryAsc(target, values[mid])
+        : this.comparator.asc(target, values[mid])
+      if (cmp === 0) {
+        found = true
+        if (upperBound) low = mid + 1
+        else high = mid
+      }
+      else if (cmp < 0) {
+        high = mid
+      }
+      else {
+        low = mid + 1
+      }
+    }
+    return { index: low, found }
+  }
 }
