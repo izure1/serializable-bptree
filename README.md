@@ -136,7 +136,7 @@ Explore the detailed guides and concepts of `serializable-bptree`:
   - [Duplicate Value Handling](./docs/DUPLICATE_VALUES.md): Strategies for managing large amounts of duplicate data.
   - [Concurrency & Synchronization](./docs/CONCURRENCY.md): Multi-instance usage and locking mechanisms.
   - [Query Optimization Guide](./docs/QUERY.md#performance--optimization): How to use `ChooseDriver` and `keys()` for complex queries.
-  - [**Performance Benchmark**](https://izure1.github.io/serializable-bptree/dev/bench/): Real-time performance metrics and history.
+  - [Performance Benchmark](https://izure1.github.io/serializable-bptree/dev/bench/): Real-time performance metrics and history.
 
 ## Quick Example: Query Optimization
 
