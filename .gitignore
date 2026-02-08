@@ -3,3 +3,4 @@
 /test/*
 /test/**/*
 !/test/**/*.ts
+/benchmark/benchmark-result.json
