@@ -2,6 +2,7 @@
 
 [![](https://data.jsdelivr.com/v1/package/npm/serializable-bptree/badge)](https://www.jsdelivr.com/package/npm/serializable-bptree)
 ![Node.js workflow](https://github.com/izure1/serializable-bptree/actions/workflows/node.js.yml/badge.svg)
+[![Benchmark](https://github.com/izure1/serializable-bptree/actions/workflows/benchmark.yml/badge.svg)](https://izure1.github.io/serializable-bptree/dev/bench/)
 
 This is a B+tree that's totally okay with duplicate values. If you need to keep track of the B+ tree's state, don't just leave it in memory - make sure you write it down.
 
@@ -135,6 +136,7 @@ Explore the detailed guides and concepts of `serializable-bptree`:
   - [Duplicate Value Handling](./docs/DUPLICATE_VALUES.md): Strategies for managing large amounts of duplicate data.
   - [Concurrency & Synchronization](./docs/CONCURRENCY.md): Multi-instance usage and locking mechanisms.
   - [Query Optimization Guide](./docs/QUERY.md#performance--optimization): How to use `ChooseDriver` and `keys()` for complex queries.
+  - [**Performance Benchmark**](https://izure1.github.io/serializable-bptree/dev/bench/): Real-time performance metrics and history.
 
 ## Quick Example: Query Optimization
 
