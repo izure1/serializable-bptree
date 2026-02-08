@@ -17,7 +17,8 @@
   ],
   "scripts": {
     "test": "jest --runInBand",
-    "build": "node build/index.js && tsc"
+    "build": "node build/index.js && tsc",
+    "benchmark": "npx tsx benchmark/index.ts"
   },
   "author": "izure <admin@izure.org>",
   "keywords": [

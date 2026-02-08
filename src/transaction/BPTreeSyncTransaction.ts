@@ -324,12 +324,14 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
             for (let j = 0; j < keys.length; j++) {
               yield [keys[j], nValue]
             }
-          } else if (earlyTerminate && hasMatched) {
+          }
+          else if (earlyTerminate && hasMatched) {
             done = true
             break
           }
         }
-      } else {
+      }
+      else {
         let i = len
         while (i--) {
           const nValue = node.values[i]
@@ -340,7 +342,8 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
             while (j--) {
               yield [keys[j], nValue]
             }
-          } else if (earlyTerminate && hasMatched) {
+          }
+          else if (earlyTerminate && hasMatched) {
             done = true
             break
           }
@@ -354,7 +357,8 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
           break
         }
         node = this.getNode(node.next) as BPTreeLeafNode<K, V>
-      } else {
+      }
+      else {
         if (!node.prev) {
           done = true
           break

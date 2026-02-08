@@ -1,0 +1,40 @@
+name: Benchmark
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Use Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 22
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Run benchmark
+      run: npm run benchmark -- json
+      
+    - name: Store benchmark result
+      uses: benchmark-action/github-action-benchmark@v1
+      with:
+        name: Serializable B+Tree Benchmark
+        tool: 'customSmallerIsBetter'
+        output-file-path: ./benchmark/benchmark-result.json
+        # Access token to push to github-pages/gh-pages branch
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        # Push and deploy to GitHub pages
+        auto-push: true
+        alert-threshold: '200%'
+        comment-on-alert: true
+        fail-on-alert: true

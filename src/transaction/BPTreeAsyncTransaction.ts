@@ -320,7 +320,8 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
         if (node.next && !done) {
           nextNodePromise = this.getNode(node.next)
         }
-      } else {
+      }
+      else {
         if (node.prev && !done) {
           nextNodePromise = this.getNode(node.prev)
         }
@@ -336,12 +337,14 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
             for (let j = 0; j < keys.length; j++) {
               yield [keys[j], nValue]
             }
-          } else if (earlyTerminate && hasMatched) {
+          }
+          else if (earlyTerminate && hasMatched) {
             done = true
             break
           }
         }
-      } else {
+      }
+      else {
         let i = len
         while (i--) {
           const nValue = node.values[i]
@@ -352,7 +355,8 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
             while (j--) {
               yield [keys[j], nValue]
             }
-          } else if (earlyTerminate && hasMatched) {
+          }
+          else if (earlyTerminate && hasMatched) {
             done = true
             break
           }
@@ -367,7 +371,8 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
       if (nextNodePromise) {
         node = await nextNodePromise as BPTreeLeafNode<K, V>
         nextNodePromise = null
-      } else {
+      }
+      else {
         done = true
       }
     }
