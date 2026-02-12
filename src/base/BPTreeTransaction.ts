@@ -28,6 +28,8 @@ export abstract class BPTreeTransaction<K, V> {
   protected readonly option: BPTreeConstructorOption
   protected order!: number
   protected rootId!: string
+  protected isInitialized: boolean = false
+  protected isDestroyed: boolean = false
 
   protected readonly verifierMap: Record<
     keyof BPTreeCondition<V>,
@@ -323,6 +325,11 @@ export abstract class BPTreeTransaction<K, V> {
    * This method is used to initialize the stored tree and recover data.
    * If it is not called, the tree will not function.
    */
+  /**
+   * After creating a tree instance, it must be called.  
+   * This method is used to initialize the stored tree and recover data.
+   * If it is not called, the tree will not function.
+   */
   abstract init(): Deferred<void>
   /**
    * It searches for a key within the tree. The result is returned as an array sorted in ascending order based on the value.  
@@ -427,13 +434,21 @@ export abstract class BPTreeTransaction<K, V> {
     return this.mvcc.getResultEntries()
   }
 
+  protected _clearCache(): void {
+    this._cachedRegexp.clear()
+    this.nodes.clear()
+  }
+
   /**
    * Clears all cached nodes.
    * This method is useful for freeing up memory when the tree is no longer needed.
    */
   clear(): void {
-    this._cachedRegexp.clear()
-    this.nodes.clear()
+    if (this.isDestroyed) {
+      throw new Error('Transaction already destroyed')
+    }
+    this._clearCache()
+    this.isDestroyed = true
   }
 
   protected _binarySearchValues(

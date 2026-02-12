@@ -369,29 +369,41 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
   }
 
   init(): void {
-    this.clear()
-    const head = this._readHead()
-    if (head === null) {
-      this.order = this.strategy.order
-      const root = this._createNode(true, [], [])
-      this._writeHead({
-        root: root.id,
-        order: this.order,
-        data: this.strategy.head.data
-      })
+    if (this.isInitialized) {
+      throw new Error('Transaction already initialized')
     }
-    else {
-      const { root, order } = head
-      this.strategy.head = head
-      this.order = order
-      this._writeHead({
-        root: root,
-        order: this.order,
-        data: this.strategy.head.data
-      })
+    if (this.isDestroyed) {
+      throw new Error('Transaction already destroyed')
     }
-    if (this.order < 3) {
-      throw new Error(`The 'order' parameter must be greater than 2. but got a '${this.order}'.`)
+    this.isInitialized = true
+    try {
+      this._clearCache()
+      const head = this._readHead()
+      if (head === null) {
+        this.order = this.strategy.order
+        const root = this._createNode(true, [], [])
+        this._writeHead({
+          root: root.id,
+          order: this.order,
+          data: this.strategy.head.data
+        })
+      }
+      else {
+        const { root, order } = head
+        this.strategy.head = head
+        this.order = order
+        this._writeHead({
+          root: root,
+          order: this.order,
+          data: this.strategy.head.data
+        })
+      }
+      if (this.order < 3) {
+        throw new Error(`The 'order' parameter must be greater than 2. but got a '${this.order}'.`)
+      }
+    } catch (e) {
+      this.isInitialized = false
+      throw e
     }
   }
 
