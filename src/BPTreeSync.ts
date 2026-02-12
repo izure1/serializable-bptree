@@ -35,8 +35,8 @@ export class BPTreeSync<K, V> extends BPTreeSyncTransaction<K, V> {
       this.strategy,
       this.comparator,
       this.option
-    )
-    tx.init()
+    );
+    (tx as any)._initInternal()
     return tx
   }
 

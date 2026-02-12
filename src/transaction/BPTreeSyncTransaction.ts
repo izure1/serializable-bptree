@@ -368,7 +368,14 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
     }
   }
 
-  init(): void {
+  public init(): void {
+    if (this.rootTx !== this) {
+      throw new Error('Cannot call init on a nested transaction')
+    }
+    this._initInternal()
+  }
+
+  protected _initInternal(): void {
     if (this.isInitialized) {
       throw new Error('Transaction already initialized')
     }

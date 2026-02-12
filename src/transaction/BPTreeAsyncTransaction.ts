@@ -391,7 +391,14 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
     }
   }
 
-  async init(): Promise<void> {
+  public async init(): Promise<void> {
+    if (this.rootTx !== this) {
+      throw new Error('Cannot call init on a nested transaction')
+    }
+    return await this._initInternal()
+  }
+
+  protected async _initInternal(): Promise<void> {
     if (this.isInitialized) {
       throw new Error('Transaction already initialized')
     }

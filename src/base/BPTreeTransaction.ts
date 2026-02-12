@@ -443,7 +443,14 @@ export abstract class BPTreeTransaction<K, V> {
    * Clears all cached nodes.
    * This method is useful for freeing up memory when the tree is no longer needed.
    */
-  clear(): void {
+  public clear(): void {
+    if (this.rootTx !== this) {
+      throw new Error('Cannot call clear on a nested transaction')
+    }
+    this._clearInternal()
+  }
+
+  protected _clearInternal(): void {
     if (this.isDestroyed) {
       throw new Error('Transaction already destroyed')
     }

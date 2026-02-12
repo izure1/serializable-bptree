@@ -36,7 +36,7 @@ export class BPTreeAsync<K, V> extends BPTreeAsyncTransaction<K, V> {
       this.comparator,
       this.option
     )
-    await tx.init()
+    await (tx as any)._initInternal()
     return tx
   }
 
