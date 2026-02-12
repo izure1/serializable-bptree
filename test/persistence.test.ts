@@ -182,6 +182,9 @@ describe('Persistence Test', () => {
     // 4. Commit all
     const results = txs.map((tx, i) => {
       const result = tx.commit()
+      if (!result.success) {
+        tx.rollback()
+      }
       return result
     })
     const successCount = results.filter(r => r.success).length
@@ -195,12 +198,13 @@ describe('Persistence Test', () => {
     const winnerIndex = results.findIndex(r => r.success)
     const winnerValue = winnerIndex + 1
 
-    tree.commit()
+    // tree.commit()
 
     const sharedVal = tree.get('shared')
 
     expect(sharedVal).toBe(winnerValue)
     expect(tree.get(`unique_${winnerIndex}`)).toBe(winnerIndex)
+
 
     // 6. Verify Persistence (New Instance)
     const tree2 = new BPTreeSync(new FileIOStrategySync(4, testDir), new NumericComparator())

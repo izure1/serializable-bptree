@@ -47,7 +47,6 @@ export class BPTreeSync<K, V> extends BPTreeSyncTransaction<K, V> {
     if (!result.success) {
       throw new Error(`Transaction failed: ${result.error || 'Commit failed due to conflict'}`)
     }
-    this.rootId = tx.getRootId()
   }
 
   public delete(key: K, value: V): void {
@@ -57,6 +56,5 @@ export class BPTreeSync<K, V> extends BPTreeSyncTransaction<K, V> {
     if (!result.success) {
       throw new Error(`Transaction failed: ${result.error || 'Commit failed due to conflict'}`)
     }
-    this.rootId = tx.getRootId()
   }
 }

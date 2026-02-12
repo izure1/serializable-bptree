@@ -27,7 +27,7 @@ export class BPTreeAsync<K, V> extends BPTreeAsyncTransaction<K, V> {
    * @returns A new BPTreeAsyncTransaction.
    */
   public async createTransaction(): Promise<BPTreeAsyncTransaction<K, V>> {
-    const nestedTx = await this.mvcc.createNested()
+    const nestedTx = this.mvcc.createNested()
     const tx = new BPTreeAsyncTransaction(
       this,
       this.mvcc,
@@ -41,22 +41,24 @@ export class BPTreeAsync<K, V> extends BPTreeAsyncTransaction<K, V> {
   }
 
   public async insert(key: K, value: V): Promise<void> {
-    const tx = await this.createTransaction()
-    await tx.insert(key, value)
-    const result = await tx.commit()
-    if (!result.success) {
-      throw new Error(`Transaction failed: ${result.error || 'Commit failed due to conflict'}`)
-    }
-    this.rootId = tx.getRootId()
+    return this.writeLock(1, async () => {
+      const tx = await this.createTransaction()
+      await tx.insert(key, value)
+      const result = await tx.commit()
+      if (!result.success) {
+        throw new Error(`Transaction failed: ${result.error || 'Commit failed due to conflict'}`)
+      }
+    })
   }
 
   public async delete(key: K, value: V): Promise<void> {
-    const tx = await this.createTransaction()
-    await tx.delete(key, value)
-    const result = await tx.commit()
-    if (!result.success) {
-      throw new Error(`Transaction failed: ${result.error || 'Commit failed due to conflict'}`)
-    }
-    this.rootId = tx.getRootId()
+    return this.writeLock(1, async () => {
+      const tx = await this.createTransaction()
+      await tx.delete(key, value)
+      const result = await tx.commit()
+      if (!result.success) {
+        throw new Error(`Transaction failed: ${result.error || 'Commit failed due to conflict'}`)
+      }
+    })
   }
 }

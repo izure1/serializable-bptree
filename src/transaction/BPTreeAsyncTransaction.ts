@@ -13,6 +13,7 @@ import type {
   SerializableData,
   SerializeStrategyHead
 } from '../types'
+import { Ryoiki } from 'ryoiki'
 import { BPTreeTransaction } from '../base/BPTreeTransaction'
 import { SerializeStrategyAsync } from '../SerializeStrategyAsync'
 import { ValueComparator } from '../base/ValueComparator'
@@ -24,6 +25,7 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
   declare protected readonly strategy: SerializeStrategyAsync<K, V>
   declare protected readonly comparator: ValueComparator<V>
   declare protected readonly option: BPTreeConstructorOption
+  protected readonly lock: Ryoiki
 
   constructor(
     rootTx: BPTreeAsyncTransaction<K, V> | null,
@@ -41,6 +43,17 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
       comparator,
       option,
     )
+    this.lock = new Ryoiki()
+  }
+
+  protected async writeLock<T>(id: number, fn: () => Promise<T>): Promise<T> {
+    let lockId: string
+    return this.lock.writeLock([id, id + 0.1], async (_lockId) => {
+      lockId = _lockId
+      return fn()
+    }).finally(() => {
+      this.lock.writeUnlock(lockId)
+    })
   }
 
   protected async getNode(id: string): Promise<BPTreeUnknownNode<K, V>> {
@@ -538,25 +551,27 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
   }
 
   public async insert(key: K, value: V): Promise<void> {
-    const before = await this.insertableNode(value)
-    await this._insertAtLeaf(before, key, value)
+    return this.writeLock(0, async () => {
+      const before = await this.insertableNode(value)
+      await this._insertAtLeaf(before, key, value)
 
-    if (before.values.length === this.order) {
-      const after = await this._createNode(
-        true,
-        [],
-        [],
-        before.parent,
-        null,
-        null,
-      ) as BPTreeLeafNode<K, V>
-      const mid = Math.ceil(this.order / 2) - 1
-      after.values = before.values.slice(mid + 1)
-      after.keys = before.keys.slice(mid + 1)
-      before.values = before.values.slice(0, mid + 1)
-      before.keys = before.keys.slice(0, mid + 1)
-      await this._insertInParent(before, after.values[0], after)
-    }
+      if (before.values.length === this.order) {
+        const after = await this._createNode(
+          true,
+          [],
+          [],
+          before.parent,
+          null,
+          null,
+        ) as BPTreeLeafNode<K, V>
+        const mid = Math.ceil(this.order / 2) - 1
+        after.values = before.values.slice(mid + 1)
+        after.keys = before.keys.slice(mid + 1)
+        before.values = before.values.slice(0, mid + 1)
+        before.keys = before.keys.slice(0, mid + 1)
+        await this._insertInParent(before, after.values[0], after)
+      }
+    })
   }
 
   protected async _deleteEntry(
@@ -776,35 +791,37 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
   }
 
   public async delete(key: K, value: V): Promise<void> {
-    let node = await this.insertableNodeByPrimary(value)
-    let found = false
-    while (true) {
-      let i = node.values.length
-      while (i--) {
-        const nValue = node.values[i]
-        if (this.comparator.isSame(value, nValue)) {
-          const keys = node.keys[i]
-          const keyIndex = keys.indexOf(key)
-          if (keyIndex !== -1) {
-            keys.splice(keyIndex, 1)
-            if (keys.length === 0) {
-              node.keys.splice(i, 1)
-              node.values.splice(i, 1)
+    return this.writeLock(0, async () => {
+      let node = await this.insertableNodeByPrimary(value)
+      let found = false
+      while (true) {
+        let i = node.values.length
+        while (i--) {
+          const nValue = node.values[i]
+          if (this.comparator.isSame(value, nValue)) {
+            const keys = node.keys[i]
+            const keyIndex = keys.indexOf(key)
+            if (keyIndex !== -1) {
+              keys.splice(keyIndex, 1)
+              if (keys.length === 0) {
+                node.keys.splice(i, 1)
+                node.values.splice(i, 1)
+              }
+              await this._updateNode(node)
+              await this._deleteEntry(node, key)
+              found = true
+              break
             }
-            await this._updateNode(node)
-            await this._deleteEntry(node, key)
-            found = true
-            break
           }
         }
+        if (found) break
+        if (node.next) {
+          node = await this.getNode(node.next) as BPTreeLeafNode<K, V>
+          continue
+        }
+        break
       }
-      if (found) break
-      if (node.next) {
-        node = await this.getNode(node.next) as BPTreeLeafNode<K, V>
-        continue
-      }
-      break
-    }
+    })
   }
 
   public async getHeadData(): Promise<SerializableData> {
@@ -830,9 +847,12 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
   public async commit(label?: string): Promise<TransactionResult<string, BPTreeNode<K, V>>> {
     let result = await this.mvcc.commit(label)
     if (result.success) {
-      result = await this.mvccRoot.commit(label)
-      if (result.success && this.rootTx !== this) {
-        this.rootTx.rootId = this.rootId
+      const isRootTx = this.rootTx === this
+      if (!isRootTx) {
+        result = await this.rootTx.commit(label)
+        if (result.success) {
+          this.rootTx.rootId = this.rootId
+        }
       }
       if (result.success) {
         for (const r of result.created) {
