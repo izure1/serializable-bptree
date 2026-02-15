@@ -11,7 +11,9 @@ export class BPTreeSync<K, V> extends BPTreeSyncTransaction<K, V> {
     comparator: ValueComparator<V>,
     option?: BPTreeConstructorOption
   ) {
-    const mvccRoot = new SyncMVCCTransaction(new BPTreeMVCCStrategySync(strategy))
+    const mvccRoot = new SyncMVCCTransaction(new BPTreeMVCCStrategySync(strategy), {
+      cacheCapacity: option?.capacity ?? undefined
+    })
     super(
       null as any,
       mvccRoot as any,

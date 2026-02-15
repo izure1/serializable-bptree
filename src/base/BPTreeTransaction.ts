@@ -11,14 +11,12 @@ import type {
   BPTreeNode,
   BPTreeMVCC,
 } from '../types'
-import { CacheEntanglementSync, LRUMap } from 'cache-entanglement'
 import { ValueComparator } from './ValueComparator'
 import { SerializeStrategy } from './SerializeStrategy'
 
 export abstract class BPTreeTransaction<K, V> {
-  private readonly _cachedRegexp: ReturnType<typeof this._createCachedRegexp>
-  protected readonly nodes: LRUMap<string, BPTreeUnknownNode<K, V>>
-
+  private readonly _cachedRegexp: Map<string, RegExp> = new Map()
+  protected readonly nodes: Map<string, BPTreeUnknownNode<K, V>> = new Map()
   protected readonly deletedNodeBuffer: Map<string, BPTreeUnknownNode<K, V>> = new Map()
   protected readonly rootTx: BPTreeTransaction<K, V>
   protected readonly mvccRoot: BPTreeMVCC<K, V>
@@ -52,8 +50,12 @@ export abstract class BPTreeTransaction<K, V> {
       like: (nv, v) => {
         const nodeValue = this.comparator.match(nv)
         const value = v as unknown as string
-        const cache = this._cachedRegexp.cache(value)
-        const regexp = cache.raw
+        if (!this._cachedRegexp.has(value)) {
+          const pattern = value.replace(/%/g, '.*').replace(/_/g, '.')
+          const regexp = new RegExp(`^${pattern}$`, 'i')
+          this._cachedRegexp.set(value, regexp)
+        }
+        const regexp = this._cachedRegexp.get(value) as RegExp
         return regexp.test(nodeValue)
       },
     }
@@ -246,6 +248,10 @@ export abstract class BPTreeTransaction<K, V> {
     return true
   }
 
+  protected _cloneNode<T extends BPTreeUnknownNode<K, V>>(node: T): T {
+    return JSON.parse(JSON.stringify(node)) as T
+  }
+
   /**
    * Selects the best driver key from a condition object.
    * The driver key determines the starting point and traversal direction for queries.
@@ -286,18 +292,6 @@ export abstract class BPTreeTransaction<K, V> {
     this.strategy = strategy
     this.comparator = comparator
     this.option = option ?? {}
-    this.nodes = new LRUMap(this.option.capacity ?? 1000)
-    this._cachedRegexp = this._createCachedRegexp()
-  }
-
-  private _createCachedRegexp() {
-    return new CacheEntanglementSync((key) => {
-      const pattern = key.replace(/%/g, '.*').replace(/_/g, '.')
-      const regexp = new RegExp(`^${pattern}$`, 'i')
-      return regexp
-    }, {
-      capacity: this.option.capacity ?? 1000
-    })
   }
 
   protected abstract _createNode(
@@ -308,9 +302,9 @@ export abstract class BPTreeTransaction<K, V> {
     next?: string | null,
     prev?: string | null
   ): Deferred<BPTreeUnknownNode<K, V>>
-  protected abstract _deleteEntry(node: BPTreeUnknownNode<K, V>, key: BPTreeNodeKey<K>, value: V): Deferred<void>
+  protected abstract _deleteEntry(node: BPTreeUnknownNode<K, V>, key: BPTreeNodeKey<K>): Deferred<BPTreeUnknownNode<K, V>>
   protected abstract _insertInParent(node: BPTreeUnknownNode<K, V>, value: V, pointer: BPTreeUnknownNode<K, V>): Deferred<void>
-  protected abstract _insertAtLeaf(node: BPTreeUnknownNode<K, V>, key: BPTreeNodeKey<K>, value: V): Deferred<void>
+  protected abstract _insertAtLeaf(node: BPTreeUnknownNode<K, V>, key: BPTreeNodeKey<K>, value: V): Deferred<BPTreeUnknownNode<K, V>>
   protected abstract getNode(id: string): Deferred<BPTreeUnknownNode<K, V>>
   protected abstract insertableNode(value: V): Deferred<BPTreeLeafNode<K, V>>
   protected abstract insertableNodeByPrimary(value: V): Deferred<BPTreeLeafNode<K, V>>
@@ -374,14 +368,6 @@ export abstract class BPTreeTransaction<K, V> {
   */
   public abstract setHeadData(data: SerializableData): Deferred<void>
   /**
-   * This method deletes nodes cached in-memory and caches new nodes from the stored nodes.  
-   * Typically, there's no need to use this method, but it can be used to synchronize data in scenarios where the remote storage and the client are in a 1:n relationship.
-   * If you do not specify an ID, all nodes will be updated.
-   * @param id The ID of the node to update.
-   * @returns The return value is the total number of nodes updated.
-   */
-  public abstract forceUpdate(id?: string): Deferred<number>
-  /**
    * Returns the user-defined data stored in the head of the tree.
    */
   abstract getHeadData(): Deferred<SerializableData>
@@ -393,7 +379,7 @@ export abstract class BPTreeTransaction<K, V> {
   /**
    * Rolls back the transaction and returns the result.
    */
-  abstract rollback(): TransactionResult<string, BPTreeNode<K, V>>
+  abstract rollback(): Deferred<TransactionResult<string, BPTreeNode<K, V>>>
 
   protected ensureValues(v: V | V[]): V[] {
     if (!Array.isArray(v)) {
@@ -436,7 +422,6 @@ export abstract class BPTreeTransaction<K, V> {
 
   protected _clearCache(): void {
     this._cachedRegexp.clear()
-    this.nodes.clear()
   }
 
   /**
