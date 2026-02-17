@@ -102,7 +102,6 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
 
   protected _insertAtLeaf(node: BPTreeUnknownNode<K, V>, key: BPTreeNodeKey<K>, value: V): BPTreeUnknownNode<K, V> {
     let leaf = node as BPTreeLeafNode<K, V>
-    leaf = this._cloneNode(leaf)
     if (leaf.values.length) {
       for (let i = 0, len = leaf.values.length; i < len; i++) {
         const nValue = leaf.values[i]
@@ -111,17 +110,20 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
           if (keys.includes(key as K)) {
             break
           }
-          keys.push(key as K)
+          leaf = this._cloneNode(leaf)
+          leaf.keys[i].push(key as K)
           this._updateNode(leaf)
           return leaf
         }
         else if (this.comparator.isLower(value, nValue)) {
+          leaf = this._cloneNode(leaf)
           leaf.values.splice(i, 0, value)
           leaf.keys.splice(i, 0, [key as K])
           this._updateNode(leaf)
           return leaf
         }
         else if (i + 1 === leaf.values.length) {
+          leaf = this._cloneNode(leaf)
           leaf.values.push(value)
           leaf.keys.push([key as K])
           this._updateNode(leaf)
@@ -130,6 +132,7 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
       }
     }
     else {
+      leaf = this._cloneNode(leaf)
       leaf.values = [value]
       leaf.keys = [[key as K]]
       this._updateNode(leaf)
@@ -139,9 +142,9 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
   }
 
   protected _insertInParent(node: BPTreeUnknownNode<K, V>, value: V, newSiblingNode: BPTreeUnknownNode<K, V>): void {
-    node = this._cloneNode(node)
-    newSiblingNode = this._cloneNode(newSiblingNode)
     if (this.rootId === node.id) {
+      node = this._cloneNode(node)
+      newSiblingNode = this._cloneNode(newSiblingNode)
       const root = this._createNode(false, [node.id, newSiblingNode.id], [value])
       this.rootId = root.id
       node.parent = root.id
@@ -172,10 +175,14 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
 
     parentNode.values.splice(nodeIndex, 0, value)
     parentNode.keys.splice(nodeIndex + 1, 0, newSiblingNode.id)
+
+    // newSiblingNode must be cloned to update its parent
+    newSiblingNode = this._cloneNode(newSiblingNode)
     newSiblingNode.parent = parentNode.id
 
     if (newSiblingNode.leaf) {
-      const leftSibling = node as unknown as BPTreeLeafNode<K, V>
+      // leftSibling (node) must be cloned to update its next
+      const leftSibling = this._cloneNode(node) as unknown as BPTreeLeafNode<K, V>
       const oldNextId = leftSibling.next
 
       newSiblingNode.prev = leftSibling.id
@@ -560,7 +567,6 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
     node: BPTreeUnknownNode<K, V>,
     key: BPTreeNodeKey<K>
   ): BPTreeUnknownNode<K, V> {
-    node = this._cloneNode(node)
     if (!node.leaf) {
       let keyIndex = -1
       for (let i = 0, len = node.keys.length; i < len; i++) {
@@ -571,6 +577,7 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
       }
 
       if (keyIndex !== -1) {
+        node = this._cloneNode(node)
         node.keys.splice(keyIndex, 1)
         const valueIndex = keyIndex > 0 ? keyIndex - 1 : 0
         node.values.splice(valueIndex, 1)
@@ -617,11 +624,11 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
         const nKey = parentNode.keys[i]
         if (nKey === node.id) {
           if (i > 0) {
-            prevNode = this._cloneNode(this.getNode(parentNode.keys[i - 1])) as BPTreeInternalNode<K, V>
+            prevNode = this.getNode(parentNode.keys[i - 1]) as BPTreeInternalNode<K, V>
             prevValue = parentNode.values[i - 1]
           }
           if (i < parentNode.keys.length - 1) {
-            nextNode = this._cloneNode(this.getNode(parentNode.keys[i + 1])) as BPTreeInternalNode<K, V>
+            nextNode = this.getNode(parentNode.keys[i + 1]) as BPTreeInternalNode<K, V>
             postValue = parentNode.values[i]
           }
         }
@@ -652,6 +659,11 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
       if (!siblingNode) {
         return node
       }
+
+      // Now we know we're going to modify something
+      node = this._cloneNode(node)
+      siblingNode = this._cloneNode(siblingNode)
+
       if (node.values.length + siblingNode.values.length < this.order) {
         if (!isPredecessor) {
           const pTemp = siblingNode
@@ -683,7 +695,7 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
 
         this._deleteNode(node)
         this._updateNode(siblingNode)
-        this._deleteEntry(this._cloneNode(this.getNode(node.parent!)), node.id)
+        this._deleteEntry(this.getNode(node.parent!), node.id)
       }
       else {
         if (isPredecessor) {
@@ -769,7 +781,7 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
         }
       }
     } else {
-      this._updateNode(node)
+      this._updateNode(this._cloneNode(node))
     }
     return node
   }
@@ -777,7 +789,6 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
   public delete(key: K, value: V): void {
     let node = this.insertableNodeByPrimary(value)
     let found = false
-    node = this._cloneNode(node)
     while (true) {
       let i = node.values.length
       while (i--) {
@@ -786,8 +797,10 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
           const keys = node.keys[i]
           const keyIndex = keys.indexOf(key)
           if (keyIndex !== -1) {
-            keys.splice(keyIndex, 1)
-            if (keys.length === 0) {
+            node = this._cloneNode(node)
+            const freshKeys = node.keys[i]
+            freshKeys.splice(keyIndex, 1)
+            if (freshKeys.length === 0) {
               node.keys.splice(i, 1)
               node.values.splice(i, 1)
             }
