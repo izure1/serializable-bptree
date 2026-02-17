@@ -843,14 +843,12 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
   public commit(label?: string): TransactionResult<string, BPTreeNode<K, V>> {
     let result = this.mvcc.commit(label)
     if (result.success) {
-      const isRootTx = this.rootTx !== this
-      if (isRootTx) {
+      const isRootTx = this.rootTx === this
+      if (!isRootTx) {
         result = this.rootTx.commit(label)
         if (result.success) {
           this.rootTx.rootId = this.rootId
         }
-      }
-      if (result.success) {
       }
     }
     return result
