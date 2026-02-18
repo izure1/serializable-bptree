@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771357166623,
+  "lastUpdate": 1771372805992,
   "repoUrl": "https://github.com/izure1/serializable-bptree",
   "entries": {
     "Serializable B+Tree Benchmark": [
@@ -307,6 +307,50 @@ window.BENCHMARK_DATA = {
           {
             "name": "MVCC Conflict overhead",
             "value": 63,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "izure@naver.com",
+            "name": "izure",
+            "username": "izure1"
+          },
+          "committer": {
+            "email": "izure@naver.com",
+            "name": "izure",
+            "username": "izure1"
+          },
+          "distinct": true,
+          "id": "ae4baeab92048d64f3cce28a0d348a4ad0527643",
+          "message": "fix: BPTreeSyncTransaction 인스턴스에서 커밋이 실패하는 오류를 수정합니다",
+          "timestamp": "2026-02-18T08:59:32+09:00",
+          "tree_id": "727036ccbf06d92f41e228844fdd816ca962427f",
+          "url": "https://github.com/izure1/serializable-bptree/commit/ae4baeab92048d64f3cce28a0d348a4ad0527643"
+        },
+        "date": 1771372805459,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Async Stream Scan",
+            "value": 348,
+            "unit": "ms"
+          },
+          {
+            "name": "Point Query latency",
+            "value": 15,
+            "unit": "ms"
+          },
+          {
+            "name": "Sync Where latency",
+            "value": 22,
+            "unit": "ms"
+          },
+          {
+            "name": "MVCC Conflict overhead",
+            "value": 61,
             "unit": "ms"
           }
         ]
