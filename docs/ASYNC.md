@@ -8,7 +8,7 @@ To use the tree asynchronously, use `BPTreeAsync` and `SerializeStrategyAsync`.
 
 ```typescript
 import { BPTreeAsync, SerializeStrategyAsync, NumericComparator } from 'serializable-bptree'
-import { readFile, writeFile, unlink } from 'fs/promises'
+import { readFile, writeFile, unlink } from 'node:fs/promises'
 
 class FileStoreStrategyAsync extends SerializeStrategyAsync<K, V> {
   async id(isLeaf: boolean): Promise<string> {

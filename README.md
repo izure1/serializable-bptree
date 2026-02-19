@@ -7,7 +7,7 @@
 This is a B+tree that's totally okay with duplicate values. If you need to keep track of the B+ tree's state, don't just leave it in memory - make sure you write it down.
 
 ```typescript
-import { readFileSync, writeFileSync, unlinkSync, existsSync } from 'fs'
+import { readFileSync, writeFileSync, unlinkSync, existsSync } from 'node:fs'
 import {
   BPTreeSync,
   SerializeStrategySync,
