@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771372805992,
+  "lastUpdate": 1771509697301,
   "repoUrl": "https://github.com/izure1/serializable-bptree",
   "entries": {
     "Serializable B+Tree Benchmark": [
@@ -351,6 +351,50 @@ window.BENCHMARK_DATA = {
           {
             "name": "MVCC Conflict overhead",
             "value": 61,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "izure@naver.com",
+            "name": "izure",
+            "username": "izure1"
+          },
+          "committer": {
+            "email": "izure@naver.com",
+            "name": "izure",
+            "username": "izure1"
+          },
+          "distinct": true,
+          "id": "bbd9294f651fd5ab95f5fdc6d43da087ad7bbe1a",
+          "message": "chore: 시멘틱 버전과 문서 업데이트",
+          "timestamp": "2026-02-19T22:55:06+09:00",
+          "tree_id": "7662e43bbb886535b2b561e8a885b7e2c79a7446",
+          "url": "https://github.com/izure1/serializable-bptree/commit/bbd9294f651fd5ab95f5fdc6d43da087ad7bbe1a"
+        },
+        "date": 1771509696988,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Async Stream Scan",
+            "value": 384,
+            "unit": "ms"
+          },
+          {
+            "name": "Point Query latency",
+            "value": 17,
+            "unit": "ms"
+          },
+          {
+            "name": "Sync Where latency",
+            "value": 22,
+            "unit": "ms"
+          },
+          {
+            "name": "MVCC Conflict overhead",
+            "value": 55,
             "unit": "ms"
           }
         ]
