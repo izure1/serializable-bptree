@@ -81,17 +81,6 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
       next,
       prev
     } as BPTreeUnknownNode<K, V>
-
-    // Ensure the new index is reflected in the head immediately within the transaction
-    const head = await this._readHead()
-    if (head) {
-      await this._writeHead({
-        root: head.root,
-        order: head.order,
-        data: this.strategy.head.data
-      })
-    }
-
     await this.mvcc.create(id, node)
     return node
   }
@@ -438,11 +427,7 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
         const { root, order } = head
         this.strategy.head = head
         this.order = order
-        await this._writeHead({
-          root: root,
-          order: this.order,
-          data: this.strategy.head.data
-        })
+        this.rootId = root!
       }
       if (this.order < 3) {
         throw new Error(`The 'order' parameter must be greater than 2. but got a '${this.order}'.`)

@@ -11,6 +11,7 @@ import type {
   BPTreeNode,
   BPTreeMVCC,
 } from '../types'
+import { MVCCTransaction } from 'mvcc-api'
 import { ValueComparator } from './ValueComparator'
 import { SerializeStrategy } from './SerializeStrategy'
 
@@ -212,6 +213,16 @@ export abstract class BPTreeTransaction<K, V> {
     }
 
     return best
+  }
+
+  /**
+   * Checks for conflicts between multiple transactions.
+   * 
+   * @param transactions Array of BPTreeTransaction instances to check
+   * @returns An array of keys that are in conflict. Empty array if no conflicts.
+   */
+  static CheckConflicts<K, V>(transactions: BPTreeTransaction<K, V>[]): string[] {
+    return MVCCTransaction.CheckConflicts(transactions.map(tx => tx.mvcc))
   }
 
   /**

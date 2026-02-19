@@ -23,13 +23,10 @@ describe('BPTreeTransaction.getResultEntries Test', () => {
       tx.insert(2, 2) // updated (root)
 
       const entries1 = tx.getResultEntries()
-      // updated keys: [rootId, '__HEAD__']
+      // updated keys: [rootId]
       expect(entries1.created.length).toBe(0)
-      expect(entries1.updated.length).toBe(2) // root updated + __HEAD__ updated
+      expect(entries1.updated.length).toBe(1)
       expect(entries1.deleted.length).toBe(0)
-
-      const updatedKeys = entries1.updated.map(e => e.key)
-      expect(updatedKeys).toContain('__HEAD__')
 
       // 2. Insert causing split
       tx.insert(3, 3) // split occurs
@@ -74,7 +71,7 @@ describe('BPTreeTransaction.getResultEntries Test', () => {
       await tx.insert(2, 2)
 
       const entries = tx.getResultEntries()
-      expect(entries.updated.length).toBe(2) // root + __HEAD__
+      expect(entries.updated.length).toBe(1)
 
       await tx.insert(3, 3) // split
       const entriesAfterSplit = tx.getResultEntries()

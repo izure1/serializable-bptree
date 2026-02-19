@@ -406,11 +406,7 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
         const { root, order } = head
         this.strategy.head = head
         this.order = order
-        this._writeHead({
-          root: root,
-          order: this.order,
-          data: this.strategy.head.data
-        })
+        this.rootId = root!
       }
       if (this.order < 3) {
         throw new Error(`The 'order' parameter must be greater than 2. but got a '${this.order}'.`)
