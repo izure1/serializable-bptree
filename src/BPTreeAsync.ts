@@ -53,7 +53,7 @@ export class BPTreeAsync<K, V> extends BPTreeAsyncTransaction<K, V> {
     })
   }
 
-  public async delete(key: K, value: V): Promise<void> {
+  public async delete(key: K, value?: V): Promise<void> {
     return this.writeLock(1, async () => {
       const tx = await this.createTransaction()
       await tx.delete(key, value)

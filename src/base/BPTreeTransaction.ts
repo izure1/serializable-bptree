@@ -350,10 +350,13 @@ export abstract class BPTreeTransaction<K, V> {
   public abstract insert(key: K, value: V): Deferred<void>
   /**
    * Deletes the pair that matches the key and value.
+   * 
    * @param key The key of the pair. This key must be unique.
    * @param value The value of the pair.
+   * 
+   * @warning If the 'value' is not specified, a full scan will be performed to find the value associated with the key, which may lead to performance degradation.
    */
-  public abstract delete(key: K, value: V): Deferred<void>
+  public abstract delete(key: K, value?: V): Deferred<void>
   /**
    * It returns whether there is a value in the tree.
    * @param key The key value to search for. This key must be unique.

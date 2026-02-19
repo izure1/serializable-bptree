@@ -786,7 +786,15 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
     return node
   }
 
-  public delete(key: K, value: V): void {
+  public delete(key: K, value?: V): void {
+    if (value === undefined) {
+      value = this.get(key)
+    }
+
+    if (value === undefined) {
+      return
+    }
+
     let node = this.insertableNodeByPrimary(value)
     let found = false
     while (true) {

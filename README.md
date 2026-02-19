@@ -91,6 +91,8 @@ Additionally, this library supports asynchronous operations and rule-based query
 
 ```bash
 npm i serializable-bptree
+# or
+npx jsr add @izure/serializable-bptree
 ```
 
 ```typescript

@@ -51,7 +51,7 @@ export class BPTreeSync<K, V> extends BPTreeSyncTransaction<K, V> {
     }
   }
 
-  public delete(key: K, value: V): void {
+  public delete(key: K, value?: V): void {
     const tx = this.createTransaction()
     tx.delete(key, value)
     const result = tx.commit()

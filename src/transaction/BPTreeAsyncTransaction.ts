@@ -819,8 +819,16 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
     return node
   }
 
-  public async delete(key: K, value: V): Promise<void> {
+  public async delete(key: K, value?: V): Promise<void> {
     return this.writeLock(0, async () => {
+      if (value === undefined) {
+        value = await this.get(key)
+      }
+
+      if (value === undefined) {
+        return
+      }
+
       let node = await this.insertableNodeByPrimary(value)
       let found = false
       while (true) {
