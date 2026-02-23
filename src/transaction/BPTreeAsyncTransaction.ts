@@ -7,11 +7,11 @@ import type {
   BPTreeLeafNode,
   BPTreeNode,
   BPTreeNodeKey,
-  BPTreeOrder,
   BPTreePair,
   BPTreeUnknownNode,
   SerializableData,
-  SerializeStrategyHead
+  SerializeStrategyHead,
+  BPTreeSearchOption,
 } from '../types'
 import { Ryoiki } from 'ryoiki'
 import { BPTreeTransaction } from '../base/BPTreeTransaction'
@@ -450,7 +450,6 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
     return false
   }
 
-
   public async get(key: K): Promise<V | undefined> {
     let node = await this.leftestNode()
     while (true) {
@@ -470,25 +469,29 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
 
   public async *keysStream(
     condition: BPTreeCondition<V>,
-    filterValues?: Set<K>,
-    limit?: number,
-    order: BPTreeOrder = 'asc'
+    options?: BPTreeSearchOption<K>
   ): AsyncGenerator<K> {
-    const stream = this.whereStream(condition, limit, order)
+    const { filterValues, limit, order = 'asc' } = options ?? {}
+    const stream = this.whereStream(condition, options)
     const intersection = filterValues && filterValues.size > 0 ? filterValues : null
+    let count = 0
     for await (const [key] of stream) {
       if (intersection && !intersection.has(key)) {
         continue
       }
       yield key
+      count++
+      if (limit !== undefined && count >= limit) {
+        break
+      }
     }
   }
 
   public async *whereStream(
     condition: BPTreeCondition<V>,
-    limit?: number,
-    order: BPTreeOrder = 'asc'
+    options?: BPTreeSearchOption<K>
   ): AsyncGenerator<[K, V]> {
+    const { limit, order = 'asc' } = options ?? {}
     const driverKey = this.getDriverKey(condition)
     if (!driverKey) return
 
@@ -539,17 +542,23 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
     }
   }
 
-  public async keys(condition: BPTreeCondition<V>, filterValues?: Set<K>, order: BPTreeOrder = 'asc'): Promise<Set<K>> {
+  public async keys(
+    condition: BPTreeCondition<V>,
+    options?: BPTreeSearchOption<K>
+  ): Promise<Set<K>> {
     const set = new Set<K>()
-    for await (const key of this.keysStream(condition, filterValues, undefined, order)) {
+    for await (const key of this.keysStream(condition, options)) {
       set.add(key)
     }
     return set
   }
 
-  public async where(condition: BPTreeCondition<V>, order: BPTreeOrder = 'asc'): Promise<BPTreePair<K, V>> {
+  public async where(
+    condition: BPTreeCondition<V>,
+    options?: BPTreeSearchOption<K>
+  ): Promise<BPTreePair<K, V>> {
     const map = new Map<K, V>()
-    for await (const [key, value] of this.whereStream(condition, undefined, order)) {
+    for await (const [key, value] of this.whereStream(condition, options)) {
       map.set(key, value)
     }
     return map

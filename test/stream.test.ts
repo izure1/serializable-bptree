@@ -54,7 +54,7 @@ describe('BPTree Stream Tests', () => {
       ]
       inputs.forEach(([k, v]) => tree.insert(k, v))
 
-      const stream = tree.whereStream({ gte: 'a' }, 3)
+      const stream = tree.whereStream({ gte: 'a' }, { limit: 3 })
       const result: [string, string][] = []
       for (const pair of stream) {
         result.push(pair)
@@ -81,8 +81,7 @@ describe('BPTree Stream Tests', () => {
 
       // condition: val >= 'a' AND val != 'b'
       // limit: 3
-      // Expected result: k1, k3, k5
-      const stream = tree.whereStream({ gte: 'a', notEqual: 'b' }, 3)
+      const stream = tree.whereStream({ gte: 'a', notEqual: 'b' }, { limit: 3 })
       const result: [string, string][] = []
       for (const pair of stream) {
         result.push(pair)
@@ -188,7 +187,7 @@ describe('BPTree Stream Tests', () => {
       ]
       inputs.forEach(([k, v]) => tree.insert(k, v))
 
-      const stream = tree.whereStream({ gte: 'v1' }, undefined, 'desc')
+      const stream = tree.whereStream({ gte: 'v1' }, { order: 'desc' })
       const result: [string, string][] = []
       for (const pair of stream) {
         result.push(pair)
@@ -213,7 +212,7 @@ describe('BPTree Stream Tests', () => {
       ]
       inputs.forEach(([k, v]) => tree.insert(k, v))
 
-      const stream = tree.keysStream({ gte: 'v1' }, undefined, undefined, 'desc')
+      const stream = tree.keysStream({ gte: 'v1' }, { order: 'desc' })
       const result: string[] = []
       for (const key of stream) {
         result.push(key)
@@ -231,7 +230,7 @@ describe('BPTree Stream Tests', () => {
       inputs.forEach(([k, v]) => tree.insert(k, v))
 
       const keysAsc = tree.keys({ gte: 'v1' })
-      const keysDesc = tree.keys({ gte: 'v1' }, undefined, 'desc')
+      const keysDesc = tree.keys({ gte: 'v1' }, { order: 'desc' })
 
       // Set order is insertion order
       expect(Array.from(keysAsc)).toEqual(['k1', 'k2', 'k3'])
@@ -247,7 +246,7 @@ describe('BPTree Stream Tests', () => {
       inputs.forEach(([k, v]) => tree.insert(k, v))
 
       const whereAsc = tree.where({ gte: 'v1' })
-      const whereDesc = tree.where({ gte: 'v1' }, 'desc')
+      const whereDesc = tree.where({ gte: 'v1' }, { order: 'desc' })
 
       // Map iteration order is insertion order
       expect(Array.from(whereAsc.keys())).toEqual(['k1', 'k2', 'k3'])
@@ -302,7 +301,7 @@ describe('BPTree Stream Tests', () => {
         await tree.insert(k, v)
       }
 
-      const stream = tree.whereStream({ gte: 'a', notEqual: 'b' }, 3)
+      const stream = tree.whereStream({ gte: 'a', notEqual: 'b' }, { limit: 3 })
       const result: [string, string][] = []
       for await (const pair of stream) {
         result.push(pair)
@@ -397,7 +396,7 @@ describe('BPTree Stream Tests', () => {
         await tree.insert(k, v)
       }
 
-      const stream = tree.whereStream({ gte: 'v1' }, undefined, 'desc')
+      const stream = tree.whereStream({ gte: 'v1' }, { order: 'desc' })
       const result: [string, string][] = []
       for await (const pair of stream) {
         result.push(pair)

@@ -10,6 +10,7 @@ import type {
   SerializableData,
   BPTreeNode,
   BPTreeMVCC,
+  BPTreeSearchOption,
 } from '../types'
 import { MVCCTransaction } from 'mvcc-api'
 import { ValueComparator } from './ValueComparator'
@@ -330,28 +331,44 @@ export abstract class BPTreeTransaction<K, V> {
    * This method is used to initialize the stored tree and recover data.
    * If it is not called, the tree will not function.
    */
+  public abstract init(): Deferred<void>
   /**
-   * After creating a tree instance, it must be called.  
-   * This method is used to initialize the stored tree and recover data.
-   * If it is not called, the tree will not function.
+   * Retrieves the value associated with the given key.
+   * @param key The key to search for.
+   * @returns A Deferred that resolves to the value if found, or undefined if not found.
    */
-  abstract init(): Deferred<void>
+  public abstract get(key: K): Deferred<V | undefined>
+  /**
+   * Returns a generator that yields keys satisfying the given condition.
+   * This is a memory-efficient way to iterate through keys when dealing with large result sets.
+   * @param condition The search condition (e.g., gt, lt, equal, like).
+   * @param options Search options including filterValues, limit, and order.
+   * @returns An async or synchronous generator yielding keys of type K.
+   */
+  public abstract keysStream(condition: BPTreeCondition<V>, options?: BPTreeSearchOption<K>): AsyncGenerator<K> | Generator<K>
+  /**
+   * Returns a generator that yields [key, value] pairs satisfying the given condition.
+   * This is a memory-efficient way to iterate through pairs when dealing with large result sets.
+   * @param condition The search condition (e.g., gt, lt, equal, like).
+   * @param options Search options including filterValues, limit, and order.
+   * @returns An async or synchronous generator yielding [K, V] tuples.
+   */
+  public abstract whereStream(condition: BPTreeCondition<V>, options?: BPTreeSearchOption<K>): AsyncGenerator<[K, V]> | Generator<[K, V]>
   /**
    * It searches for a key within the tree. The result is returned as an array sorted in ascending order based on the value.  
    * The result is key set instance, and you can use the `gt`, `lt`, `gte`, `lte`, `equal`, `notEqual`, `like` condition statements.
    * This method operates much faster than first searching with `where` and then retrieving only the key list.
    * @param condition You can use the `gt`, `lt`, `gte`, `lte`, `equal`, `notEqual`, `like` condition statements.
-   * @param filterValues The `Set` containing values to check for intersection.
-   * Returns a `Set` containing values that are common to both the input `Set` and the intersection `Set`.
-   * If this parameter is not provided, it searches for all keys inserted into the tree.
+   * @param options Search options including filterValues, limit, and order.
    */
-  public abstract keys(condition: BPTreeCondition<V>, filterValues?: Set<K>): Deferred<Set<K>>
+  public abstract keys(condition: BPTreeCondition<V>, options?: BPTreeSearchOption<K>): Deferred<Set<K>>
   /**
    * It searches for a value within the tree. The result is returned as an array sorted in ascending order based on the value.  
    * The result includes the key and value attributes, and you can use the `gt`, `lt`, `gte`, `lte`, `equal`, `notEqual`, `like` condition statements.
    * @param condition You can use the `gt`, `lt`, `gte`, `lte`, `equal`, `notEqual`, `like` condition statements.
+   * @param options Search options including filterValues, limit, and order.
    */
-  public abstract where(condition: BPTreeCondition<V>): Deferred<BPTreePair<K, V>>
+  public abstract where(condition: BPTreeCondition<V>, options?: BPTreeSearchOption<K>): Deferred<BPTreePair<K, V>>
   /**
    * You enter the key and value as a pair. You can later search for the pair by value.
    * This data is stored in the tree, sorted in ascending order of value.
@@ -361,10 +378,8 @@ export abstract class BPTreeTransaction<K, V> {
   public abstract insert(key: K, value: V): Deferred<void>
   /**
    * Deletes the pair that matches the key and value.
-   * 
    * @param key The key of the pair. This key must be unique.
    * @param value The value of the pair.
-   * 
    * @warning If the 'value' is not specified, a full scan will be performed to find the value associated with the key, which may lead to performance degradation.
    */
   public abstract delete(key: K, value?: V): Deferred<void>

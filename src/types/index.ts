@@ -56,6 +56,12 @@ export type BPTreeCondition<V> = Partial<{
  */
 export type BPTreeOrder = 'asc' | 'desc'
 
+export interface BPTreeSearchOption<K> {
+  filterValues?: Set<K>
+  limit?: number
+  order?: BPTreeOrder
+}
+
 export type BPTreePair<K, V> = Map<K, V>
 
 export type BPTreeUnknownNode<K, V> = BPTreeInternalNode<K, V> | BPTreeLeafNode<K, V>

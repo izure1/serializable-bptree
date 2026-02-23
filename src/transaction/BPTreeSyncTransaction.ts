@@ -6,12 +6,12 @@ import type {
   BPTreeLeafNode,
   BPTreeNode,
   BPTreeNodeKey,
-  BPTreeOrder,
   BPTreePair,
   BPTreeUnknownNode,
   SerializableData,
   SerializeStrategyHead,
-  SyncBPTreeMVCC
+  SyncBPTreeMVCC,
+  BPTreeSearchOption,
 } from '../types'
 import { BPTreeTransaction } from '../base/BPTreeTransaction'
 import { SerializeStrategySync } from '../SerializeStrategySync'
@@ -429,7 +429,6 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
     return false
   }
 
-
   public get(key: K): V | undefined {
     let node = this.leftestNode()
     while (true) {
@@ -449,25 +448,29 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
 
   public *keysStream(
     condition: BPTreeCondition<V>,
-    filterValues?: Set<K>,
-    limit?: number,
-    order: BPTreeOrder = 'asc'
+    options?: BPTreeSearchOption<K>
   ): Generator<K> {
-    const stream = this.whereStream(condition, limit, order)
+    const { filterValues, limit, order = 'asc' } = options ?? {}
+    const stream = this.whereStream(condition, options)
     const intersection = filterValues && filterValues.size > 0 ? filterValues : null
+    let count = 0
     for (const [key] of stream) {
       if (intersection && !intersection.has(key)) {
         continue
       }
       yield key
+      count++
+      if (limit !== undefined && count >= limit) {
+        break
+      }
     }
   }
 
   public *whereStream(
     condition: BPTreeCondition<V>,
-    limit?: number,
-    order: BPTreeOrder = 'asc'
+    options?: BPTreeSearchOption<K>
   ): Generator<[K, V]> {
+    const { limit, order = 'asc' } = options ?? {}
     const driverKey = this.getDriverKey(condition)
     if (!driverKey) return
 
@@ -518,17 +521,17 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
     }
   }
 
-  public keys(condition: BPTreeCondition<V>, filterValues?: Set<K>, order: BPTreeOrder = 'asc'): Set<K> {
+  public keys(condition: BPTreeCondition<V>, options?: BPTreeSearchOption<K>): Set<K> {
     const set = new Set<K>()
-    for (const key of this.keysStream(condition, filterValues, undefined, order)) {
+    for (const key of this.keysStream(condition, options)) {
       set.add(key)
     }
     return set
   }
 
-  public where(condition: BPTreeCondition<V>, order: BPTreeOrder = 'asc'): BPTreePair<K, V> {
+  public where(condition: BPTreeCondition<V>, options?: BPTreeSearchOption<K>): BPTreePair<K, V> {
     const map = new Map<K, V>()
-    for (const [key, value] of this.whereStream(condition, undefined, order)) {
+    for (const [key, value] of this.whereStream(condition, options)) {
       map.set(key, value)
     }
     return map

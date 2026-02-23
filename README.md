@@ -158,7 +158,7 @@ const others = candidates.filter((c) => driver.tree !== c.tree)
 // 2. Execute query using the selected driver
 let keys = driver.tree.keys(driver.condition)
 for (const { tree, condition } of others) {
-  keys = tree.keys(condition, keys)
+  keys = tree.keys(condition, { filterValues: keys })
 }
 
 console.log('Found: ', keys)

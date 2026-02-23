@@ -107,7 +107,7 @@ const others = candidates.filter((c) => driver.tree !== c.tree)
 let keys = driver.tree.keys(driver.condition)
 for (const { tree, condition } of others) {
   // Refine the key set using other indexes
-  keys = tree.keys(condition, keys)
+  keys = tree.keys(condition, { filterValues: keys })
 }
 
 console.log('Found result keys: ', keys)
