@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771514715426,
+  "lastUpdate": 1771889526424,
   "repoUrl": "https://github.com/izure1/serializable-bptree",
   "entries": {
     "Serializable B+Tree Benchmark": [
@@ -439,6 +439,50 @@ window.BENCHMARK_DATA = {
           {
             "name": "MVCC Conflict overhead",
             "value": 46,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "izure@naver.com",
+            "name": "izure",
+            "username": "izure1"
+          },
+          "committer": {
+            "email": "izure@naver.com",
+            "name": "izure",
+            "username": "izure1"
+          },
+          "distinct": true,
+          "id": "5c10ce08626134b2d74eb937372605eaa6c9d2b6",
+          "message": "feat: 이제 where, whereStream 메서드에서도 filterValues 옵션을 사용할 수 있습니다",
+          "timestamp": "2026-02-24T08:26:47+09:00",
+          "tree_id": "b33437dca66939beb4568111dfff5d50dd056860",
+          "url": "https://github.com/izure1/serializable-bptree/commit/5c10ce08626134b2d74eb937372605eaa6c9d2b6"
+        },
+        "date": 1771889526040,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Async Stream Scan",
+            "value": 333,
+            "unit": "ms"
+          },
+          {
+            "name": "Point Query latency",
+            "value": 14,
+            "unit": "ms"
+          },
+          {
+            "name": "Sync Where latency",
+            "value": 26,
+            "unit": "ms"
+          },
+          {
+            "name": "MVCC Conflict overhead",
+            "value": 42,
             "unit": "ms"
           }
         ]
