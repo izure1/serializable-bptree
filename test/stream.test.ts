@@ -91,6 +91,29 @@ describe('BPTree Stream Tests', () => {
       expect(result).toEqual([['k1', 'a'], ['k3', 'c'], ['k5', 'd']])
     })
 
+    test('should handle filterValues in whereStream', () => {
+      const inputs = [
+        ['k1', 'a'],
+        ['k2', 'b'],
+        ['k3', 'c'],
+        ['k4', 'b'],
+        ['k5', 'd'],
+        ['k6', 'e'],
+      ]
+      inputs.forEach(([k, v]) => tree.insert(k, v))
+
+      const filterValues = new Set(['k1', 'k4', 'k5', 'k99'])
+      const stream = tree.whereStream({ gte: 'a' }, { filterValues })
+      const result: [string, string][] = []
+      for (const pair of stream) {
+        result.push(pair)
+      }
+
+      // Expected: k1 (a), k4 (b), k5 (d). 'k99' doesn't exist.
+      expect(result.length).toBe(3)
+      expect(result).toEqual([['k1', 'a'], ['k4', 'b'], ['k5', 'd']])
+    })
+
     test('should allow external loop control (break)', () => {
       const inputs = [
         ['k1', 'v1'],
@@ -308,6 +331,31 @@ describe('BPTree Stream Tests', () => {
       }
 
       expect(result).toEqual([['k1', 'a'], ['k3', 'c'], ['k5', 'd']])
+    })
+
+    test('should handle filterValues in whereStream', async () => {
+      const inputs = [
+        ['k1', 'a'],
+        ['k2', 'b'],
+        ['k3', 'c'],
+        ['k4', 'b'],
+        ['k5', 'd'],
+        ['k6', 'e'],
+      ]
+      for (const [k, v] of inputs) {
+        await tree.insert(k, v)
+      }
+
+      const filterValues = new Set(['k2', 'k3', 'k6', 'k100'])
+      const stream = tree.whereStream({ gte: 'a' }, { filterValues })
+      const result: [string, string][] = []
+      for await (const pair of stream) {
+        result.push(pair)
+      }
+
+      // Expected: k2 (b), k3 (c), k6 (e).
+      expect(result.length).toBe(3)
+      expect(result).toEqual([['k2', 'b'], ['k3', 'c'], ['k6', 'e']])
     })
 
     test('should stream with "like" condition', async () => {

@@ -491,7 +491,7 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
     condition: BPTreeCondition<V>,
     options?: BPTreeSearchOption<K>
   ): AsyncGenerator<[K, V]> {
-    const { limit, order = 'asc' } = options ?? {}
+    const { filterValues, limit, order = 'asc' } = options ?? {}
     const driverKey = this.getDriverKey(condition)
     if (!driverKey) return
 
@@ -518,8 +518,12 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
     )
 
     let count = 0
+    const intersection = filterValues && filterValues.size > 0 ? filterValues : null
     for await (const pair of generator) {
       const [k, v] = pair
+      if (intersection && !intersection.has(k)) {
+        continue
+      }
       let isMatch = true
 
       for (const key in condition) {
