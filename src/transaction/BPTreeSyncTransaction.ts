@@ -569,29 +569,55 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
   public batchInsert(entries: [K, V][]): void {
     if (entries.length === 0) return
     const sorted = [...entries].sort((a, b) => this.comparator.asc(a[1], b[1]))
-    for (const [key, value] of sorted) {
-      let before = this.insertableNode(value)
-      before = this._insertAtLeaf(before, key, value) as BPTreeLeafNode<K, V>
+    let currentLeaf: BPTreeLeafNode<K, V> | null = null
+    let modified = false
 
-      if (before.values.length === this.order) {
+    for (const [key, value] of sorted) {
+      const targetLeaf = this.insertableNode(value)
+
+      if (currentLeaf !== null && currentLeaf.id === targetLeaf.id) {
+        // 같은 리프 — clone/update 없이 직접 삽입
+      }
+      else {
+        // 다른 리프 — 이전 배치 flush 후 새 배치 시작
+        if (currentLeaf !== null && modified) {
+          this._updateNode(currentLeaf)
+        }
+        currentLeaf = this._cloneNode(targetLeaf)
+        modified = false
+      }
+
+      const changed = this._insertValueIntoLeaf(currentLeaf, key as K, value)
+      modified = modified || changed
+
+      if (currentLeaf.values.length === this.order) {
+        // overflow — flush 후 split
+        this._updateNode(currentLeaf)
         let after = this._createNode(
           true,
           [],
           [],
-          before.parent,
+          currentLeaf.parent,
           null,
           null,
         ) as BPTreeLeafNode<K, V>
         const mid = Math.ceil(this.order / 2) - 1
         after = this._cloneNode(after)
-        after.values = before.values.slice(mid + 1)
-        after.keys = before.keys.slice(mid + 1)
-        before.values = before.values.slice(0, mid + 1)
-        before.keys = before.keys.slice(0, mid + 1)
-        this._updateNode(before)
+        after.values = currentLeaf.values.slice(mid + 1)
+        after.keys = currentLeaf.keys.slice(mid + 1)
+        currentLeaf.values = currentLeaf.values.slice(0, mid + 1)
+        currentLeaf.keys = currentLeaf.keys.slice(0, mid + 1)
+        this._updateNode(currentLeaf)
         this._updateNode(after)
-        this._insertInParent(before, after.values[0], after)
+        this._insertInParent(currentLeaf, after.values[0], after)
+        currentLeaf = null
+        modified = false
       }
+    }
+
+    // 마지막 배치 flush
+    if (currentLeaf !== null && modified) {
+      this._updateNode(currentLeaf)
     }
   }
 

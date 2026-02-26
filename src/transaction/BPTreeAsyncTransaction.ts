@@ -599,29 +599,55 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
     if (entries.length === 0) return
     return this.writeLock(0, async () => {
       const sorted = [...entries].sort((a, b) => this.comparator.asc(a[1], b[1]))
-      for (const [key, value] of sorted) {
-        let before = await this.insertableNode(value)
-        before = await this._insertAtLeaf(before, key, value) as BPTreeLeafNode<K, V>
+      let currentLeaf: BPTreeLeafNode<K, V> | null = null
+      let modified = false
 
-        if (before.values.length === this.order) {
+      for (const [key, value] of sorted) {
+        const targetLeaf = await this.insertableNode(value)
+
+        if (currentLeaf !== null && currentLeaf.id === targetLeaf.id) {
+          // 같은 리프 — clone/update 없이 직접 삽입
+        }
+        else {
+          // 다른 리프 — 이전 배치 flush 후 새 배치 시작
+          if (currentLeaf !== null && modified) {
+            await this._updateNode(currentLeaf)
+          }
+          currentLeaf = this._cloneNode(targetLeaf)
+          modified = false
+        }
+
+        const changed = this._insertValueIntoLeaf(currentLeaf, key as K, value)
+        modified = modified || changed
+
+        if (currentLeaf.values.length === this.order) {
+          // overflow — flush 후 split
+          await this._updateNode(currentLeaf)
           let after = await this._createNode(
             true,
             [],
             [],
-            before.parent,
+            currentLeaf.parent,
             null,
             null,
           ) as BPTreeLeafNode<K, V>
           const mid = Math.ceil(this.order / 2) - 1
           after = this._cloneNode(after)
-          after.values = before.values.slice(mid + 1)
-          after.keys = before.keys.slice(mid + 1)
-          before.values = before.values.slice(0, mid + 1)
-          before.keys = before.keys.slice(0, mid + 1)
-          await this._updateNode(before)
+          after.values = currentLeaf.values.slice(mid + 1)
+          after.keys = currentLeaf.keys.slice(mid + 1)
+          currentLeaf.values = currentLeaf.values.slice(0, mid + 1)
+          currentLeaf.keys = currentLeaf.keys.slice(0, mid + 1)
+          await this._updateNode(currentLeaf)
           await this._updateNode(after)
-          await this._insertInParent(before, after.values[0], after)
+          await this._insertInParent(currentLeaf, after.values[0], after)
+          currentLeaf = null
+          modified = false
         }
+      }
+
+      // 마지막 배치 flush
+      if (currentLeaf !== null && modified) {
+        await this._updateNode(currentLeaf)
       }
     })
   }
