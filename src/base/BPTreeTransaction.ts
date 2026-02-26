@@ -377,6 +377,13 @@ export abstract class BPTreeTransaction<K, V> {
    */
   public abstract insert(key: K, value: V): Deferred<void>
   /**
+   * Inserts multiple key-value pairs into the tree in a single batch operation.
+   * Entries are sorted by value before insertion to optimize tree traversal.
+   * This is more efficient than calling insert() multiple times.
+   * @param entries Array of [key, value] pairs to insert.
+   */
+  public abstract batchInsert(entries: [K, V][]): Deferred<void>
+  /**
    * Deletes the pair that matches the key and value.
    * @param key The key of the pair. This key must be unique.
    * @param value The value of the pair.

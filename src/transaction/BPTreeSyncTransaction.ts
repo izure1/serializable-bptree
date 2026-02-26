@@ -566,6 +566,35 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
     }
   }
 
+  public batchInsert(entries: [K, V][]): void {
+    if (entries.length === 0) return
+    const sorted = [...entries].sort((a, b) => this.comparator.asc(a[1], b[1]))
+    for (const [key, value] of sorted) {
+      let before = this.insertableNode(value)
+      before = this._insertAtLeaf(before, key, value) as BPTreeLeafNode<K, V>
+
+      if (before.values.length === this.order) {
+        let after = this._createNode(
+          true,
+          [],
+          [],
+          before.parent,
+          null,
+          null,
+        ) as BPTreeLeafNode<K, V>
+        const mid = Math.ceil(this.order / 2) - 1
+        after = this._cloneNode(after)
+        after.values = before.values.slice(mid + 1)
+        after.keys = before.keys.slice(mid + 1)
+        before.values = before.values.slice(0, mid + 1)
+        before.keys = before.keys.slice(0, mid + 1)
+        this._updateNode(before)
+        this._updateNode(after)
+        this._insertInParent(before, after.values[0], after)
+      }
+    }
+  }
+
   protected _deleteEntry(
     node: BPTreeUnknownNode<K, V>,
     key: BPTreeNodeKey<K>

@@ -132,6 +132,42 @@ async function runLeakTest(): Promise<BenchmarkResult[]> {
   return [{ name: 'MVCC Conflict overhead', unit: 'ms', value: totalTime }]
 }
 
+async function runBatchBenchmark(): Promise<BenchmarkResult[]> {
+  console.log('\n--- batchInsert Benchmark (5000 items) ---')
+  const n = 5000
+  const entries: [number, number][] = []
+  for (let i = 0; i < n; i++) {
+    entries.push([i, i])
+  }
+
+  // Individual Insert (Single Transaction)
+  const treeIndiv = new BPTreeAsync(new InMemoryStoreStrategyAsync(50), new NumericComparator())
+  await treeIndiv.init()
+  const startIndiv = Date.now()
+  const txIndiv = await treeIndiv.createTransaction()
+  for (const [key, value] of entries) {
+    await txIndiv.insert(key, value)
+  }
+  await txIndiv.commit()
+  const timeIndiv = Date.now() - startIndiv
+  console.log(`Individual Insert via one Transaction (${n} items): ${timeIndiv}ms`)
+
+  // Batch Insert (Internal optimization)
+  const treeBatch = new BPTreeAsync(new InMemoryStoreStrategyAsync(50), new NumericComparator())
+  await treeBatch.init()
+  const startBatch = Date.now()
+  await treeBatch.batchInsert(entries)
+  const timeBatch = Date.now() - startBatch
+  console.log(`Batch Insert (${n} items): ${timeBatch}ms`)
+
+  console.log(`Performance Improvement: ${((1 - timeBatch / timeIndiv) * 100).toFixed(1)}%`)
+
+  return [
+    { name: 'Individual Insert', unit: 'ms', value: timeIndiv },
+    { name: 'Batch Insert', unit: 'ms', value: timeBatch }
+  ]
+}
+
 async function main() {
   const args = process.argv.slice(2)
   const isJson = args.includes('json')
@@ -144,6 +180,7 @@ async function main() {
     point: runPointQueryBenchmark,
     sync: runSyncBenchmark,
     leak: runLeakTest,
+    batch: runBatchBenchmark,
   }
 
   if (!type) {
