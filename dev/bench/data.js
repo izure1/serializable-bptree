@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772070994557,
+  "lastUpdate": 1772401399612,
   "repoUrl": "https://github.com/izure1/serializable-bptree",
   "entries": {
     "Serializable B+Tree Benchmark": [
@@ -591,6 +591,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Insert",
             "value": 28,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "izure@naver.com",
+            "name": "izure",
+            "username": "izure1"
+          },
+          "committer": {
+            "email": "izure@naver.com",
+            "name": "izure",
+            "username": "izure1"
+          },
+          "distinct": true,
+          "id": "3f74e70f553c4fbb60634a254d0e6d5831cac4ac",
+          "message": "fix: gte, gt, lte, lt등 범위 기반 조건으로 역순 조회 시, 풀 스캔으로 인해 성능이 저하되던 오류를 수정합니다.",
+          "timestamp": "2026-03-02T06:42:54+09:00",
+          "tree_id": "fbb479cfafd88af0ce11b88ca4bd8fe200b74cf6",
+          "url": "https://github.com/izure1/serializable-bptree/commit/3f74e70f553c4fbb60634a254d0e6d5831cac4ac"
+        },
+        "date": 1772401399094,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Async Stream Scan",
+            "value": 346,
+            "unit": "ms"
+          },
+          {
+            "name": "Point Query latency",
+            "value": 14,
+            "unit": "ms"
+          },
+          {
+            "name": "Sync Where latency",
+            "value": 22,
+            "unit": "ms"
+          },
+          {
+            "name": "MVCC Conflict overhead",
+            "value": 69,
+            "unit": "ms"
+          },
+          {
+            "name": "Individual Insert",
+            "value": 101,
+            "unit": "ms"
+          },
+          {
+            "name": "Batch Insert",
+            "value": 36,
             "unit": "ms"
           }
         ]
