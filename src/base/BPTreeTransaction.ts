@@ -62,93 +62,229 @@ export abstract class BPTreeTransaction<K, V> {
       },
     }
 
-  protected readonly verifierStartNode: Record<
+  protected readonly searchConfigs: Record<
     keyof BPTreeCondition<V>,
-    (value: V) => Deferred<BPTreeLeafNode<K, V>>
+    Record<
+      'asc' | 'desc',
+      {
+        start: (tx: BPTreeTransaction<K, V>, v: V[]) => Deferred<BPTreeLeafNode<K, V> | null>
+        end: (tx: BPTreeTransaction<K, V>, v: V[]) => Deferred<BPTreeLeafNode<K, V> | null>
+        direction: 1 | -1
+        earlyTerminate: boolean
+      }
+    >
   > = {
-      gt: (v) => this.insertableNodeByPrimary(v),
-      gte: (v) => this.insertableNodeByPrimary(v),
-      lt: (v) => this.insertableNodeByPrimary(v),
-      lte: (v) => this.insertableRightestNodeByPrimary(v),
-      equal: (v) => this.insertableNodeByPrimary(v),
-      notEqual: (v) => this.leftestNode(),
-      or: (v) => this.insertableNodeByPrimary(this.lowestPrimaryValue(this.ensureValues(v))),
-      primaryGt: (v) => this.insertableNodeByPrimary(v),
-      primaryGte: (v) => this.insertableNodeByPrimary(v),
-      primaryLt: (v) => this.insertableNodeByPrimary(v),
-      primaryLte: (v) => this.insertableRightestNodeByPrimary(v),
-      primaryEqual: (v) => this.insertableNodeByPrimary(v),
-      primaryNotEqual: (v) => this.leftestNode(),
-      primaryOr: (v) => this.insertableNodeByPrimary(this.lowestPrimaryValue(this.ensureValues(v))),
-      like: (v) => this.leftestNode(),
+      gt: {
+        asc: {
+          start: (tx, v) => tx.insertableNodeByPrimary(v[0]),
+          end: () => null as any,
+          direction: 1,
+          earlyTerminate: false
+        },
+        desc: {
+          start: (tx) => tx.rightestNode(),
+          end: (tx, v) => tx.insertableEndNode(v[0], -1),
+          direction: -1,
+          earlyTerminate: true
+        }
+      },
+      gte: {
+        asc: {
+          start: (tx, v) => tx.insertableNodeByPrimary(v[0]),
+          end: () => null as any,
+          direction: 1,
+          earlyTerminate: false
+        },
+        desc: {
+          start: (tx) => tx.rightestNode(),
+          end: (tx, v) => tx.insertableEndNode(v[0], -1),
+          direction: -1,
+          earlyTerminate: true
+        }
+      },
+      lt: {
+        asc: {
+          start: (tx) => tx.leftestNode(),
+          end: (tx, v) => tx.insertableEndNode(v[0], 1),
+          direction: 1,
+          earlyTerminate: true
+        },
+        desc: {
+          start: (tx, v) => tx.insertableNodeByPrimary(v[0]),
+          end: () => null as any,
+          direction: -1,
+          earlyTerminate: false
+        }
+      },
+      lte: {
+        asc: {
+          start: (tx) => tx.leftestNode(),
+          end: (tx, v) => tx.insertableEndNode(v[0], 1),
+          direction: 1,
+          earlyTerminate: true
+        },
+        desc: {
+          start: (tx, v) => tx.insertableRightestNodeByPrimary(v[0]),
+          end: () => null as any,
+          direction: -1,
+          earlyTerminate: false
+        }
+      },
+      equal: {
+        asc: {
+          start: (tx, v) => tx.insertableNodeByPrimary(v[0]),
+          end: (tx, v) => tx.insertableEndNode(v[0], 1),
+          direction: 1,
+          earlyTerminate: true
+        },
+        desc: {
+          start: (tx, v) => tx.insertableEndNode(v[0], 1),
+          end: (tx, v) => tx.insertableEndNode(v[0], -1),
+          direction: -1,
+          earlyTerminate: true
+        }
+      },
+      notEqual: {
+        asc: {
+          start: (tx) => tx.leftestNode(),
+          end: () => null as any,
+          direction: 1,
+          earlyTerminate: false
+        },
+        desc: {
+          start: (tx) => tx.rightestNode(),
+          end: () => null as any,
+          direction: -1,
+          earlyTerminate: false
+        }
+      },
+      or: {
+        asc: {
+          start: (tx, v) => tx.insertableNodeByPrimary(tx.lowestValue(v)),
+          end: (tx, v) => tx.insertableEndNode(tx.highestValue(v), 1),
+          direction: 1,
+          earlyTerminate: false
+        },
+        desc: {
+          start: (tx, v) => tx.insertableEndNode(tx.highestValue(v), 1),
+          end: (tx, v) => tx.insertableEndNode(tx.lowestValue(v), -1),
+          direction: -1,
+          earlyTerminate: false
+        }
+      },
+      primaryGt: {
+        asc: {
+          start: (tx, v) => tx.insertableNodeByPrimary(v[0]),
+          end: () => null as any,
+          direction: 1,
+          earlyTerminate: false
+        },
+        desc: {
+          start: (tx) => tx.rightestNode(),
+          end: (tx, v) => tx.insertableEndNode(v[0], -1),
+          direction: -1,
+          earlyTerminate: true
+        }
+      },
+      primaryGte: {
+        asc: {
+          start: (tx, v) => tx.insertableNodeByPrimary(v[0]),
+          end: () => null as any,
+          direction: 1,
+          earlyTerminate: false
+        },
+        desc: {
+          start: (tx) => tx.rightestNode(),
+          end: (tx, v) => tx.insertableEndNode(v[0], -1),
+          direction: -1,
+          earlyTerminate: true
+        }
+      },
+      primaryLt: {
+        asc: {
+          start: (tx) => tx.leftestNode(),
+          end: (tx, v) => tx.insertableEndNode(v[0], 1),
+          direction: 1,
+          earlyTerminate: true
+        },
+        desc: {
+          start: (tx, v) => tx.insertableNodeByPrimary(v[0]),
+          end: () => null as any,
+          direction: -1,
+          earlyTerminate: false
+        }
+      },
+      primaryLte: {
+        asc: {
+          start: (tx) => tx.leftestNode(),
+          end: (tx, v) => tx.insertableEndNode(v[0], 1),
+          direction: 1,
+          earlyTerminate: true
+        },
+        desc: {
+          start: (tx, v) => tx.insertableRightestNodeByPrimary(v[0]),
+          end: () => null as any,
+          direction: -1,
+          earlyTerminate: false
+        }
+      },
+      primaryEqual: {
+        asc: {
+          start: (tx, v) => tx.insertableNodeByPrimary(v[0]),
+          end: (tx, v) => tx.insertableRightestEndNodeByPrimary(v[0]),
+          direction: 1,
+          earlyTerminate: true
+        },
+        desc: {
+          start: (tx, v) => tx.insertableRightestEndNodeByPrimary(v[0]),
+          end: (tx, v) => tx.insertableEndNode(v[0], -1),
+          direction: -1,
+          earlyTerminate: true
+        }
+      },
+      primaryNotEqual: {
+        asc: {
+          start: (tx) => tx.leftestNode(),
+          end: () => null as any,
+          direction: 1,
+          earlyTerminate: false
+        },
+        desc: {
+          start: (tx) => tx.rightestNode(),
+          end: () => null as any,
+          direction: -1,
+          earlyTerminate: false
+        }
+      },
+      primaryOr: {
+        asc: {
+          start: (tx, v) => tx.insertableNodeByPrimary(tx.lowestPrimaryValue(v)),
+          end: (tx, v) => tx.insertableRightestEndNodeByPrimary(tx.highestPrimaryValue(v)),
+          direction: 1,
+          earlyTerminate: false
+        },
+        desc: {
+          start: (tx, v) => tx.insertableRightestEndNodeByPrimary(tx.highestPrimaryValue(v)),
+          end: (tx, v) => tx.insertableEndNode(tx.lowestPrimaryValue(v), -1),
+          direction: -1,
+          earlyTerminate: false
+        }
+      },
+      like: {
+        asc: {
+          start: (tx) => tx.leftestNode(),
+          end: () => null as any,
+          direction: 1,
+          earlyTerminate: false
+        },
+        desc: {
+          start: (tx) => tx.rightestNode(),
+          end: () => null as any,
+          direction: -1,
+          earlyTerminate: false
+        }
+      }
     }
-
-  protected readonly verifierEndNode: Record<
-    keyof BPTreeCondition<V>,
-    (value: V) => Deferred<BPTreeLeafNode<K, V> | null>
-  > = {
-      gt: (v) => null,
-      gte: (v) => null,
-      lt: (v) => null,
-      lte: (v) => null,
-      equal: (v) => this.insertableEndNode(v, this.verifierDirection.equal),
-      notEqual: (v) => null,
-      or: (v) => this.insertableEndNode(
-        this.highestValue(this.ensureValues(v)),
-        this.verifierDirection.or
-      ),
-      primaryGt: (v) => null,
-      primaryGte: (v) => null,
-      primaryLt: (v) => null,
-      primaryLte: (v) => null,
-      primaryEqual: (v) => this.insertableRightestEndNodeByPrimary(v),
-      primaryNotEqual: (v) => null,
-      primaryOr: (v) => this.insertableRightestEndNodeByPrimary(
-        this.highestPrimaryValue(this.ensureValues(v))
-      ),
-      like: (v) => null,
-    }
-
-  protected readonly verifierDirection: Record<keyof BPTreeCondition<V>, -1 | 1> = {
-    gt: 1,
-    gte: 1,
-    lt: -1,
-    lte: -1,
-    equal: 1,
-    notEqual: 1,
-    or: 1,
-    primaryGt: 1,
-    primaryGte: 1,
-    primaryLt: -1,
-    primaryLte: -1,
-    primaryEqual: 1,
-    primaryNotEqual: 1,
-    primaryOr: 1,
-    like: 1,
-  }
-
-  /**
-   * Determines whether early termination is allowed for each condition.
-   * When true, the search will stop once a match is found and then a non-match is encountered.
-   * Only applicable for conditions that guarantee contiguous matches in a sorted B+Tree.
-   */
-  protected readonly verifierEarlyTerminate: Record<keyof BPTreeCondition<V>, boolean> = {
-    gt: false,
-    gte: false,
-    lt: false,
-    lte: false,
-    equal: true,
-    notEqual: false,
-    or: false,
-    primaryGt: false,
-    primaryGte: false,
-    primaryLt: false,
-    primaryLte: false,
-    primaryEqual: true,
-    primaryNotEqual: false,
-    primaryOr: false,
-    like: false,
-  }
 
   /**
    * Priority map for condition types.

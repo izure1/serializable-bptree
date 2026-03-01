@@ -496,22 +496,28 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
     if (!driverKey) return
 
     const value = condition[driverKey] as V
-    let startNode = await this.verifierStartNode[driverKey](value) as BPTreeLeafNode<K, V>
-    let endNode = await this.verifierEndNode[driverKey](value) as BPTreeLeafNode<K, V> | null
-    let direction = this.verifierDirection[driverKey]
-    const comparator = this.verifierMap[driverKey]
-    const earlyTerminate = this.verifierEarlyTerminate[driverKey]
+    const v = this.ensureValues(value)
+    const config = this.searchConfigs[driverKey][order]
 
-    if (order === 'desc') {
-      startNode = endNode ?? await this.rightestNode()
-      endNode = null
-      direction *= -1
+    let startNode = await config.start(this, v)
+    let endNode = await config.end(this, v)
+    const direction = config.direction
+    const earlyTerminate = config.earlyTerminate
+
+    if (order === 'desc' && !startNode) {
+      startNode = await this.rightestNode()
     }
+    if (order === 'asc' && !startNode) {
+      startNode = await this.leftestNode()
+    }
+    if (!startNode) return
+
+    const comparator = this.verifierMap[driverKey]
 
     const generator = this.getPairsGenerator(
       value,
-      startNode,
-      endNode,
+      startNode as BPTreeLeafNode<K, V>,
+      endNode as BPTreeLeafNode<K, V> | null,
       comparator,
       direction as 1 | -1,
       earlyTerminate
