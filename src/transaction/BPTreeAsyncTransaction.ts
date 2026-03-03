@@ -274,7 +274,9 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
   }
 
   protected async insertableEndNode(value: V, direction: 1 | -1): Promise<BPTreeLeafNode<K, V> | null> {
-    const insertableNode = await this.insertableNode(value)
+    const insertableNode = direction === -1
+      ? await this.insertableNodeByPrimary(value)
+      : await this.insertableRightestNodeByPrimary(value)
     let key: 'next' | 'prev'
     switch (direction) {
       case -1:

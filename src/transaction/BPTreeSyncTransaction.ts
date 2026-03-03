@@ -263,7 +263,9 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
   }
 
   protected insertableEndNode(value: V, direction: 1 | -1): BPTreeLeafNode<K, V> | null {
-    const insertableNode = this.insertableNode(value)
+    const insertableNode = direction === -1
+      ? this.insertableNodeByPrimary(value)
+      : this.insertableRightestNodeByPrimary(value)
     let key: 'next' | 'prev'
     switch (direction) {
       case -1:

@@ -174,7 +174,7 @@ export abstract class BPTreeTransaction<K, V> {
       },
       primaryGt: {
         asc: {
-          start: (tx, v) => tx.insertableNodeByPrimary(v[0]),
+          start: (tx, v) => tx.insertableRightestEndNodeByPrimary(v[0]),
           end: () => null as any,
           direction: 1,
           earlyTerminate: false
