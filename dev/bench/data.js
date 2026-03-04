@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772619947065,
+  "lastUpdate": 1772668536423,
   "repoUrl": "https://github.com/izure1/serializable-bptree",
   "entries": {
     "Serializable B+Tree Benchmark": [
@@ -753,6 +753,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Insert",
             "value": 30,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "izure@naver.com",
+            "name": "izure",
+            "username": "izure1"
+          },
+          "committer": {
+            "email": "izure@naver.com",
+            "name": "izure",
+            "username": "izure1"
+          },
+          "distinct": true,
+          "id": "9084d2070a1c7b8fc6a36cd20cb1f5cd0ef5aee2",
+          "message": "feat: 성능 최적화를 위한 종속성 라이브러리 버전 업데이트. 또한 조회 시, 최적 드라이버 선택 문제에서 풀스캔이 발생하던 오류를 수정합니다.",
+          "timestamp": "2026-03-05T08:55:07+09:00",
+          "tree_id": "c5ae496f0098ccc408b0bba50cc36c47651b619e",
+          "url": "https://github.com/izure1/serializable-bptree/commit/9084d2070a1c7b8fc6a36cd20cb1f5cd0ef5aee2"
+        },
+        "date": 1772668536042,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Async Stream Scan",
+            "value": 302,
+            "unit": "ms"
+          },
+          {
+            "name": "Point Query latency",
+            "value": 13,
+            "unit": "ms"
+          },
+          {
+            "name": "Sync Where latency",
+            "value": 25,
+            "unit": "ms"
+          },
+          {
+            "name": "MVCC Conflict overhead",
+            "value": 58,
+            "unit": "ms"
+          },
+          {
+            "name": "Individual Insert",
+            "value": 88,
+            "unit": "ms"
+          },
+          {
+            "name": "Batch Insert",
+            "value": 21,
             "unit": "ms"
           }
         ]
