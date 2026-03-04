@@ -76,7 +76,7 @@ export abstract class BPTreeTransaction<K, V> {
   > = {
       gt: {
         asc: {
-          start: (tx, v) => tx.insertableNodeByPrimary(v[0]),
+          start: (tx, v) => tx.insertableRightestNodeByPrimary(v[0]),
           end: () => null as any,
           direction: 1,
           earlyTerminate: false
@@ -174,7 +174,7 @@ export abstract class BPTreeTransaction<K, V> {
       },
       primaryGt: {
         asc: {
-          start: (tx, v) => tx.insertableRightestEndNodeByPrimary(v[0]),
+          start: (tx, v) => tx.insertableRightestNodeByPrimary(v[0]),
           end: () => null as any,
           direction: 1,
           earlyTerminate: false
@@ -236,7 +236,7 @@ export abstract class BPTreeTransaction<K, V> {
           earlyTerminate: true
         },
         desc: {
-          start: (tx, v) => tx.insertableRightestEndNodeByPrimary(v[0]),
+          start: (tx, v) => tx.insertableRightestNodeByPrimary(v[0]),
           end: (tx, v) => tx.insertableEndNode(v[0], -1),
           direction: -1,
           earlyTerminate: true
@@ -264,7 +264,7 @@ export abstract class BPTreeTransaction<K, V> {
           earlyTerminate: false
         },
         desc: {
-          start: (tx, v) => tx.insertableRightestEndNodeByPrimary(tx.highestPrimaryValue(v)),
+          start: (tx, v) => tx.insertableRightestNodeByPrimary(tx.highestPrimaryValue(v)),
           end: (tx, v) => tx.insertableEndNode(tx.lowestPrimaryValue(v), -1),
           direction: -1,
           earlyTerminate: false
@@ -438,30 +438,74 @@ export abstract class BPTreeTransaction<K, V> {
   }
 
   /**
-   * Selects the best driver key from a condition object.
-   * The driver key determines the starting point and traversal direction for queries.
-   * 
+   * Resolves the best start/end configuration by independently examining
+   * all conditions. Selects the tightest lower bound for start and the
+   * tightest upper bound for end (in asc; reversed for desc).
+   *
    * @param condition The condition to analyze.
-   * @returns The best driver key or null if no valid key found.
+   * @param order The sort order ('asc' or 'desc').
+   * @returns The resolved start/end keys, values, and traversal direction.
    */
-  protected getDriverKey(condition: BPTreeCondition<V>): keyof BPTreeCondition<V> | null {
-    if ('primaryEqual' in condition) return 'primaryEqual'
-    if ('equal' in condition) return 'equal'
-    if ('gt' in condition) return 'gt'
-    if ('gte' in condition) return 'gte'
-    if ('lt' in condition) return 'lt'
-    if ('lte' in condition) return 'lte'
-    if ('primaryGt' in condition) return 'primaryGt'
-    if ('primaryGte' in condition) return 'primaryGte'
-    if ('primaryLt' in condition) return 'primaryLt'
-    if ('primaryLte' in condition) return 'primaryLte'
-    if ('like' in condition) return 'like'
-    if ('notEqual' in condition) return 'notEqual'
-    if ('primaryNotEqual' in condition) return 'primaryNotEqual'
-    if ('or' in condition) return 'or'
-    if ('primaryOr' in condition) return 'primaryOr'
-    return null
+  resolveStartEndConfigs(
+    condition: BPTreeCondition<V>,
+    order: 'asc' | 'desc'
+  ): {
+    startKey: keyof BPTreeCondition<V> | null
+    endKey: keyof BPTreeCondition<V> | null
+    startValues: V[]
+    endValues: V[]
+    direction: 1 | -1
+  } {
+    const direction: 1 | -1 = order === 'asc' ? 1 : -1
+
+    // For asc: start = lower bound, end = upper bound
+    // For desc: start = upper bound, end = lower bound
+    const startCandidates = order === 'asc'
+      ? BPTreeTransaction._lowerBoundKeys
+      : BPTreeTransaction._upperBoundKeys
+    const endCandidates = order === 'asc'
+      ? BPTreeTransaction._upperBoundKeys
+      : BPTreeTransaction._lowerBoundKeys
+
+    let startKey: keyof BPTreeCondition<V> | null = null
+    let endKey: keyof BPTreeCondition<V> | null = null
+    let startValues: V[] = []
+    let endValues: V[] = []
+
+    for (const key of startCandidates) {
+      if (key in condition) {
+        startKey = key
+        startValues = this.ensureValues(condition[key] as V)
+        break
+      }
+    }
+
+    for (const key of endCandidates) {
+      if (key in condition) {
+        endKey = key
+        endValues = this.ensureValues(condition[key] as V)
+        break
+      }
+    }
+
+    return { startKey, endKey, startValues, endValues, direction }
   }
+
+  // Lower bound providers, ordered by selectivity (tightest first)
+  // Used for asc start / desc end
+  private static readonly _lowerBoundKeys: (keyof BPTreeCondition<unknown>)[] = [
+    'primaryEqual', 'equal',
+    'primaryGt', 'gt', 'primaryGte', 'gte',
+    'primaryOr', 'or',
+  ]
+
+  // Upper bound providers, ordered by selectivity (tightest first)
+  // Used for asc end / desc start
+  private static readonly _upperBoundKeys: (keyof BPTreeCondition<unknown>)[] = [
+    'primaryEqual', 'equal',
+    'primaryLt', 'lt', 'primaryLte', 'lte',
+    'primaryOr', 'or',
+  ]
 
   protected constructor(
     rootTx: BPTreeTransaction<K, V> | null,

@@ -317,32 +317,26 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
   }
 
   protected async *getPairsGenerator(
-    value: V,
     startNode: BPTreeLeafNode<K, V>,
     endNode: BPTreeLeafNode<K, V> | null,
-    comparator: (nodeValue: V, value: V) => boolean,
     direction: 1 | -1,
-    earlyTerminate: boolean
   ): AsyncGenerator<[K, V]> {
     let node = startNode
-    let done = false
-    let hasMatched = false
     let nextNodePromise: Promise<BPTreeUnknownNode<K, V>> | null = null
 
-    while (!done) {
+    while (true) {
       if (endNode && node.id === endNode.id) {
-        done = true
         break
       }
 
       // Read-ahead: Start loading the next node in the background
       if (direction === 1) {
-        if (node.next && !done) {
+        if (node.next) {
           nextNodePromise = this.getNode(node.next)
         }
       }
       else {
-        if (node.prev && !done) {
+        if (node.prev) {
           nextNodePromise = this.getNode(node.prev)
         }
       }
@@ -352,15 +346,8 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
         for (let i = 0; i < len; i++) {
           const nValue = node.values[i]
           const keys = node.keys[i]
-          if (comparator(nValue, value)) {
-            hasMatched = true
-            for (let j = 0; j < keys.length; j++) {
-              yield [keys[j], nValue]
-            }
-          }
-          else if (earlyTerminate && hasMatched) {
-            done = true
-            break
+          for (let j = 0, kLen = keys.length; j < kLen; j++) {
+            yield [keys[j], nValue]
           }
         }
       }
@@ -369,23 +356,11 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
         while (i--) {
           const nValue = node.values[i]
           const keys = node.keys[i]
-          if (comparator(nValue, value)) {
-            hasMatched = true
-            let j = keys.length
-            while (j--) {
-              yield [keys[j], nValue]
-            }
-          }
-          else if (earlyTerminate && hasMatched) {
-            done = true
-            break
+          let j = keys.length
+          while (j--) {
+            yield [keys[j], nValue]
           }
         }
-      }
-
-      if (done) {
-        if (nextNodePromise) await nextNodePromise
-        break
       }
 
       if (nextNodePromise) {
@@ -393,7 +368,7 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
         nextNodePromise = null
       }
       else {
-        done = true
+        break
       }
     }
   }
@@ -494,35 +469,34 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
     options?: BPTreeSearchOption<K>
   ): AsyncGenerator<[K, V]> {
     const { filterValues, limit, order = 'asc' } = options ?? {}
-    const driverKey = this.getDriverKey(condition)
-    if (!driverKey) return
+    const conditionKeys = Object.keys(condition)
+    if (conditionKeys.length === 0) return
 
-    const value = condition[driverKey] as V
-    const v = this.ensureValues(value)
-    const config = this.searchConfigs[driverKey][order]
+    const resolved = this.resolveStartEndConfigs(condition, order)
+    const direction = resolved.direction
 
-    let startNode = await config.start(this, v)
-    let endNode = await config.end(this, v)
-    const direction = config.direction
-    const earlyTerminate = config.earlyTerminate
-
-    if (order === 'desc' && !startNode) {
-      startNode = await this.rightestNode()
+    let startNode: BPTreeLeafNode<K, V> | null
+    if (resolved.startKey) {
+      const startConfig = this.searchConfigs[resolved.startKey][order]
+      startNode = await startConfig.start(this, resolved.startValues) as BPTreeLeafNode<K, V> | null
+    } else {
+      startNode = order === 'asc'
+        ? await this.leftestNode()
+        : await this.rightestNode()
     }
-    if (order === 'asc' && !startNode) {
-      startNode = await this.leftestNode()
+
+    let endNode: BPTreeLeafNode<K, V> | null = null
+    if (resolved.endKey) {
+      const endConfig = this.searchConfigs[resolved.endKey][order]
+      endNode = await endConfig.end(this, resolved.endValues) as BPTreeLeafNode<K, V> | null
     }
+
     if (!startNode) return
 
-    const comparator = this.verifierMap[driverKey]
-
     const generator = this.getPairsGenerator(
-      value,
-      startNode as BPTreeLeafNode<K, V>,
-      endNode as BPTreeLeafNode<K, V> | null,
-      comparator,
-      direction as 1 | -1,
-      earlyTerminate
+      startNode,
+      endNode,
+      direction,
     )
 
     let count = 0
@@ -532,19 +506,7 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
       if (intersection && !intersection.has(k)) {
         continue
       }
-      let isMatch = true
-
-      for (const key in condition) {
-        if (key === driverKey) continue
-        const verify = this.verifierMap[key as keyof BPTreeCondition<V>]
-        const condValue = condition[key as keyof BPTreeCondition<V>] as V
-        if (!verify(v, condValue)) {
-          isMatch = false
-          break
-        }
-      }
-
-      if (isMatch) {
+      if (this.verify(v, condition)) {
         yield pair
         count++
         if (limit !== undefined && count >= limit) {

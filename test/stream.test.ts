@@ -275,6 +275,84 @@ describe('BPTree Stream Tests', () => {
       expect(Array.from(whereAsc.keys())).toEqual(['k1', 'k2', 'k3'])
       expect(Array.from(whereDesc.keys())).toEqual(['k3', 'k2', 'k1'])
     })
+
+    test('should tighten range with gte+lte (asc)', () => {
+      const inputs = [
+        ['k1', 'a'],
+        ['k2', 'b'],
+        ['k3', 'c'],
+        ['k4', 'd'],
+        ['k5', 'e'],
+        ['k6', 'f'],
+      ]
+      inputs.forEach(([k, v]) => tree.insert(k, v))
+
+      const stream = tree.whereStream({ gte: 'b', lte: 'd' })
+      const result: [string, string][] = []
+      for (const pair of stream) {
+        result.push(pair)
+      }
+
+      expect(result).toEqual([['k2', 'b'], ['k3', 'c'], ['k4', 'd']])
+    })
+
+    test('should tighten range with gte+lte (desc)', () => {
+      const inputs = [
+        ['k1', 'a'],
+        ['k2', 'b'],
+        ['k3', 'c'],
+        ['k4', 'd'],
+        ['k5', 'e'],
+        ['k6', 'f'],
+      ]
+      inputs.forEach(([k, v]) => tree.insert(k, v))
+
+      const stream = tree.whereStream({ gte: 'b', lte: 'd' }, { order: 'desc' })
+      const result: [string, string][] = []
+      for (const pair of stream) {
+        result.push(pair)
+      }
+
+      expect(result).toEqual([['k4', 'd'], ['k3', 'c'], ['k2', 'b']])
+    })
+
+    test('should tighten range with gt+lt and notEqual filter', () => {
+      const inputs = [
+        ['k1', 'a'],
+        ['k2', 'b'],
+        ['k3', 'c'],
+        ['k4', 'd'],
+        ['k5', 'e'],
+      ]
+      inputs.forEach(([k, v]) => tree.insert(k, v))
+
+      const stream = tree.whereStream({ gt: 'a', lt: 'e', notEqual: 'c' })
+      const result: [string, string][] = []
+      for (const pair of stream) {
+        result.push(pair)
+      }
+
+      expect(result).toEqual([['k2', 'b'], ['k4', 'd']])
+    })
+
+    test('should tighten range with gte+lte and limit', () => {
+      const inputs = [
+        ['k1', 'a'],
+        ['k2', 'b'],
+        ['k3', 'c'],
+        ['k4', 'd'],
+        ['k5', 'e'],
+      ]
+      inputs.forEach(([k, v]) => tree.insert(k, v))
+
+      const stream = tree.whereStream({ gte: 'a', lte: 'e' }, { limit: 2 })
+      const result: [string, string][] = []
+      for (const pair of stream) {
+        result.push(pair)
+      }
+
+      expect(result).toEqual([['k1', 'a'], ['k2', 'b']])
+    })
   })
 
   describe('Async Stream', () => {

@@ -306,20 +306,14 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
   }
 
   protected *getPairsGenerator(
-    value: V,
     startNode: BPTreeLeafNode<K, V>,
     endNode: BPTreeLeafNode<K, V> | null,
-    comparator: (nodeValue: V, value: V) => boolean,
     direction: 1 | -1,
-    earlyTerminate: boolean
   ): Generator<[K, V]> {
     let node = startNode
-    let done = false
-    let hasMatched = false
 
-    while (!done) {
+    while (true) {
       if (endNode && node.id === endNode.id) {
-        done = true
         break
       }
 
@@ -328,15 +322,8 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
         for (let i = 0; i < len; i++) {
           const nValue = node.values[i]
           const keys = node.keys[i]
-          if (comparator(nValue, value)) {
-            hasMatched = true
-            for (let j = 0; j < keys.length; j++) {
-              yield [keys[j], nValue]
-            }
-          }
-          else if (earlyTerminate && hasMatched) {
-            done = true
-            break
+          for (let j = 0, kLen = keys.length; j < kLen; j++) {
+            yield [keys[j], nValue]
           }
         }
       }
@@ -345,33 +332,19 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
         while (i--) {
           const nValue = node.values[i]
           const keys = node.keys[i]
-          if (comparator(nValue, value)) {
-            hasMatched = true
-            let j = keys.length
-            while (j--) {
-              yield [keys[j], nValue]
-            }
-          }
-          else if (earlyTerminate && hasMatched) {
-            done = true
-            break
+          let j = keys.length
+          while (j--) {
+            yield [keys[j], nValue]
           }
         }
       }
 
-      if (done) break
       if (direction === 1) {
-        if (!node.next) {
-          done = true
-          break
-        }
+        if (!node.next) break
         node = this.getNode(node.next) as BPTreeLeafNode<K, V>
       }
       else {
-        if (!node.prev) {
-          done = true
-          break
-        }
+        if (!node.prev) break
         node = this.getNode(node.prev) as BPTreeLeafNode<K, V>
       }
     }
@@ -473,35 +446,32 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
     options?: BPTreeSearchOption<K>
   ): Generator<[K, V]> {
     const { filterValues, limit, order = 'asc' } = options ?? {}
-    const driverKey = this.getDriverKey(condition)
-    if (!driverKey) return
+    const conditionKeys = Object.keys(condition)
+    if (conditionKeys.length === 0) return
 
-    const value = condition[driverKey] as V
-    const v = this.ensureValues(value)
-    const config = this.searchConfigs[driverKey][order]
+    const resolved = this.resolveStartEndConfigs(condition, order)
+    const direction = resolved.direction
 
-    let startNode = config.start(this, v) as BPTreeLeafNode<K, V> | null
-    let endNode = config.end(this, v) as BPTreeLeafNode<K, V> | null
-    const direction = config.direction
-    const earlyTerminate = config.earlyTerminate
-
-    if (order === 'desc' && !startNode) {
-      startNode = this.rightestNode()
+    let startNode: BPTreeLeafNode<K, V> | null
+    if (resolved.startKey) {
+      const startConfig = this.searchConfigs[resolved.startKey][order]
+      startNode = startConfig.start(this, resolved.startValues) as BPTreeLeafNode<K, V> | null
+    } else {
+      startNode = order === 'asc' ? this.leftestNode() : this.rightestNode()
     }
-    if (order === 'asc' && !startNode) {
-      startNode = this.leftestNode()
+
+    let endNode: BPTreeLeafNode<K, V> | null = null
+    if (resolved.endKey) {
+      const endConfig = this.searchConfigs[resolved.endKey][order]
+      endNode = endConfig.end(this, resolved.endValues) as BPTreeLeafNode<K, V> | null
     }
+
     if (!startNode) return
 
-    const comparator = this.verifierMap[driverKey]
-
     const generator = this.getPairsGenerator(
-      value,
-      startNode as BPTreeLeafNode<K, V>,
-      endNode as BPTreeLeafNode<K, V> | null,
-      comparator,
-      direction as 1 | -1,
-      earlyTerminate
+      startNode,
+      endNode,
+      direction,
     )
 
     let count = 0
@@ -511,19 +481,7 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
       if (intersection && !intersection.has(k)) {
         continue
       }
-      let isMatch = true
-
-      for (const key in condition) {
-        if (key === driverKey) continue
-        const verify = this.verifierMap[key as keyof BPTreeCondition<V>]
-        const condValue = condition[key as keyof BPTreeCondition<V>] as V
-        if (!verify(v, condValue)) {
-          isMatch = false
-          break
-        }
-      }
-
-      if (isMatch) {
+      if (this.verify(v, condition)) {
         yield pair
         count++
         if (limit !== undefined && count >= limit) {
