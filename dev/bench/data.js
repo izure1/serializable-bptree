@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772401399612,
+  "lastUpdate": 1772619930559,
   "repoUrl": "https://github.com/izure1/serializable-bptree",
   "entries": {
     "Serializable B+Tree Benchmark": [
@@ -645,6 +645,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Insert",
             "value": 36,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "izure@naver.com",
+            "name": "izure",
+            "username": "izure1"
+          },
+          "committer": {
+            "email": "izure@naver.com",
+            "name": "izure",
+            "username": "izure1"
+          },
+          "distinct": true,
+          "id": "e878f9f321e9640132a6b89d17cb510b7a33af30",
+          "message": "fix: insertableEndNode 메서드에서 복합 인덱스를 사용할 경우, NaN 오류가 발생할 수 있었던 가능성을 수정합니다",
+          "timestamp": "2026-03-04T08:34:24+09:00",
+          "tree_id": "3942a8fb0217c6676f361bb8692cbcd539419958",
+          "url": "https://github.com/izure1/serializable-bptree/commit/e878f9f321e9640132a6b89d17cb510b7a33af30"
+        },
+        "date": 1772619930293,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Async Stream Scan",
+            "value": 341,
+            "unit": "ms"
+          },
+          {
+            "name": "Point Query latency",
+            "value": 15,
+            "unit": "ms"
+          },
+          {
+            "name": "Sync Where latency",
+            "value": 28,
+            "unit": "ms"
+          },
+          {
+            "name": "MVCC Conflict overhead",
+            "value": 56,
+            "unit": "ms"
+          },
+          {
+            "name": "Individual Insert",
+            "value": 95,
+            "unit": "ms"
+          },
+          {
+            "name": "Batch Insert",
+            "value": 31,
             "unit": "ms"
           }
         ]
