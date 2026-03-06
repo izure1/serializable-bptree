@@ -227,7 +227,7 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
     }
   }
 
-  protected insertableNode(value: V): BPTreeLeafNode<K, V> {
+  protected locateLeaf(value: V): BPTreeLeafNode<K, V> {
     let node = this.getNode(this.rootId)
     while (!node.leaf) {
       const { index } = this._binarySearchValues(node.values, value, false, true)
@@ -236,7 +236,7 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
     return node as BPTreeLeafNode<K, V>
   }
 
-  protected insertableNodeByPrimary(value: V): BPTreeLeafNode<K, V> {
+  protected findLowerBoundLeaf(value: V): BPTreeLeafNode<K, V> {
     let node = this.getNode(this.rootId)
     while (!node.leaf) {
       const { index } = this._binarySearchValues(node.values, value, true, false)
@@ -245,7 +245,7 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
     return node as BPTreeLeafNode<K, V>
   }
 
-  protected insertableRightestNodeByPrimary(value: V): BPTreeLeafNode<K, V> {
+  protected findUpperBoundLeaf(value: V): BPTreeLeafNode<K, V> {
     let node = this.getNode(this.rootId)
     while (!node.leaf) {
       const { index } = this._binarySearchValues(node.values, value, true, true)
@@ -254,18 +254,10 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
     return node as BPTreeLeafNode<K, V>
   }
 
-  protected insertableRightestEndNodeByPrimary(value: V): BPTreeLeafNode<K, V> | null {
-    const node = this.insertableRightestNodeByPrimary(value)
-    if (!node.next) {
-      return null
-    }
-    return this.getNode(node.next) as BPTreeLeafNode<K, V>
-  }
-
-  protected insertableEndNode(value: V, direction: 1 | -1): BPTreeLeafNode<K, V> | null {
+  protected findOuterBoundaryLeaf(value: V, direction: 1 | -1): BPTreeLeafNode<K, V> | null {
     const insertableNode = direction === -1
-      ? this.insertableNodeByPrimary(value)
-      : this.insertableRightestNodeByPrimary(value)
+      ? this.findLowerBoundLeaf(value)
+      : this.findUpperBoundLeaf(value)
     let key: 'next' | 'prev'
     switch (direction) {
       case -1:
@@ -393,7 +385,7 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
   }
 
   public exists(key: K, value: V): boolean {
-    const node = this.insertableNode(value)
+    const node = this.locateLeaf(value)
     const { index, found } = this._binarySearchValues(node.values, value)
     if (found) {
       const keys = node.keys[index]
@@ -508,7 +500,7 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
   }
 
   public insert(key: K, value: V): void {
-    let before = this.insertableNode(value)
+    let before = this.locateLeaf(value)
     before = this._insertAtLeaf(before, key, value) as BPTreeLeafNode<K, V>
 
     if (before.values.length === this.order) {
@@ -539,7 +531,7 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
     let modified = false
 
     for (const [key, value] of sorted) {
-      const targetLeaf = this.insertableNode(value)
+      const targetLeaf = this.locateLeaf(value)
 
       if (currentLeaf !== null && currentLeaf.id === targetLeaf.id) {
         // 같은 리프 — clone/update 없이 직접 삽입
@@ -819,7 +811,7 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
       return
     }
 
-    let node = this.insertableNodeByPrimary(value)
+    let node = this.findLowerBoundLeaf(value)
     let found = false
     while (true) {
       let i = node.values.length

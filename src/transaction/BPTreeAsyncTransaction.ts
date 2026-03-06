@@ -238,7 +238,7 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
     }
   }
 
-  protected async insertableNode(value: V): Promise<BPTreeLeafNode<K, V>> {
+  protected async locateLeaf(value: V): Promise<BPTreeLeafNode<K, V>> {
     let node = await this.getNode(this.rootId)
     while (!node.leaf) {
       const { index } = this._binarySearchValues(node.values, value, false, true)
@@ -247,7 +247,7 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
     return node as BPTreeLeafNode<K, V>
   }
 
-  protected async insertableNodeByPrimary(value: V): Promise<BPTreeLeafNode<K, V>> {
+  protected async findLowerBoundLeaf(value: V): Promise<BPTreeLeafNode<K, V>> {
     let node = await this.getNode(this.rootId)
     while (!node.leaf) {
       const { index } = this._binarySearchValues(node.values, value, true, false)
@@ -256,7 +256,7 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
     return node as BPTreeLeafNode<K, V>
   }
 
-  protected async insertableRightestNodeByPrimary(value: V): Promise<BPTreeLeafNode<K, V>> {
+  protected async findUpperBoundLeaf(value: V): Promise<BPTreeLeafNode<K, V>> {
     let node = await this.getNode(this.rootId)
     while (!node.leaf) {
       const { index } = this._binarySearchValues(node.values, value, true, true)
@@ -265,18 +265,10 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
     return node as BPTreeLeafNode<K, V>
   }
 
-  protected async insertableRightestEndNodeByPrimary(value: V): Promise<BPTreeLeafNode<K, V> | null> {
-    const node = await this.insertableRightestNodeByPrimary(value)
-    if (!node.next) {
-      return null
-    }
-    return await this.getNode(node.next) as BPTreeLeafNode<K, V>
-  }
-
-  protected async insertableEndNode(value: V, direction: 1 | -1): Promise<BPTreeLeafNode<K, V> | null> {
+  protected async findOuterBoundaryLeaf(value: V, direction: 1 | -1): Promise<BPTreeLeafNode<K, V> | null> {
     const insertableNode = direction === -1
-      ? await this.insertableNodeByPrimary(value)
-      : await this.insertableRightestNodeByPrimary(value)
+      ? await this.findLowerBoundLeaf(value)
+      : await this.findUpperBoundLeaf(value)
     let key: 'next' | 'prev'
     switch (direction) {
       case -1:
@@ -416,7 +408,7 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
   }
 
   public async exists(key: K, value: V): Promise<boolean> {
-    const node = await this.insertableNode(value)
+    const node = await this.locateLeaf(value)
     const { index, found } = this._binarySearchValues(node.values, value)
     if (found) {
       const keys = node.keys[index]
@@ -540,7 +532,7 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
 
   public async insert(key: K, value: V): Promise<void> {
     return this.writeLock(0, async () => {
-      let before = await this.insertableNode(value)
+      let before = await this.locateLeaf(value)
       before = await this._insertAtLeaf(before, key, value) as BPTreeLeafNode<K, V>
 
       if (before.values.length === this.order) {
@@ -573,7 +565,7 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
       let modified = false
 
       for (const [key, value] of sorted) {
-        const targetLeaf = await this.insertableNode(value)
+        const targetLeaf = await this.locateLeaf(value)
 
         if (currentLeaf !== null && currentLeaf.id === targetLeaf.id) {
           // 같은 리프 — clone/update 없이 직접 삽입
@@ -854,7 +846,7 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
         return
       }
 
-      let node = await this.insertableNodeByPrimary(value)
+      let node = await this.findLowerBoundLeaf(value)
       let found = false
       while (true) {
         let i = node.values.length

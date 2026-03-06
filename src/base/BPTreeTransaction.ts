@@ -76,28 +76,28 @@ export abstract class BPTreeTransaction<K, V> {
   > = {
       gt: {
         asc: {
-          start: (tx, v) => tx.insertableRightestNodeByPrimary(v[0]),
+          start: (tx, v) => tx.findUpperBoundLeaf(v[0]),
           end: () => null as any,
           direction: 1,
           earlyTerminate: false
         },
         desc: {
           start: (tx) => tx.rightestNode(),
-          end: (tx, v) => tx.insertableEndNode(v[0], -1),
+          end: (tx, v) => tx.findOuterBoundaryLeaf(v[0], -1),
           direction: -1,
           earlyTerminate: true
         }
       },
       gte: {
         asc: {
-          start: (tx, v) => tx.insertableNodeByPrimary(v[0]),
+          start: (tx, v) => tx.findLowerBoundLeaf(v[0]),
           end: () => null as any,
           direction: 1,
           earlyTerminate: false
         },
         desc: {
           start: (tx) => tx.rightestNode(),
-          end: (tx, v) => tx.insertableEndNode(v[0], -1),
+          end: (tx, v) => tx.findOuterBoundaryLeaf(v[0], -1),
           direction: -1,
           earlyTerminate: true
         }
@@ -105,12 +105,12 @@ export abstract class BPTreeTransaction<K, V> {
       lt: {
         asc: {
           start: (tx) => tx.leftestNode(),
-          end: (tx, v) => tx.insertableEndNode(v[0], 1),
+          end: (tx, v) => tx.findOuterBoundaryLeaf(v[0], 1),
           direction: 1,
           earlyTerminate: true
         },
         desc: {
-          start: (tx, v) => tx.insertableNodeByPrimary(v[0]),
+          start: (tx, v) => tx.findLowerBoundLeaf(v[0]),
           end: () => null as any,
           direction: -1,
           earlyTerminate: false
@@ -119,12 +119,12 @@ export abstract class BPTreeTransaction<K, V> {
       lte: {
         asc: {
           start: (tx) => tx.leftestNode(),
-          end: (tx, v) => tx.insertableEndNode(v[0], 1),
+          end: (tx, v) => tx.findOuterBoundaryLeaf(v[0], 1),
           direction: 1,
           earlyTerminate: true
         },
         desc: {
-          start: (tx, v) => tx.insertableRightestNodeByPrimary(v[0]),
+          start: (tx, v) => tx.findUpperBoundLeaf(v[0]),
           end: () => null as any,
           direction: -1,
           earlyTerminate: false
@@ -132,14 +132,14 @@ export abstract class BPTreeTransaction<K, V> {
       },
       equal: {
         asc: {
-          start: (tx, v) => tx.insertableNodeByPrimary(v[0]),
-          end: (tx, v) => tx.insertableEndNode(v[0], 1),
+          start: (tx, v) => tx.findLowerBoundLeaf(v[0]),
+          end: (tx, v) => tx.findOuterBoundaryLeaf(v[0], 1),
           direction: 1,
           earlyTerminate: true
         },
         desc: {
-          start: (tx, v) => tx.insertableEndNode(v[0], 1),
-          end: (tx, v) => tx.insertableEndNode(v[0], -1),
+          start: (tx, v) => tx.findOuterBoundaryLeaf(v[0], 1),
+          end: (tx, v) => tx.findOuterBoundaryLeaf(v[0], -1),
           direction: -1,
           earlyTerminate: true
         }
@@ -160,42 +160,42 @@ export abstract class BPTreeTransaction<K, V> {
       },
       or: {
         asc: {
-          start: (tx, v) => tx.insertableNodeByPrimary(tx.lowestValue(v)),
-          end: (tx, v) => tx.insertableEndNode(tx.highestValue(v), 1),
+          start: (tx, v) => tx.findLowerBoundLeaf(tx.lowestValue(v)),
+          end: (tx, v) => tx.findOuterBoundaryLeaf(tx.highestValue(v), 1),
           direction: 1,
           earlyTerminate: false
         },
         desc: {
-          start: (tx, v) => tx.insertableEndNode(tx.highestValue(v), 1),
-          end: (tx, v) => tx.insertableEndNode(tx.lowestValue(v), -1),
+          start: (tx, v) => tx.findOuterBoundaryLeaf(tx.highestValue(v), 1),
+          end: (tx, v) => tx.findOuterBoundaryLeaf(tx.lowestValue(v), -1),
           direction: -1,
           earlyTerminate: false
         }
       },
       primaryGt: {
         asc: {
-          start: (tx, v) => tx.insertableRightestNodeByPrimary(v[0]),
+          start: (tx, v) => tx.findUpperBoundLeaf(v[0]),
           end: () => null as any,
           direction: 1,
           earlyTerminate: false
         },
         desc: {
           start: (tx) => tx.rightestNode(),
-          end: (tx, v) => tx.insertableEndNode(v[0], -1),
+          end: (tx, v) => tx.findOuterBoundaryLeaf(v[0], -1),
           direction: -1,
           earlyTerminate: true
         }
       },
       primaryGte: {
         asc: {
-          start: (tx, v) => tx.insertableNodeByPrimary(v[0]),
+          start: (tx, v) => tx.findLowerBoundLeaf(v[0]),
           end: () => null as any,
           direction: 1,
           earlyTerminate: false
         },
         desc: {
           start: (tx) => tx.rightestNode(),
-          end: (tx, v) => tx.insertableEndNode(v[0], -1),
+          end: (tx, v) => tx.findOuterBoundaryLeaf(v[0], -1),
           direction: -1,
           earlyTerminate: true
         }
@@ -203,12 +203,12 @@ export abstract class BPTreeTransaction<K, V> {
       primaryLt: {
         asc: {
           start: (tx) => tx.leftestNode(),
-          end: (tx, v) => tx.insertableEndNode(v[0], 1),
+          end: (tx, v) => tx.findOuterBoundaryLeaf(v[0], 1),
           direction: 1,
           earlyTerminate: true
         },
         desc: {
-          start: (tx, v) => tx.insertableNodeByPrimary(v[0]),
+          start: (tx, v) => tx.findLowerBoundLeaf(v[0]),
           end: () => null as any,
           direction: -1,
           earlyTerminate: false
@@ -217,12 +217,12 @@ export abstract class BPTreeTransaction<K, V> {
       primaryLte: {
         asc: {
           start: (tx) => tx.leftestNode(),
-          end: (tx, v) => tx.insertableEndNode(v[0], 1),
+          end: (tx, v) => tx.findOuterBoundaryLeaf(v[0], 1),
           direction: 1,
           earlyTerminate: true
         },
         desc: {
-          start: (tx, v) => tx.insertableRightestNodeByPrimary(v[0]),
+          start: (tx, v) => tx.findUpperBoundLeaf(v[0]),
           end: () => null as any,
           direction: -1,
           earlyTerminate: false
@@ -230,14 +230,14 @@ export abstract class BPTreeTransaction<K, V> {
       },
       primaryEqual: {
         asc: {
-          start: (tx, v) => tx.insertableNodeByPrimary(v[0]),
-          end: (tx, v) => tx.insertableRightestEndNodeByPrimary(v[0]),
+          start: (tx, v) => tx.findLowerBoundLeaf(v[0]),
+          end: (tx, v) => tx.findOuterBoundaryLeaf(v[0], 1),
           direction: 1,
           earlyTerminate: true
         },
         desc: {
-          start: (tx, v) => tx.insertableRightestNodeByPrimary(v[0]),
-          end: (tx, v) => tx.insertableEndNode(v[0], -1),
+          start: (tx, v) => tx.findUpperBoundLeaf(v[0]),
+          end: (tx, v) => tx.findOuterBoundaryLeaf(v[0], -1),
           direction: -1,
           earlyTerminate: true
         }
@@ -258,14 +258,14 @@ export abstract class BPTreeTransaction<K, V> {
       },
       primaryOr: {
         asc: {
-          start: (tx, v) => tx.insertableNodeByPrimary(tx.lowestPrimaryValue(v)),
-          end: (tx, v) => tx.insertableRightestEndNodeByPrimary(tx.highestPrimaryValue(v)),
+          start: (tx, v) => tx.findLowerBoundLeaf(tx.lowestPrimaryValue(v)),
+          end: (tx, v) => tx.findOuterBoundaryLeaf(tx.highestPrimaryValue(v), 1),
           direction: 1,
           earlyTerminate: false
         },
         desc: {
-          start: (tx, v) => tx.insertableRightestNodeByPrimary(tx.highestPrimaryValue(v)),
-          end: (tx, v) => tx.insertableEndNode(tx.lowestPrimaryValue(v), -1),
+          start: (tx, v) => tx.findUpperBoundLeaf(tx.highestPrimaryValue(v)),
+          end: (tx, v) => tx.findOuterBoundaryLeaf(tx.lowestPrimaryValue(v), -1),
           direction: -1,
           earlyTerminate: false
         }
@@ -547,11 +547,10 @@ export abstract class BPTreeTransaction<K, V> {
   protected abstract _insertInParent(node: BPTreeUnknownNode<K, V>, value: V, pointer: BPTreeUnknownNode<K, V>): Deferred<void>
   protected abstract _insertAtLeaf(node: BPTreeUnknownNode<K, V>, key: BPTreeNodeKey<K>, value: V): Deferred<BPTreeUnknownNode<K, V>>
   protected abstract getNode(id: string): Deferred<BPTreeUnknownNode<K, V>>
-  protected abstract insertableNode(value: V): Deferred<BPTreeLeafNode<K, V>>
-  protected abstract insertableNodeByPrimary(value: V): Deferred<BPTreeLeafNode<K, V>>
-  protected abstract insertableRightestNodeByPrimary(value: V): Deferred<BPTreeLeafNode<K, V>>
-  protected abstract insertableRightestEndNodeByPrimary(value: V): Deferred<BPTreeLeafNode<K, V> | null>
-  protected abstract insertableEndNode(value: V, direction: 1 | -1): Deferred<BPTreeLeafNode<K, V> | null>
+  protected abstract locateLeaf(value: V): Deferred<BPTreeLeafNode<K, V>>
+  protected abstract findLowerBoundLeaf(value: V): Deferred<BPTreeLeafNode<K, V>>
+  protected abstract findUpperBoundLeaf(value: V): Deferred<BPTreeLeafNode<K, V>>
+  protected abstract findOuterBoundaryLeaf(value: V, direction: 1 | -1): Deferred<BPTreeLeafNode<K, V> | null>
   protected abstract leftestNode(): Deferred<BPTreeLeafNode<K, V>>
   protected abstract rightestNode(): Deferred<BPTreeLeafNode<K, V>>
 
