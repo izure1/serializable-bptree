@@ -472,18 +472,24 @@ export abstract class BPTreeTransaction<K, V> {
     let startValues: V[] = []
     let endValues: V[] = []
 
-    for (const key of startCandidates) {
+    for (let i = 0, len = startCandidates.length; i < len; i++) {
+      const key = startCandidates[i]
       if (key in condition) {
         startKey = key
-        startValues = this.ensureValues(condition[key] as V)
+        startValues = BPTreeTransaction._multiValueKeys.includes(key)
+          ? this.ensureValues(condition[key] as V)
+          : [condition[key] as V]
         break
       }
     }
 
-    for (const key of endCandidates) {
+    for (let i = 0, len = endCandidates.length; i < len; i++) {
+      const key = endCandidates[i]
       if (key in condition) {
         endKey = key
-        endValues = this.ensureValues(condition[key] as V)
+        endValues = BPTreeTransaction._multiValueKeys.includes(key)
+          ? this.ensureValues(condition[key] as V)
+          : [condition[key] as V]
         break
       }
     }
@@ -505,6 +511,12 @@ export abstract class BPTreeTransaction<K, V> {
     'primaryEqual', 'equal',
     'primaryLt', 'lt', 'primaryLte', 'lte',
     'primaryOr', 'or',
+  ]
+
+  // Condition keys that accept multiple values (V[]) rather than a single value (V)
+  private static readonly _multiValueKeys: (keyof BPTreeCondition<unknown>)[] = [
+    'or',
+    'primaryOr',
   ]
 
   protected constructor(
