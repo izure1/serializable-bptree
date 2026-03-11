@@ -211,11 +211,6 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
       parentNode.values = parentNode.values.slice(0, mid)
       parentNode.keys = parentNode.keys.slice(0, mid + 1)
 
-      for (const k of parentNode.keys) {
-        const n = this._cloneNode(this.getNode(k))
-        n.parent = parentNode.id
-        this._updateNode(n)
-      }
       for (const k of newSiblingNodeRecursive.keys) {
         const n = this._cloneNode(this.getNode(k))
         n.parent = newSiblingNodeRecursive.id
