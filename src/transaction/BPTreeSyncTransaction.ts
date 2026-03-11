@@ -529,9 +529,22 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
     const sorted = [...entries].sort((a, b) => this.comparator.asc(a[1], b[1]))
     let currentLeaf: BPTreeLeafNode<K, V> | null = null
     let modified = false
+    let cachedLeafId: string | null = null
+    let cachedLeafMaxValue: V | null = null
 
     for (const [key, value] of sorted) {
-      const targetLeaf = this.locateLeaf(value)
+      let targetLeaf: BPTreeLeafNode<K, V>
+      // 정렬된 데이터이므로 현재 리프의 최대값 이하이면 locateLeaf 스킵
+      if (
+        cachedLeafId !== null &&
+        cachedLeafMaxValue !== null &&
+        currentLeaf !== null &&
+        (this.comparator.isLower(value, cachedLeafMaxValue) || this.comparator.isSame(value, cachedLeafMaxValue))
+      ) {
+        targetLeaf = currentLeaf
+      } else {
+        targetLeaf = this.locateLeaf(value)
+      }
 
       if (currentLeaf !== null && currentLeaf.id === targetLeaf.id) {
         // 같은 리프 — clone/update 없이 직접 삽입
@@ -545,8 +558,11 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
         modified = false
       }
 
+      cachedLeafId = currentLeaf.id
       const changed = this._insertValueIntoLeaf(currentLeaf, key as K, value)
       modified = modified || changed
+      // 리프의 마지막 값을 캐시 (정렬 데이터이므로 항상 최대값)
+      cachedLeafMaxValue = currentLeaf.values[currentLeaf.values.length - 1]
 
       if (currentLeaf.values.length === this.order) {
         // overflow — flush 후 split
@@ -569,6 +585,8 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
         this._updateNode(after)
         this._insertInParent(currentLeaf, after.values[0], after)
         currentLeaf = null
+        cachedLeafId = null
+        cachedLeafMaxValue = null
         modified = false
       }
     }

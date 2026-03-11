@@ -404,33 +404,23 @@ export abstract class BPTreeTransaction<K, V> {
    */
   protected _insertValueIntoLeaf(leaf: BPTreeLeafNode<K, V>, key: K, value: V): boolean {
     if (leaf.values.length) {
-      for (let i = 0, len = leaf.values.length; i < len; i++) {
-        const nValue = leaf.values[i]
-        if (this.comparator.isSame(value, nValue)) {
-          if (leaf.keys[i].includes(key)) {
-            return false
-          }
-          leaf.keys[i].push(key)
-          return true
+      const { index, found } = this._binarySearchValues(leaf.values, value)
+      if (found) {
+        if (leaf.keys[index].includes(key)) {
+          return false
         }
-        else if (this.comparator.isLower(value, nValue)) {
-          leaf.values.splice(i, 0, value)
-          leaf.keys.splice(i, 0, [key])
-          return true
-        }
-        else if (i + 1 === leaf.values.length) {
-          leaf.values.push(value)
-          leaf.keys.push([key])
-          return true
-        }
+        leaf.keys[index].push(key)
+        return true
       }
+      leaf.values.splice(index, 0, value)
+      leaf.keys.splice(index, 0, [key])
+      return true
     }
     else {
       leaf.values = [value]
       leaf.keys = [[key]]
       return true
     }
-    return false
   }
 
   protected _cloneNode<T extends BPTreeUnknownNode<K, V>>(node: T): T {
