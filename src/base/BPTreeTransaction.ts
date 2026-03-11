@@ -602,6 +602,18 @@ export abstract class BPTreeTransaction<K, V> {
    */
   public abstract batchInsert(entries: [K, V][]): Deferred<void>
   /**
+   * Builds a B+Tree from scratch using bulk loading (bottom-up construction).
+   * This is significantly faster than batchInsert for initial tree construction,
+   * as it avoids top-down traversal and creates nodes directly.
+   * 
+   * **Precondition**: The tree must be empty. If the tree already contains data,
+   * an error will be thrown. Use batchInsert for adding data to an existing tree.
+   * 
+   * @param entries Array of [key, value] pairs to bulk load.
+   * @throws Error if the tree is not empty.
+   */
+  public abstract bulkLoad(entries: [K, V][]): Deferred<void>
+  /**
    * Deletes the pair that matches the key and value.
    * @param key The key of the pair. This key must be unique.
    * @param value The value of the pair.

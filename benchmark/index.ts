@@ -1,5 +1,5 @@
 import * as fs from 'fs'
-import { BPTreeAsync, BPTreeSync, ValueComparator, NumericComparator, InMemoryStoreStrategyAsync, InMemoryStoreStrategySync } from '../src'
+import { BPTreeAsync, BPTreeSync, ValueComparator, NumericComparator, StringComparator, InMemoryStoreStrategyAsync, InMemoryStoreStrategySync } from '../src'
 
 class ComplexComparator extends ValueComparator<{ id: number, data: string }> {
   asc(a: { id: number, data: string }, b: { id: number, data: string }): number {
@@ -168,6 +168,88 @@ async function runBatchBenchmark(): Promise<BenchmarkResult[]> {
   ]
 }
 
+function getRandomString(length: number): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+  let result = ''
+  for (let i = 0; i < length; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length))
+  }
+  return result
+}
+
+async function runBulkLoadBenchmark(): Promise<BenchmarkResult[]> {
+  console.log('\n--- bulkLoad vs batchInsert Benchmark (2.5 Million Items) ---')
+  const order = 100
+  const totalItems = 2_500_000
+  const batchSize = 100_000
+
+  console.log(`Preparing data for ${totalItems} items...`)
+  const allEntries: [string, string][][] = []
+  for (let i = 0; i < totalItems; i += batchSize) {
+    const entries: [string, string][] = []
+    for (let j = 0; j < batchSize; j++) {
+      const idx = i + j
+      const val = getRandomString(2)
+      const key = `${val}:${idx}`
+      entries.push([key, val])
+    }
+    allEntries.push(entries)
+  }
+
+  const results: BenchmarkResult[] = []
+
+  // bulkLoad
+  {
+    const tree = new BPTreeAsync(
+      new InMemoryStoreStrategyAsync<string, string>(order),
+      new StringComparator()
+    )
+    await tree.init()
+    const flatEntries = allEntries.flat()
+    
+    console.log('Starting bulkLoad...')
+    const startTime = Date.now()
+    await tree.bulkLoad(flatEntries)
+    const totalTime = Date.now() - startTime
+    
+    console.log(`BulkLoad completed in ${totalTime}ms.`)
+    console.log(`Average time per item: ${(totalTime / totalItems).toFixed(4)}ms`)
+    console.log(`Insertions per second: ${(totalItems / (totalTime / 1000)).toFixed(2)}`)
+    
+    results.push({ name: 'bulkLoad (2.5M)', unit: 'ms', value: totalTime })
+  }
+
+  await new Promise(resolve => setTimeout(resolve, 2000))
+
+  // batchInsert
+  {
+    const tree = new BPTreeAsync(
+      new InMemoryStoreStrategyAsync<string, string>(order),
+      new StringComparator()
+    )
+    await tree.init()
+    
+    console.log('\nStarting batchInsert...')
+    const startTime = Date.now()
+    for (let i = 0; i < allEntries.length; i++) {
+      const entries = allEntries[i]
+      const batchStart = Date.now()
+      await tree.batchInsert(entries)
+      const batchTime = Date.now() - batchStart
+      console.log(`[Batch ${i + 1} / ${allEntries.length}] Inserted ${entries.length} items. Batch took ${batchTime}ms.`)
+    }
+    const totalTime = Date.now() - startTime
+    
+    console.log(`\nbatchInsert completed in ${totalTime}ms.`)
+    console.log(`Average time per item: ${(totalTime / totalItems).toFixed(4)}ms`)
+    console.log(`Insertions per second: ${(totalItems / (totalTime / 1000)).toFixed(2)}`)
+    
+    results.push({ name: 'batchInsert (2.5M)', unit: 'ms', value: totalTime })
+  }
+
+  return results
+}
+
 async function main() {
   const args = process.argv.slice(2)
   const isJson = args.includes('json')
@@ -181,6 +263,7 @@ async function main() {
     sync: runSyncBenchmark,
     leak: runLeakTest,
     batch: runBatchBenchmark,
+    bulkload: runBulkLoadBenchmark,
   }
 
   if (!type) {

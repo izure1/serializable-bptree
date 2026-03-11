@@ -68,4 +68,13 @@ export class BPTreeSync<K, V> extends BPTreeSyncTransaction<K, V> {
       throw new Error(`Transaction failed: ${result.error || 'Commit failed due to conflict'}`)
     }
   }
+
+  public bulkLoad(entries: [K, V][]): void {
+    const tx = this.createTransaction()
+    tx.bulkLoad(entries)
+    const result = tx.commit()
+    if (!result.success) {
+      throw new Error(`Transaction failed: ${result.error || 'Commit failed due to conflict'}`)
+    }
+  }
 }

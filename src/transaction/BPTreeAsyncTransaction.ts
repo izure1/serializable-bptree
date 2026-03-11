@@ -222,7 +222,8 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
       parentNode.values = parentNode.values.slice(0, mid)
       parentNode.keys = parentNode.keys.slice(0, mid + 1)
 
-      for (const k of newSiblingNodeRecursive.keys) {
+      for (let i = 0, len = newSiblingNodeRecursive.keys.length; i < len; i++) {
+        const k = newSiblingNodeRecursive.keys[i]
         const n = this._cloneNode(await this.getNode(k))
         n.parent = newSiblingNodeRecursive.id
         await this._updateNode(n)
@@ -333,7 +334,7 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
         for (let i = 0; i < len; i++) {
           const nValue = node.values[i]
           const keys = node.keys[i]
-          for (let j = 0, kLen = keys.length; j < kLen; j++) {
+          for (let j = 0, len = keys.length; j < len; j++) {
             yield [keys[j], nValue]
           }
         }
@@ -419,7 +420,7 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
     while (true) {
       for (let i = 0, len = node.values.length; i < len; i++) {
         const keys = node.keys[i]
-        for (let j = 0, kLen = keys.length; j < kLen; j++) {
+        for (let j = 0, len = keys.length; j < len; j++) {
           if (keys[j] === key) {
             return node.values[i]
           }
@@ -466,7 +467,8 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
     if (resolved.startKey) {
       const startConfig = this.searchConfigs[resolved.startKey][order]
       startNode = await startConfig.start(this, resolved.startValues) as BPTreeLeafNode<K, V> | null
-    } else {
+    }
+    else {
       startNode = order === 'asc'
         ? await this.leftestNode()
         : await this.rightestNode()
@@ -561,7 +563,8 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
       let cachedLeafId: string | null = null
       let cachedLeafMaxValue: V | null = null
 
-      for (const [key, value] of sorted) {
+      for (let i = 0, len = sorted.length; i < len; i++) {
+        const [key, value] = sorted[i]
         let targetLeaf: BPTreeLeafNode<K, V>
         // 정렬된 데이터이므로 현재 리프의 최대값 이하이면 locateLeaf 스킵
         if (
@@ -571,7 +574,8 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
           (this.comparator.isLower(value, cachedLeafMaxValue) || this.comparator.isSame(value, cachedLeafMaxValue))
         ) {
           targetLeaf = currentLeaf
-        } else {
+        }
+        else {
           targetLeaf = await this.locateLeaf(value)
         }
 
@@ -624,6 +628,114 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
       if (currentLeaf !== null && modified) {
         await this._updateNode(currentLeaf)
       }
+    })
+  }
+
+  public async bulkLoad(entries: [K, V][]): Promise<void> {
+    if (entries.length === 0) return
+    return this.writeLock(0, async () => {
+      // 빈 트리 검증: 루트가 리프이고 값이 없어야 함
+      const root = await this.getNode(this.rootId)
+      if (!root.leaf || root.values.length > 0) {
+        throw new Error('bulkLoad can only be called on an empty tree. Use batchInsert for non-empty trees.')
+      }
+
+      // 1. value 기준 정렬
+      const sorted = [...entries].sort((a, b) => this.comparator.asc(a[1], b[1]))
+
+      // 2. 동일 value 그룹핑 (keys 병합)
+      const grouped: { keys: K[], value: V }[] = []
+      for (let i = 0, len = sorted.length; i < len; i++) {
+        const [key, value] = sorted[i]
+        const last = grouped[grouped.length - 1]
+        if (last && this.comparator.isSame(last.value, value)) {
+          if (!last.keys.includes(key)) {
+            last.keys.push(key)
+          }
+        }
+        else {
+          grouped.push({ keys: [key], value })
+        }
+      }
+
+      // 기존 빈 루트 삭제
+      await this._deleteNode(root)
+
+      // 3. 리프 노드 생성 (order-1 크기 단위)
+      const maxLeafSize = this.order - 1
+      const leaves: BPTreeLeafNode<K, V>[] = []
+
+      for (let i = 0, len = grouped.length; i < len; i += maxLeafSize) {
+        const chunk = grouped.slice(i, i + maxLeafSize)
+        const leafKeys = chunk.map(g => g.keys)
+        const leafValues = chunk.map(g => g.value)
+        const leaf = await this._createNode(
+          true,
+          leafKeys,
+          leafValues,
+          null,
+          null,
+          null
+        ) as BPTreeLeafNode<K, V>
+        leaves.push(leaf)
+      }
+
+      // 4. 리프 간 linked list 연결
+      for (let i = 0, len = leaves.length; i < len; i++) {
+        if (i > 0) {
+          leaves[i].prev = leaves[i - 1].id
+        }
+        if (i < len - 1) {
+          leaves[i].next = leaves[i + 1].id
+        }
+        await this._updateNode(leaves[i])
+      }
+
+      // 5. Bottom-up 내부 노드 구축
+      let currentLevel: BPTreeUnknownNode<K, V>[] = leaves
+
+      while (currentLevel.length > 1) {
+        const nextLevel: BPTreeUnknownNode<K, V>[] = []
+
+        for (let i = 0, len = currentLevel.length; i < len; i += this.order) {
+          const children = currentLevel.slice(i, i + this.order)
+          const childIds = children.map(c => c.id)
+
+          // separator values: 두 번째 자식부터의 첫 번째 값
+          const separators: V[] = []
+          for (let j = 1, len = children.length; j < len; j++) {
+            separators.push(children[j].values[0])
+          }
+
+          const internalNode = await this._createNode(
+            false,
+            childIds,
+            separators,
+            null,
+            null,
+            null
+          ) as BPTreeInternalNode<K, V>
+
+          // 자식 노드들의 parent 갱신
+          for (let j = 0, len = children.length; j < len; j++) {
+            const child = children[j]
+            child.parent = internalNode.id
+            await this._updateNode(child)
+          }
+
+          nextLevel.push(internalNode)
+        }
+
+        currentLevel = nextLevel
+      }
+
+      // 6. 루트 설정
+      const newRoot = currentLevel[0]
+      await this._writeHead({
+        root: newRoot.id,
+        order: this.order,
+        data: this.strategy.head.data
+      })
     })
   }
 
@@ -749,7 +861,8 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
 
         if (!siblingNode.leaf) {
           const keys = siblingNode.keys
-          for (const key of keys) {
+          for (let i = 0, len = keys.length; i < len; i++) {
+            const key = keys[i]
             const node = this._cloneNode(await this.getNode(key))
             node.parent = siblingNode.id
             await this._updateNode(node)
@@ -822,28 +935,32 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
           await this._updateNode(siblingNode)
         }
         if (!siblingNode.leaf) {
-          for (const key of siblingNode.keys) {
+          for (let i = 0, len = siblingNode.keys.length; i < len; i++) {
+            const key = siblingNode.keys[i]
             const n = this._cloneNode(await this.getNode(key))
             n.parent = siblingNode.id
             await this._updateNode(n)
           }
         }
         if (!node.leaf) {
-          for (const key of node.keys) {
+          for (let i = 0, len = node.keys.length; i < len; i++) {
+            const key = node.keys[i]
             const n = this._cloneNode(await this.getNode(key))
             n.parent = node.id
             await this._updateNode(n)
           }
         }
         if (!parentNode.leaf) {
-          for (const key of parentNode.keys) {
+          for (let i = 0, len = parentNode.keys.length; i < len; i++) {
+            const key = parentNode.keys[i]
             const n = this._cloneNode(await this.getNode(key))
             n.parent = parentNode.id
             await this._updateNode(n)
           }
         }
       }
-    } else {
+    }
+    else {
       await this._updateNode(this._cloneNode(node))
     }
     return node

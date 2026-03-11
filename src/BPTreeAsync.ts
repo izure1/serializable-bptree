@@ -74,4 +74,15 @@ export class BPTreeAsync<K, V> extends BPTreeAsyncTransaction<K, V> {
       }
     })
   }
+
+  public async bulkLoad(entries: [K, V][]): Promise<void> {
+    return this.writeLock(1, async () => {
+      const tx = await this.createTransaction()
+      await tx.bulkLoad(entries)
+      const result = await tx.commit()
+      if (!result.success) {
+        throw new Error(`Transaction failed: ${result.error || 'Commit failed due to conflict'}`)
+      }
+    })
+  }
 }
