@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772798742818,
+  "lastUpdate": 1773231330337,
   "repoUrl": "https://github.com/izure1/serializable-bptree",
   "entries": {
     "Serializable B+Tree Benchmark": [
@@ -861,6 +861,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Insert",
             "value": 25,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "izure@naver.com",
+            "name": "izure",
+            "username": "izure1"
+          },
+          "committer": {
+            "email": "izure@naver.com",
+            "name": "izure",
+            "username": "izure1"
+          },
+          "distinct": true,
+          "id": "af6db6d3db890df308fb902867004df8200aabc3",
+          "message": "feat: bulkLoad 메서드 추가. 이는 batchInsert보다 훨씬 빠른 삽입 속도를 보여줍니다. 이는 빈 트리에서만 동작합니다.",
+          "timestamp": "2026-03-11T21:14:26+09:00",
+          "tree_id": "62d2576fe95bf0f46ae88c282a85276f5c17663d",
+          "url": "https://github.com/izure1/serializable-bptree/commit/af6db6d3db890df308fb902867004df8200aabc3"
+        },
+        "date": 1773231329460,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Async Stream Scan",
+            "value": 350,
+            "unit": "ms"
+          },
+          {
+            "name": "Point Query latency",
+            "value": 15,
+            "unit": "ms"
+          },
+          {
+            "name": "Sync Where latency",
+            "value": 25,
+            "unit": "ms"
+          },
+          {
+            "name": "MVCC Conflict overhead",
+            "value": 51,
+            "unit": "ms"
+          },
+          {
+            "name": "Individual Insert",
+            "value": 87,
+            "unit": "ms"
+          },
+          {
+            "name": "Batch Insert",
+            "value": 25,
+            "unit": "ms"
+          },
+          {
+            "name": "bulkLoad (2.5M)",
+            "value": 5172,
+            "unit": "ms"
+          },
+          {
+            "name": "batchInsert (2.5M)",
+            "value": 10846,
             "unit": "ms"
           }
         ]
