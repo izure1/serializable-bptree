@@ -84,6 +84,7 @@ Additionally, this library supports asynchronous operations and rule-based query
 - **Async/Sync Support**: Provides both synchronous and asynchronous APIs.
 - **Query Optimization**: Rule-based optimizer to choose the best index for complex queries.
 - **TypeScript**: Fully typed for a better developer experience.
+- **Auto Rollback**: Automatically cleans up internal memory buffers on commit failures, preventing memory leaks without manual intervention.
 
 ## How to use
 

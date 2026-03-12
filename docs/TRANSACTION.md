@@ -51,6 +51,8 @@ The main cases where a transaction fails (`success: false`) or an error occurs a
 2. **Storage Error**: If an I/O error or network error occurs during `strategy.write()` or `strategy.read()`, an exception will be thrown.
 3. **Data Integrity Error**: Failures may occur in case of logical errors, such as failing to find a required node due to a corrupted internal structure of the tree.
 
+> **Auto Rollback**: When a commit fails, the transaction **automatically rolls back** to clear its internal memory buffers (such as write and delete buffers), ensuring that no orphaned data remains in memory.
+
 ## Usage
 
 A pattern for manually controlling transactions to process multiple operations atomically.
@@ -71,6 +73,7 @@ if (result.success) {
   console.log("Save successful");
 } else {
   // 3. Handle conflict (another transaction committed first)
+  // Note: No manual rollback is required. The transaction automatically cleans up its internal memory.
   console.warn("Save failed: Data conflict");
 }
 ```
