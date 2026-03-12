@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1773323164156,
+  "lastUpdate": 1773334097692,
   "repoUrl": "https://github.com/izure1/serializable-bptree",
   "entries": {
     "Serializable B+Tree Benchmark": [
@@ -989,6 +989,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "batchInsert (2.5M)",
             "value": 10011,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "izure@naver.com",
+            "name": "izure",
+            "username": "izure1"
+          },
+          "committer": {
+            "email": "izure@naver.com",
+            "name": "izure",
+            "username": "izure1"
+          },
+          "distinct": true,
+          "id": "6b74ac26a43629d8f855875466e0587a71fcf2bd",
+          "message": "feat: reload 메서드 추가. 이 메서드는 트리 인스턴스를 재생성하지 않아도 트리를 초기화할 수 있습니다.",
+          "timestamp": "2026-03-13T01:47:17+09:00",
+          "tree_id": "4b4d332361eb25758e2b773cc92f377bdcbdcb0e",
+          "url": "https://github.com/izure1/serializable-bptree/commit/6b74ac26a43629d8f855875466e0587a71fcf2bd"
+        },
+        "date": 1773334096664,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Async Stream Scan",
+            "value": 320,
+            "unit": "ms"
+          },
+          {
+            "name": "Point Query latency",
+            "value": 15,
+            "unit": "ms"
+          },
+          {
+            "name": "Sync Where latency",
+            "value": 28,
+            "unit": "ms"
+          },
+          {
+            "name": "MVCC Conflict overhead",
+            "value": 67,
+            "unit": "ms"
+          },
+          {
+            "name": "Individual Insert",
+            "value": 102,
+            "unit": "ms"
+          },
+          {
+            "name": "Batch Insert",
+            "value": 23,
+            "unit": "ms"
+          },
+          {
+            "name": "bulkLoad (2.5M)",
+            "value": 5020,
+            "unit": "ms"
+          },
+          {
+            "name": "batchInsert (2.5M)",
+            "value": 10392,
             "unit": "ms"
           }
         ]
