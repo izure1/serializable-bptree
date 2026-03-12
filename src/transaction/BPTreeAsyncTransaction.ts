@@ -403,6 +403,18 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
     }
   }
 
+  public async reload(): Promise<void> {
+    if (this.rootTx !== this) {
+      throw new Error('Cannot call reload on a nested transaction')
+    }
+    return await this._reloadInternal()
+  }
+
+  protected async _reloadInternal(): Promise<void> {
+    this._resetForReload()
+    await this._initInternal()
+  }
+
   public async exists(key: K, value: V): Promise<boolean> {
     const node = await this.locateLeaf(value)
     const { index, found } = this._binarySearchValues(node.values, value)

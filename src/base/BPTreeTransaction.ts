@@ -18,8 +18,6 @@ import { SerializeStrategy } from './SerializeStrategy'
 
 export abstract class BPTreeTransaction<K, V> {
   private readonly _cachedRegexp: Map<string, RegExp> = new Map()
-  protected readonly nodes: Map<string, BPTreeUnknownNode<K, V>> = new Map()
-  protected readonly deletedNodeBuffer: Map<string, BPTreeUnknownNode<K, V>> = new Map()
   protected readonly rootTx: BPTreeTransaction<K, V>
   protected readonly mvccRoot: BPTreeMVCC<K, V>
   protected readonly mvcc: BPTreeMVCC<K, V>
@@ -551,6 +549,12 @@ export abstract class BPTreeTransaction<K, V> {
    */
   public abstract init(): Deferred<void>
   /**
+   * Clears all in-memory caches and re-initializes the tree from storage.
+   * This is equivalent to calling `clear()` followed by `init()`, but reuses the same instance.
+   * Useful when the underlying storage has been modified externally and the tree needs to reflect current state.
+   */
+  public abstract reload(): Deferred<void>
+  /**
    * Retrieves the value associated with the given key.
    * @param key The key to search for.
    * @returns A Deferred that resolves to the value if found, or undefined if not found.
@@ -688,6 +692,13 @@ export abstract class BPTreeTransaction<K, V> {
 
   protected _clearCache(): void {
     this._cachedRegexp.clear()
+  }
+
+  protected _resetForReload(): void {
+    this._cachedRegexp.clear()
+    this.isInitialized = false
+    this.isDestroyed = false;
+    (this.mvccRoot as any).diskCache.clear()
   }
 
   /**

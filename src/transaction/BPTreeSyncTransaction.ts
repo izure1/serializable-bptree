@@ -380,6 +380,18 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
     }
   }
 
+  public reload(): void {
+    if (this.rootTx !== this) {
+      throw new Error('Cannot call reload on a nested transaction')
+    }
+    this._reloadInternal()
+  }
+
+  protected _reloadInternal(): void {
+    this._resetForReload()
+    this._initInternal()
+  }
+
   public exists(key: K, value: V): boolean {
     const node = this.locateLeaf(value)
     const { index, found } = this._binarySearchValues(node.values, value)
