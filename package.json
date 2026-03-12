@@ -1,6 +1,6 @@
 {
   "name": "serializable-bptree",
-  "version": "8.4.0",
+  "version": "8.4.1",
   "description": "Store the B+tree flexibly, not only in-memory.",
   "types": "./dist/types/index.d.ts",
   "main": "./dist/cjs/index.cjs",
@@ -44,7 +44,7 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
-    "mvcc-api": "^1.3.5",
+    "mvcc-api": "^1.3.6",
     "ryoiki": "^1.2.0"
   }
 }

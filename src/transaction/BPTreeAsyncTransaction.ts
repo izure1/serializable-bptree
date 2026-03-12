@@ -1039,7 +1039,13 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
         if (result.success) {
           this.rootTx.rootId = this.rootId
         }
+        else {
+          this.mvcc.rollback()
+        }
       }
+    }
+    else {
+      this.mvcc.rollback()
     }
     return result
   }
