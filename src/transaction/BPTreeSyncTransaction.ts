@@ -10,6 +10,7 @@ import type {
   SerializeStrategyHead,
   SyncBPTreeMVCC,
   BPTreeSearchOption,
+  BPTreeLeafNode
 } from '../types'
 import type { BPTreeNodeOps, BPTreeAlgoContext } from '../base/BPTreeNodeOps'
 import {
@@ -33,7 +34,7 @@ import {
   findOuterBoundaryLeaf,
   leftestNode,
   rightestNode,
-  getPairsGenerator,
+  getPairsGenerator
 } from '../base/BPTreeAlgorithmSync'
 import { BPTreeTransaction } from '../base/BPTreeTransaction'
 import { SerializeStrategySync } from '../SerializeStrategySync'
@@ -175,27 +176,27 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
     insertInParent(this._ops, this._ctx, node, value, newSiblingNode)
   }
 
-  protected locateLeaf(value: V) {
+  protected locateLeaf(value: V): BPTreeLeafNode<K, V> {
     return locateLeaf(this._ops, this._ctx.rootId, value, this.comparator)
   }
 
-  protected findLowerBoundLeaf(value: V) {
+  protected findLowerBoundLeaf(value: V): BPTreeLeafNode<K, V> {
     return findLowerBoundLeaf(this._ops, this._ctx.rootId, value, this.comparator)
   }
 
-  protected findUpperBoundLeaf(value: V) {
+  protected findUpperBoundLeaf(value: V): BPTreeLeafNode<K, V> {
     return findUpperBoundLeaf(this._ops, this._ctx.rootId, value, this.comparator)
   }
 
-  protected findOuterBoundaryLeaf(value: V, direction: 1 | -1) {
+  protected findOuterBoundaryLeaf(value: V, direction: 1 | -1): BPTreeLeafNode<K, V> | null {
     return findOuterBoundaryLeaf(this._ops, this._ctx.rootId, value, direction, this.comparator)
   }
 
-  protected leftestNode() {
+  protected leftestNode(): BPTreeLeafNode<K, V> {
     return leftestNode(this._ops, this._ctx.rootId)
   }
 
-  protected rightestNode() {
+  protected rightestNode(): BPTreeLeafNode<K, V> {
     return rightestNode(this._ops, this._ctx.rootId)
   }
 
@@ -203,7 +204,7 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
     startNode: Parameters<typeof getPairsGenerator<K, V>>[1],
     endNode: Parameters<typeof getPairsGenerator<K, V>>[2],
     direction: 1 | -1,
-  ) {
+  ): Generator<[BPTreeNodeKey<K>, V], void, unknown> {
     yield* getPairsGenerator(this._ops, startNode, endNode, direction)
   }
 

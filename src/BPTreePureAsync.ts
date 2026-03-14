@@ -5,7 +5,7 @@ import type {
   BPTreeSearchOption,
   BPTreeUnknownNode,
   SerializableData,
-  SerializeStrategyHead,
+  SerializeStrategyHead
 } from './types'
 import type { BPTreeNodeOpsAsync, BPTreeAlgoContext } from './base/BPTreeNodeOps'
 import {
@@ -19,7 +19,7 @@ import {
   getOpAsync,
   whereStreamOpAsync,
   keysStreamOpAsync,
-  initOpAsync,
+  initOpAsync
 } from './base/BPTreeAlgorithmAsync'
 import { SerializeStrategyAsync } from './SerializeStrategyAsync'
 import { ValueComparator } from './base/ValueComparator'

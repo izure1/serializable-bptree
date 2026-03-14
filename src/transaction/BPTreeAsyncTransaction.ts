@@ -10,6 +10,7 @@ import type {
   SerializableData,
   SerializeStrategyHead,
   BPTreeSearchOption,
+  BPTreeLeafNode
 } from '../types'
 import type { BPTreeNodeOpsAsync, BPTreeAlgoContext } from '../base/BPTreeNodeOps'
 import { Ryoiki } from 'ryoiki'
@@ -34,7 +35,7 @@ import {
   rightestNodeAsync,
   getPairsGeneratorAsync,
   createSearchConfigsAsync,
-  createVerifierMap,
+  createVerifierMap
 } from '../base/BPTreeAlgorithmAsync'
 import { BPTreeTransaction } from '../base/BPTreeTransaction'
 import { SerializeStrategyAsync } from '../SerializeStrategyAsync'
@@ -188,27 +189,27 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
     await insertInParentAsync(this._ops, this._ctx, node, value, newSiblingNode)
   }
 
-  protected async locateLeaf(value: V) {
+  protected async locateLeaf(value: V): Promise<BPTreeLeafNode<K, V>> {
     return locateLeafAsync(this._ops, this._ctx.rootId, value, this.comparator)
   }
 
-  protected async findLowerBoundLeaf(value: V) {
+  protected async findLowerBoundLeaf(value: V): Promise<BPTreeLeafNode<K, V>> {
     return findLowerBoundLeafAsync(this._ops, this._ctx.rootId, value, this.comparator)
   }
 
-  protected async findUpperBoundLeaf(value: V) {
+  protected async findUpperBoundLeaf(value: V): Promise<BPTreeLeafNode<K, V>> {
     return findUpperBoundLeafAsync(this._ops, this._ctx.rootId, value, this.comparator)
   }
 
-  protected async findOuterBoundaryLeaf(value: V, direction: 1 | -1) {
+  protected async findOuterBoundaryLeaf(value: V, direction: 1 | -1): Promise<BPTreeLeafNode<K, V> | null> {
     return findOuterBoundaryLeafAsync(this._ops, this._ctx.rootId, value, direction, this.comparator)
   }
 
-  protected async leftestNode() {
+  protected async leftestNode(): Promise<BPTreeLeafNode<K, V>> {
     return leftestNodeAsync(this._ops, this._ctx.rootId)
   }
 
-  protected async rightestNode() {
+  protected async rightestNode(): Promise<BPTreeLeafNode<K, V>> {
     return rightestNodeAsync(this._ops, this._ctx.rootId)
   }
 
@@ -216,7 +217,7 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
     startNode: Parameters<typeof getPairsGeneratorAsync<K, V>>[1],
     endNode: Parameters<typeof getPairsGeneratorAsync<K, V>>[2],
     direction: 1 | -1,
-  ) {
+  ): AsyncGenerator<[BPTreeNodeKey<K>, V], void, unknown> {
     yield* getPairsGeneratorAsync(this._ops, startNode, endNode, direction)
   }
 
