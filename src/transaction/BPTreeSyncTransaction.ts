@@ -13,7 +13,6 @@ import type {
 } from '../types'
 import type { BPTreeNodeOps, BPTreeAlgoContext } from '../base/BPTreeNodeOps'
 import {
-  cloneNode,
   insertOp,
   deleteOp,
   batchInsertOp,
@@ -27,6 +26,7 @@ import {
   initOp,
   insertAtLeaf,
   insertInParent,
+  deleteEntry,
   locateLeaf,
   findLowerBoundLeaf,
   findUpperBoundLeaf,
@@ -317,7 +317,6 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
     node: BPTreeUnknownNode<K, V>,
     key: BPTreeNodeKey<K>
   ): BPTreeUnknownNode<K, V> {
-    const { deleteEntry } = require('../base/BPTreeAlgorithm')
     return deleteEntry(this._ops, this._ctx, node, key, this.comparator)
   }
 

@@ -1,9 +1,9 @@
-import { BPTreePure, BPTreePureAsync, InMemoryStoreStrategySync, InMemoryStoreStrategyAsync, NumericComparator, StringComparator } from '../src'
+import { BPTreePureSync, BPTreePureAsync, InMemoryStoreStrategySync, InMemoryStoreStrategyAsync, NumericComparator, StringComparator } from '../src'
 
 describe('pure-test', () => {
   test('insert:number', () => {
     const strategy = new InMemoryStoreStrategySync<string, number>(5)
-    const tree = new BPTreePure<string, number>(strategy, new NumericComparator())
+    const tree = new BPTreePureSync<string, number>(strategy, new NumericComparator())
     tree.init()
 
     tree.insert('a', 1)
@@ -42,7 +42,7 @@ describe('pure-test', () => {
 
   test('insert:string', () => {
     const strategy = new InMemoryStoreStrategySync<string, string>(5)
-    const tree = new BPTreePure<string, string>(strategy, new StringComparator())
+    const tree = new BPTreePureSync<string, string>(strategy, new StringComparator())
     tree.init()
 
     tree.insert('a', 'apple')
@@ -58,7 +58,7 @@ describe('pure-test', () => {
 
   test('or condition', () => {
     const strategy = new InMemoryStoreStrategySync<string, number>(5)
-    const tree = new BPTreePure<string, number>(strategy, new NumericComparator())
+    const tree = new BPTreePureSync<string, number>(strategy, new NumericComparator())
     tree.init()
 
     for (let i = 1; i <= 10; i++) {
@@ -73,7 +73,7 @@ describe('pure-test', () => {
 
   test('delete', () => {
     const strategy = new InMemoryStoreStrategySync<string, number>(5)
-    const tree = new BPTreePure<string, number>(strategy, new NumericComparator())
+    const tree = new BPTreePureSync<string, number>(strategy, new NumericComparator())
     tree.init()
 
     tree.insert('a', 1)
@@ -91,7 +91,7 @@ describe('pure-test', () => {
 
   test('delete:notEqual', () => {
     const strategy = new InMemoryStoreStrategySync<string, number>(5)
-    const tree = new BPTreePure<string, number>(strategy, new NumericComparator())
+    const tree = new BPTreePureSync<string, number>(strategy, new NumericComparator())
     tree.init()
 
     tree.insert('a', 1)
@@ -109,7 +109,7 @@ describe('pure-test', () => {
 
   test('batchInsert', () => {
     const strategy = new InMemoryStoreStrategySync<string, number>(5)
-    const tree = new BPTreePure<string, number>(strategy, new NumericComparator())
+    const tree = new BPTreePureSync<string, number>(strategy, new NumericComparator())
     tree.init()
 
     const entries: [string, number][] = []
@@ -127,7 +127,7 @@ describe('pure-test', () => {
 
   test('bulkLoad', () => {
     const strategy = new InMemoryStoreStrategySync<string, number>(5)
-    const tree = new BPTreePure<string, number>(strategy, new NumericComparator())
+    const tree = new BPTreePureSync<string, number>(strategy, new NumericComparator())
     tree.init()
 
     const entries: [string, number][] = []
@@ -145,7 +145,7 @@ describe('pure-test', () => {
 
   test('exists and get', () => {
     const strategy = new InMemoryStoreStrategySync<string, number>(5)
-    const tree = new BPTreePure<string, number>(strategy, new NumericComparator())
+    const tree = new BPTreePureSync<string, number>(strategy, new NumericComparator())
     tree.init()
 
     tree.insert('a', 1)
@@ -163,7 +163,7 @@ describe('pure-test', () => {
 
   test('keys', () => {
     const strategy = new InMemoryStoreStrategySync<string, number>(5)
-    const tree = new BPTreePure<string, number>(strategy, new NumericComparator())
+    const tree = new BPTreePureSync<string, number>(strategy, new NumericComparator())
     tree.init()
 
     tree.insert('a', 1)
@@ -180,7 +180,7 @@ describe('pure-test', () => {
 
   test('whereStream and keysStream', () => {
     const strategy = new InMemoryStoreStrategySync<string, number>(5)
-    const tree = new BPTreePure<string, number>(strategy, new NumericComparator())
+    const tree = new BPTreePureSync<string, number>(strategy, new NumericComparator())
     tree.init()
 
     for (let i = 1; i <= 10; i++) {
@@ -202,7 +202,7 @@ describe('pure-test', () => {
 
   test('headData', () => {
     const strategy = new InMemoryStoreStrategySync<string, number>(5)
-    const tree = new BPTreePure<string, number>(strategy, new NumericComparator())
+    const tree = new BPTreePureSync<string, number>(strategy, new NumericComparator())
     tree.init()
 
     tree.setHeadData({ myKey: 'myValue' })
@@ -212,7 +212,7 @@ describe('pure-test', () => {
 
   test('getRootId and getOrder', () => {
     const strategy = new InMemoryStoreStrategySync<string, number>(5)
-    const tree = new BPTreePure<string, number>(strategy, new NumericComparator())
+    const tree = new BPTreePureSync<string, number>(strategy, new NumericComparator())
     tree.init()
 
     expect(tree.getOrder()).toBe(5)
@@ -220,7 +220,7 @@ describe('pure-test', () => {
   })
 
   test('verify', () => {
-    const tree = new BPTreePure<string, number>(
+    const tree = new BPTreePureSync<string, number>(
       new InMemoryStoreStrategySync<string, number>(5),
       new NumericComparator(),
     )
@@ -234,7 +234,7 @@ describe('pure-test', () => {
 
   test('strategy-direct: no internal node caching', () => {
     const strategy = new InMemoryStoreStrategySync<string, number>(5)
-    const tree = new BPTreePure<string, number>(strategy, new NumericComparator())
+    const tree = new BPTreePureSync<string, number>(strategy, new NumericComparator())
     tree.init()
 
     tree.insert('a', 1)
@@ -250,7 +250,7 @@ describe('pure-test', () => {
 
   test('like', () => {
     const strategy = new InMemoryStoreStrategySync<string, string>(5)
-    const tree = new BPTreePure<string, string>(strategy, new StringComparator())
+    const tree = new BPTreePureSync<string, string>(strategy, new StringComparator())
     tree.init()
 
     tree.insert('a', 'apple')
