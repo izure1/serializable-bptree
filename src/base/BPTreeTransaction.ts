@@ -17,7 +17,7 @@ import { ValueComparator } from './ValueComparator'
 import { SerializeStrategy } from './SerializeStrategy'
 
 export abstract class BPTreeTransaction<K, V> {
-  private readonly _cachedRegexp: Map<string, RegExp> = new Map()
+  protected readonly _cachedRegexp: Map<string, RegExp> = new Map()
   protected readonly rootTx: BPTreeTransaction<K, V>
   protected readonly mvccRoot: BPTreeMVCC<K, V>
   protected readonly mvcc: BPTreeMVCC<K, V>

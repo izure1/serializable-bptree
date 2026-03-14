@@ -3,8 +3,23 @@
 This document provides instructions for migrating between major versions of `serializable-bptree`.
 
 ## Table of Contents
+- [Migration to v9.0.0](#migration-to-v900)
 - [Migration to v8.0.0](#migration-to-v800)
 - [Migration to v6.0.0](#migration-to-v600)
+
+---
+
+## Migration to v9.0.0
+
+Version 9.0.0 introduces the \`BPTreePureSync\` and \`BPTreePureAsync\` classes and extracts core B+Tree algorithms into shared pure functions to minimize memory overhead.
+
+### 1. New \`BPTreePure\` Classes
+- If you don't need MVCC or complex transaction features, you can now use \`BPTreePureSync\` (sync) or \`BPTreePureAsync\` (async) which works directly with the \`SerializeStrategy\`.
+- These classes do not manage node caching or transactions, making them much lighter and better suited for integration with other state management systems.
+
+### 2. Transaction Refactoring
+- The internal structure of \`BPTreeSyncTransaction\` and \`BPTreeAsyncTransaction\` has been refactored to delegate B+Tree operations to shared algorithms in \`BPTreeAlgorithm.ts\`.
+- The public API of the transaction classes remains fully backward compatible. No changes are required in your application code if you are using \`BPTreeSync\` or \`BPTreeAsync\`.
 
 ---
 

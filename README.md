@@ -82,6 +82,7 @@ Additionally, this library supports asynchronous operations and rule-based query
 - **Serializable**: Save and load the B+Tree state to/from any storage (File, DB, Memory, etc.).
 - **Duplicate Values**: Naturally handles duplicate values.
 - **Async/Sync Support**: Provides both synchronous and asynchronous APIs.
+- **Pure Tree (No MVCC/Cache)**: Provides `BPTreePureSync` and `BPTreePureAsync` for users who only want core B+Tree logic without transaction overhead.
 - **Query Optimization**: Rule-based optimizer to choose the best index for complex queries.
 - **TypeScript**: Fully typed for a better developer experience.
 - **Auto Rollback**: Automatically cleans up internal memory buffers on commit failures, preventing memory leaks without manual intervention.
@@ -100,6 +101,8 @@ npx jsr add @izure/serializable-bptree
 import {
   BPTreeSync,
   BPTreeAsync,
+  BPTreePureSync,
+  BPTreePureAsync,
   SerializeStrategySync,
   SerializeStrategyAsync,
   NumericComparator,
@@ -114,12 +117,14 @@ import {
   import {
     BPTreeSync,
     BPTreeAsync,
+    BPTreePureSync,
+    BPTreePureAsync,
     InMemoryStoreStrategySync,
     InMemoryStoreStrategyAsync,
     ValueComparator,
     NumericComparator,
     StringComparator
-  } from 'https://cdn.jsdelivr.net/npm/serializable-bptree@8/+esm'
+  } from 'https://cdn.jsdelivr.net/npm/serializable-bptree@9/+esm'
 </script>
 ```
 
@@ -134,6 +139,7 @@ Explore the detailed guides and concepts of `serializable-bptree`:
   - [Query Conditions](./docs/QUERY.md): Detailed explanation of the `where()` operators.
   - [Asynchronous Usage](./docs/ASYNC.md): How to use the tree in an async environment.
 - **Advanced Topics**
+  - [Pure Tree (No MVCC/Cache)](./docs/PURE_TREE.md): Use cases and limitations for `BPTreePureSync` and `BPTreePureAsync`.
   - [Transaction System (MVCC)](./docs/TRANSACTION.md): ACID transactions, Snapshot Isolation, and Optimistic Locking.
   - [Best Practices](./docs/BEST_PRACTICES.md): Tips for bulk insertion and performance optimization.
   - [Duplicate Value Handling](./docs/DUPLICATE_VALUES.md): Strategies for managing large amounts of duplicate data.
@@ -167,7 +173,7 @@ console.log('Found: ', keys)
 
 ## Migration
 
-Instructions for migrating between major versions (e.g., v8.0.0, v6.0.0) can be found in the [Migration Guide](./docs/MIGRATION.md).
+Instructions for migrating between major versions (e.g., v9.0.0, v8.0.0, v6.0.0) can be found in the [Migration Guide](./docs/MIGRATION.md).
 
 ## LICENSE
 
