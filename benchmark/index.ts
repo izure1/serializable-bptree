@@ -1,5 +1,17 @@
 import * as fs from 'fs'
-import { BPTreeAsync, BPTreeSync, ValueComparator, NumericComparator, StringComparator, InMemoryStoreStrategyAsync, InMemoryStoreStrategySync } from '../src'
+import {
+  SerializeStrategySync,
+  SerializeStrategyAsync,
+  BPTreeAsync,
+  BPTreeSync,
+  BPTreePureSync,
+  BPTreePureAsync,
+  ValueComparator,
+  NumericComparator,
+  StringComparator,
+  InMemoryStoreStrategyAsync,
+  InMemoryStoreStrategySync
+} from '../src'
 
 class ComplexComparator extends ValueComparator<{ id: number, data: string }> {
   asc(a: { id: number, data: string }, b: { id: number, data: string }): number {
@@ -48,12 +60,12 @@ async function runAsyncStreamBenchmark(): Promise<BenchmarkResult[]> {
     count++
     if (count % 2000 === 0) {
       const now = Date.now()
-      console.log(`Processed ${count} items. Last 2000 took ${now - lastTime}ms.`)
+      console.log(`Processed ${count} items.Last 2000 took ${now - lastTime} ms.`)
       lastTime = now
     }
   }
   const totalTime = Date.now() - startTime
-  console.log(`Total time: ${totalTime}ms`)
+  console.log(`Total time: ${totalTime} ms`)
   return [{ name: 'Async Stream Scan', unit: 'ms', value: totalTime }]
 }
 
@@ -83,7 +95,7 @@ async function runPointQueryBenchmark(): Promise<BenchmarkResult[]> {
     for await (const p of readTx.whereStream({ equal: target })) { }
   }
   const totalTime = Date.now() - startTime
-  console.log(`Executed ${numQueries} point queries in ${totalTime}ms`)
+  console.log(`Executed ${numQueries} point queries in ${totalTime} ms`)
   return [{ name: 'Point Query latency', unit: 'ms', value: totalTime }]
 }
 
@@ -106,7 +118,7 @@ function runSyncBenchmark(): BenchmarkResult[] {
   const startTime = Date.now()
   const result = readTx.where({ gte: 0 })
   const totalTime = Date.now() - startTime
-  console.log(`Sync where (10k items) took ${totalTime}ms. Result size: ${result.size}`)
+  console.log(`Sync where(10k items) took ${totalTime} ms.Result size: ${result.size} `)
   return [{ name: 'Sync Where latency', unit: 'ms', value: totalTime }]
 }
 
@@ -128,7 +140,7 @@ async function runLeakTest(): Promise<BenchmarkResult[]> {
     if (!res.success) conflictCount++
   }
   const totalTime = Date.now() - startTime
-  console.log(`Triggered ${conflictCount} conflicts in ${totalTime}ms.`)
+  console.log(`Triggered ${conflictCount} conflicts in ${totalTime} ms.`)
   return [{ name: 'MVCC Conflict overhead', unit: 'ms', value: totalTime }]
 }
 
@@ -150,7 +162,7 @@ async function runBatchBenchmark(): Promise<BenchmarkResult[]> {
   }
   await txIndiv.commit()
   const timeIndiv = Date.now() - startIndiv
-  console.log(`Individual Insert via one Transaction (${n} items): ${timeIndiv}ms`)
+  console.log(`Individual Insert via one Transaction(${n} items): ${timeIndiv} ms`)
 
   // Batch Insert (Internal optimization)
   const treeBatch = new BPTreeAsync(new InMemoryStoreStrategyAsync(50), new NumericComparator())
@@ -158,9 +170,9 @@ async function runBatchBenchmark(): Promise<BenchmarkResult[]> {
   const startBatch = Date.now()
   await treeBatch.batchInsert(entries)
   const timeBatch = Date.now() - startBatch
-  console.log(`Batch Insert (${n} items): ${timeBatch}ms`)
+  console.log(`Batch Insert(${n} items): ${timeBatch} ms`)
 
-  console.log(`Performance Improvement: ${((1 - timeBatch / timeIndiv) * 100).toFixed(1)}%`)
+  console.log(`Performance Improvement: ${((1 - timeBatch / timeIndiv) * 100).toFixed(1)}% `)
 
   return [
     { name: 'Individual Insert', unit: 'ms', value: timeIndiv },
@@ -190,7 +202,7 @@ async function runBulkLoadBenchmark(): Promise<BenchmarkResult[]> {
     for (let j = 0; j < batchSize; j++) {
       const idx = i + j
       const val = getRandomString(2)
-      const key = `${val}:${idx}`
+      const key = `${val}:${idx} `
       entries.push([key, val])
     }
     allEntries.push(entries)
@@ -206,16 +218,16 @@ async function runBulkLoadBenchmark(): Promise<BenchmarkResult[]> {
     )
     await tree.init()
     const flatEntries = allEntries.flat()
-    
+
     console.log('Starting bulkLoad...')
     const startTime = Date.now()
     await tree.bulkLoad(flatEntries)
     const totalTime = Date.now() - startTime
-    
-    console.log(`BulkLoad completed in ${totalTime}ms.`)
-    console.log(`Average time per item: ${(totalTime / totalItems).toFixed(4)}ms`)
-    console.log(`Insertions per second: ${(totalItems / (totalTime / 1000)).toFixed(2)}`)
-    
+
+    console.log(`BulkLoad completed in ${totalTime} ms.`)
+    console.log(`Average time per item: ${(totalTime / totalItems).toFixed(4)} ms`)
+    console.log(`Insertions per second: ${(totalItems / (totalTime / 1000)).toFixed(2)} `)
+
     results.push({ name: 'bulkLoad (2.5M)', unit: 'ms', value: totalTime })
   }
 
@@ -228,7 +240,7 @@ async function runBulkLoadBenchmark(): Promise<BenchmarkResult[]> {
       new StringComparator()
     )
     await tree.init()
-    
+
     console.log('\nStarting batchInsert...')
     const startTime = Date.now()
     for (let i = 0; i < allEntries.length; i++) {
@@ -236,15 +248,156 @@ async function runBulkLoadBenchmark(): Promise<BenchmarkResult[]> {
       const batchStart = Date.now()
       await tree.batchInsert(entries)
       const batchTime = Date.now() - batchStart
-      console.log(`[Batch ${i + 1} / ${allEntries.length}] Inserted ${entries.length} items. Batch took ${batchTime}ms.`)
+      console.log(`[Batch ${i + 1} / ${allEntries.length}] Inserted ${entries.length} items.Batch took ${batchTime} ms.`)
     }
     const totalTime = Date.now() - startTime
-    
-    console.log(`\nbatchInsert completed in ${totalTime}ms.`)
-    console.log(`Average time per item: ${(totalTime / totalItems).toFixed(4)}ms`)
-    console.log(`Insertions per second: ${(totalItems / (totalTime / 1000)).toFixed(2)}`)
-    
+
+    console.log(`\nbatchInsert completed in ${totalTime} ms.`)
+    console.log(`Average time per item: ${(totalTime / totalItems).toFixed(4)} ms`)
+    console.log(`Insertions per second: ${(totalItems / (totalTime / 1000)).toFixed(2)} `)
+
     results.push({ name: 'batchInsert (2.5M)', unit: 'ms', value: totalTime })
+  }
+
+  return results
+}
+
+import * as crypto from 'crypto'
+
+class NoCopyStoreStrategySync<K, V> extends SerializeStrategySync<K, V> {
+  private readonly store = new Map<string, any>()
+
+  constructor(public order: number) {
+    super(order)
+  }
+
+  id(): string {
+    return crypto.randomUUID()
+  }
+  read(id: string): any {
+    return this.store.get(id) // No deep copy
+  }
+  write(id: string, node: any): void {
+    this.store.set(id, node)
+  }
+  delete(id: string): void {
+    this.store.delete(id)
+  }
+  readHead(): any {
+    if (this.head.root === null) {
+      return null
+    }
+    return this.head
+  }
+  writeHead(head: any): void {
+    this.head = head
+  }
+}
+
+class NoCopyStoreStrategyAsync<K, V> extends SerializeStrategyAsync<K, V> {
+  private readonly store = new Map<string, any>()
+
+  constructor(public order: number) {
+    super(order)
+  }
+
+  async id(): Promise<string> {
+    return crypto.randomUUID()
+  }
+  async read(id: string): Promise<any> {
+    return this.store.get(id) // No deep copy
+  }
+  async write(id: string, node: any): Promise<void> {
+    this.store.set(id, node)
+  }
+  async delete(id: string): Promise<void> {
+    this.store.delete(id)
+  }
+  async readHead(): Promise<any> {
+    if (this.head.root === null) {
+      return null
+    }
+    return this.head
+  }
+  async writeHead(head: any): Promise<void> {
+    this.head = head
+  }
+}
+
+async function runPureBenchmark(): Promise<BenchmarkResult[]> {
+  console.log('\n--- MVCC vs Pure Tree Benchmark (100,000 items bulkLoad + point queries) ---')
+  const order = 100
+  const totalItems = 100_000
+  const entries: [number, number][] = []
+
+  for (let i = 0; i < totalItems; i++) {
+    entries.push([i, i])
+  }
+
+  const results: BenchmarkResult[] = []
+
+  // MVCC Sync Benchmark
+  {
+    const startMvccInsert = Date.now()
+    const tree = new BPTreeSync(new InMemoryStoreStrategySync<number, number>(order), new NumericComparator())
+    tree.init()
+    tree.bulkLoad(entries)
+    const timeMvccInsert = Date.now() - startMvccInsert
+
+    const startMvccQuery = Date.now()
+    const tx = tree.createTransaction()
+    // random point queries
+    for (let i = 0; i < 5000; i++) {
+      const target = (i * 17) % totalItems
+      tx.get(target)
+    }
+    const timeMvccQuery = Date.now() - startMvccQuery
+
+    console.log(`MVCC Sync - bulkLoad(${totalItems}): ${timeMvccInsert} ms, 5K Point Queries: ${timeMvccQuery} ms`)
+    results.push({ name: 'Sync MVCC bulkLoad', unit: 'ms', value: timeMvccInsert })
+    results.push({ name: 'Sync MVCC queries', unit: 'ms', value: timeMvccQuery })
+  }
+
+  // Pure Sync Benchmark
+  {
+    const startPureInsert = Date.now()
+    const strategy = new NoCopyStoreStrategySync<number, number>(order)
+    const tree = new BPTreePureSync<number, number>(strategy, new NumericComparator())
+    tree.init()
+    tree.bulkLoad(entries)
+    const timePureInsert = Date.now() - startPureInsert
+
+    const startPureQuery = Date.now()
+    for (let i = 0; i < 5000; i++) {
+      const target = (i * 17) % totalItems
+      tree.get(target)
+    }
+    const timePureQuery = Date.now() - startPureQuery
+
+    console.log(`Pure Sync(No Copy) - bulkLoad(${totalItems}): ${timePureInsert} ms, 5K Point Queries: ${timePureQuery} ms`)
+    results.push({ name: 'Sync Pure bulkLoad', unit: 'ms', value: timePureInsert })
+    results.push({ name: 'Sync Pure queries', unit: 'ms', value: timePureQuery })
+  }
+
+  // Pure Async Benchmark
+  {
+    const startPureAsyncInsert = Date.now()
+    const strategy = new NoCopyStoreStrategyAsync<number, number>(order)
+    const tree = new BPTreePureAsync<number, number>(strategy, new NumericComparator())
+    await tree.init()
+    await tree.bulkLoad(entries)
+    const timePureAsyncInsert = Date.now() - startPureAsyncInsert
+
+    const startPureAsyncQuery = Date.now()
+    for (let i = 0; i < 5000; i++) {
+      const target = (i * 17) % totalItems
+      await tree.get(target)
+    }
+    const timePureAsyncQuery = Date.now() - startPureAsyncQuery
+
+    console.log(`Pure Async(No Copy) - bulkLoad(${totalItems}): ${timePureAsyncInsert} ms, 5K Point Queries: ${timePureAsyncQuery} ms`)
+    results.push({ name: 'Async Pure bulkLoad', unit: 'ms', value: timePureAsyncInsert })
+    results.push({ name: 'Async Pure queries', unit: 'ms', value: timePureAsyncQuery })
   }
 
   return results
@@ -264,6 +417,7 @@ async function main() {
     leak: runLeakTest,
     batch: runBatchBenchmark,
     bulkload: runBulkLoadBenchmark,
+    pure: runPureBenchmark,
   }
 
   if (!type) {
@@ -273,7 +427,7 @@ async function main() {
   } else if (tasks[type]) {
     allResults.push(...await tasks[type]())
   } else {
-    console.error(`Unknown benchmark type: ${type}`)
+    console.error(`Unknown benchmark type: ${type} `)
     process.exit(1)
   }
 
