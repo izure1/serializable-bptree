@@ -70,26 +70,75 @@ export class BPTreePureSync<K, V> {
       ): BPTreeUnknownNode<K, V> {
         const id = strategy.id(leaf)
         const node = { id, keys, values, leaf, parent, next, prev } as BPTreeUnknownNode<K, V>
-        strategy.write(id, node)
         return node
       },
-      updateNode(node: BPTreeUnknownNode<K, V>): void {
-        strategy.write(node.id, node)
-      },
-      deleteNode(node: BPTreeUnknownNode<K, V>): void {
-        strategy.delete(node.id)
-      },
+      updateNode(): void { },
+      deleteNode(): void { },
       readHead(): SerializeStrategyHead | null {
         return strategy.readHead()
       },
-      writeHead(head: SerializeStrategyHead): void {
-        strategy.writeHead(head)
-      },
+      writeHead(): void { },
     }
   }
 
+  private _createBufferedOps(): { ops: BPTreeNodeOps<K, V>, flush: () => void } {
+    const strategy = this.strategy
+    const writeBuffer = new Map<string, BPTreeUnknownNode<K, V>>()
+    const deleteBuffer = new Set<string>()
+    let headBuffer: SerializeStrategyHead | null = null
+
+    const ops: BPTreeNodeOps<K, V> = {
+      getNode(id: string): BPTreeUnknownNode<K, V> {
+        const buffered = writeBuffer.get(id)
+        if (buffered) return buffered
+        return strategy.read(id) as BPTreeUnknownNode<K, V>
+      },
+      createNode(
+        leaf: boolean,
+        keys: string[] | K[][],
+        values: V[],
+        parent: string | null = null,
+        next: string | null = null,
+        prev: string | null = null,
+      ): BPTreeUnknownNode<K, V> {
+        const id = strategy.id(leaf)
+        const node = { id, keys, values, leaf, parent, next, prev } as BPTreeUnknownNode<K, V>
+        writeBuffer.set(id, node)
+        return node
+      },
+      updateNode(node: BPTreeUnknownNode<K, V>): void {
+        writeBuffer.set(node.id, node)
+      },
+      deleteNode(node: BPTreeUnknownNode<K, V>): void {
+        deleteBuffer.add(node.id)
+        writeBuffer.delete(node.id)
+      },
+      readHead(): SerializeStrategyHead | null {
+        if (headBuffer) return headBuffer
+        return strategy.readHead()
+      },
+      writeHead(head: SerializeStrategyHead): void {
+        headBuffer = head
+      },
+    }
+
+    function flush(): void {
+      for (const id of deleteBuffer) {
+        strategy.delete(id)
+      }
+      for (const [id, node] of writeBuffer) {
+        strategy.write(id, node)
+      }
+      if (headBuffer) {
+        strategy.writeHead(headBuffer)
+      }
+    }
+
+    return { ops, flush }
+  }
+
   public init(): void {
-    this._ops = this._createOps()
+    const { ops, flush } = this._createBufferedOps()
     this._ctx = {
       rootId: '',
       order: this.strategy.order,
@@ -97,12 +146,14 @@ export class BPTreePureSync<K, V> {
     }
 
     initOp(
-      this._ops,
+      ops,
       this._ctx,
       this.strategy.order,
       this.strategy.head,
       (head) => { this.strategy.head = head },
     )
+    flush()
+    this._ops = this._createOps()
   }
 
   /**
@@ -184,19 +235,27 @@ export class BPTreePureSync<K, V> {
   // ─── Mutation ────────────────────────────────────────────────────
 
   public insert(key: K, value: V): void {
-    insertOp(this._ops, this._ctx, key, value, this.comparator)
+    const { ops, flush } = this._createBufferedOps()
+    insertOp(ops, this._ctx, key, value, this.comparator)
+    flush()
   }
 
   public delete(key: K, value?: V): void {
-    deleteOp(this._ops, this._ctx, key, this.comparator, value)
+    const { ops, flush } = this._createBufferedOps()
+    deleteOp(ops, this._ctx, key, this.comparator, value)
+    flush()
   }
 
   public batchInsert(entries: [K, V][]): void {
-    batchInsertOp(this._ops, this._ctx, entries, this.comparator)
+    const { ops, flush } = this._createBufferedOps()
+    batchInsertOp(ops, this._ctx, entries, this.comparator)
+    flush()
   }
 
   public bulkLoad(entries: [K, V][]): void {
-    bulkLoadOp(this._ops, this._ctx, entries, this.comparator)
+    const { ops, flush } = this._createBufferedOps()
+    bulkLoadOp(ops, this._ctx, entries, this.comparator)
+    flush()
   }
 
   // ─── Head Data ───────────────────────────────────────────────────
@@ -210,15 +269,17 @@ export class BPTreePureSync<K, V> {
   }
 
   public setHeadData(data: SerializableData): void {
-    const head = this._ops.readHead()
+    const { ops, flush } = this._createBufferedOps()
+    const head = ops.readHead()
     if (head === null) {
       throw new Error('Head not found')
     }
-    this._ops.writeHead({
+    ops.writeHead({
       root: head.root,
       order: head.order,
       data,
     })
+    flush()
   }
 
   // ─── Static utilities ────────────────────────────────────────────

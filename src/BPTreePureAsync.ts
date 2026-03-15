@@ -24,11 +24,13 @@ import {
 import { SerializeStrategyAsync } from './SerializeStrategyAsync'
 import { ValueComparator } from './base/ValueComparator'
 import { BPTreeTransaction } from './base/BPTreeTransaction'
+import { Ryoiki } from 'ryoiki'
 
 export class BPTreePureAsync<K, V> {
   protected readonly strategy: SerializeStrategyAsync<K, V>
   protected readonly comparator: ValueComparator<V>
   protected readonly option: BPTreeConstructorOption
+  protected readonly lock: Ryoiki = new Ryoiki()
   private readonly _cachedRegexp: Map<string, RegExp> = new Map()
   private _ctx!: BPTreeAlgoContext<K, V>
   private _ops!: BPTreeNodeOpsAsync<K, V>
@@ -70,39 +72,102 @@ export class BPTreePureAsync<K, V> {
       ): Promise<BPTreeUnknownNode<K, V>> {
         const id = await strategy.id(leaf)
         const node = { id, keys, values, leaf, parent, next, prev } as BPTreeUnknownNode<K, V>
-        await strategy.write(id, node)
         return node
       },
-      async updateNode(node: BPTreeUnknownNode<K, V>): Promise<void> {
-        await strategy.write(node.id, node)
-      },
-      async deleteNode(node: BPTreeUnknownNode<K, V>): Promise<void> {
-        await strategy.delete(node.id)
-      },
+      async updateNode(): Promise<void> { },
+      async deleteNode(): Promise<void> { },
       async readHead(): Promise<SerializeStrategyHead | null> {
         return await strategy.readHead()
       },
-      async writeHead(head: SerializeStrategyHead): Promise<void> {
-        await strategy.writeHead(head)
-      },
+      async writeHead(): Promise<void> { },
     }
   }
 
-  public async init(): Promise<void> {
-    this._ops = this._createOps()
-    this._ctx = {
-      rootId: '',
-      order: this.strategy.order,
-      headData: () => this.strategy.head.data,
+  private _createBufferedOps(): { ops: BPTreeNodeOpsAsync<K, V>, flush: () => Promise<void> } {
+    const strategy = this.strategy
+    const writeBuffer = new Map<string, BPTreeUnknownNode<K, V>>()
+    const deleteBuffer = new Set<string>()
+    let headBuffer: SerializeStrategyHead | null = null
+
+    const ops: BPTreeNodeOpsAsync<K, V> = {
+      async getNode(id: string): Promise<BPTreeUnknownNode<K, V>> {
+        const buffered = writeBuffer.get(id)
+        if (buffered) return buffered
+        return await strategy.read(id) as BPTreeUnknownNode<K, V>
+      },
+      async createNode(
+        leaf: boolean,
+        keys: string[] | K[][],
+        values: V[],
+        parent: string | null = null,
+        next: string | null = null,
+        prev: string | null = null,
+      ): Promise<BPTreeUnknownNode<K, V>> {
+        const id = await strategy.id(leaf)
+        const node = { id, keys, values, leaf, parent, next, prev } as BPTreeUnknownNode<K, V>
+        writeBuffer.set(id, node)
+        return node
+      },
+      async updateNode(node: BPTreeUnknownNode<K, V>): Promise<void> {
+        writeBuffer.set(node.id, node)
+      },
+      async deleteNode(node: BPTreeUnknownNode<K, V>): Promise<void> {
+        deleteBuffer.add(node.id)
+        writeBuffer.delete(node.id)
+      },
+      async readHead(): Promise<SerializeStrategyHead | null> {
+        if (headBuffer) return headBuffer
+        return await strategy.readHead()
+      },
+      async writeHead(head: SerializeStrategyHead): Promise<void> {
+        headBuffer = head
+      },
     }
 
-    await initOpAsync(
-      this._ops,
-      this._ctx,
-      this.strategy.order,
-      this.strategy.head,
-      (head) => { this.strategy.head = head },
-    )
+    async function flush(): Promise<void> {
+      for (const id of deleteBuffer) {
+        await strategy.delete(id)
+      }
+      for (const [id, node] of writeBuffer) {
+        await strategy.write(id, node)
+      }
+      if (headBuffer) {
+        await strategy.writeHead(headBuffer)
+      }
+    }
+
+    return { ops, flush }
+  }
+
+  protected async writeLock<T>(fn: () => Promise<T>): Promise<T> {
+    let lockId: string
+    return this.lock.writeLock(async (_lockId: string) => {
+      lockId = _lockId
+      return fn()
+    }).finally(() => {
+      this.lock.writeUnlock(lockId)
+    })
+  }
+
+  public async init(): Promise<void> {
+    return this.writeLock(async () => {
+      const { ops, flush } = this._createBufferedOps()
+      this._ctx = {
+        rootId: '',
+        order: this.strategy.order,
+        headData: () => this.strategy.head.data,
+      }
+
+      await initOpAsync(
+        ops,
+        this._ctx,
+        this.strategy.order,
+        this.strategy.head,
+        (head) => { this.strategy.head = head },
+      )
+      await flush()
+      this._ops = this._createOps()
+    })
   }
 
   public getRootId(): string {
@@ -136,22 +201,34 @@ export class BPTreePureAsync<K, V> {
     condition: BPTreeCondition<V>,
     options?: BPTreeSearchOption<K>,
   ): AsyncGenerator<K> {
-    yield* keysStreamOpAsync(
-      this._ops, this._ctx.rootId, condition,
-      this.comparator, this._verifierMap, this._searchConfigs,
-      this._ensureValues, options,
-    )
+    let lockId: string | undefined
+    try {
+      lockId = (await this.lock.readLock([0, 0.1], async (id: string) => id)) as string
+      yield* keysStreamOpAsync(
+        this._ops, this._ctx.rootId, condition,
+        this.comparator, this._verifierMap, this._searchConfigs,
+        this._ensureValues, options,
+      )
+    } finally {
+      if (lockId) this.lock.readUnlock(lockId)
+    }
   }
 
   public async *whereStream(
     condition: BPTreeCondition<V>,
     options?: BPTreeSearchOption<K>,
   ): AsyncGenerator<[K, V]> {
-    yield* whereStreamOpAsync(
-      this._ops, this._ctx.rootId, condition,
-      this.comparator, this._verifierMap, this._searchConfigs,
-      this._ensureValues, options,
-    )
+    let lockId: string | undefined
+    try {
+      lockId = (await this.lock.readLock([0, 0.1], async (id: string) => id)) as string
+      yield* whereStreamOpAsync(
+        this._ops, this._ctx.rootId, condition,
+        this.comparator, this._verifierMap, this._searchConfigs,
+        this._ensureValues, options,
+      )
+    } finally {
+      if (lockId) this.lock.readUnlock(lockId)
+    }
   }
 
   public async keys(condition: BPTreeCondition<V>, options?: BPTreeSearchOption<K>): Promise<Set<K>> {
@@ -173,19 +250,35 @@ export class BPTreePureAsync<K, V> {
   // ─── Mutation ────────────────────────────────────────────────────
 
   public async insert(key: K, value: V): Promise<void> {
-    await insertOpAsync(this._ops, this._ctx, key, value, this.comparator)
+    return this.writeLock(async () => {
+      const { ops, flush } = this._createBufferedOps()
+      await insertOpAsync(ops, this._ctx, key, value, this.comparator)
+      await flush()
+    })
   }
 
   public async delete(key: K, value?: V): Promise<void> {
-    await deleteOpAsync(this._ops, this._ctx, key, this.comparator, value)
+    return this.writeLock(async () => {
+      const { ops, flush } = this._createBufferedOps()
+      await deleteOpAsync(ops, this._ctx, key, this.comparator, value)
+      await flush()
+    })
   }
 
   public async batchInsert(entries: [K, V][]): Promise<void> {
-    await batchInsertOpAsync(this._ops, this._ctx, entries, this.comparator)
+    return this.writeLock(async () => {
+      const { ops, flush } = this._createBufferedOps()
+      await batchInsertOpAsync(ops, this._ctx, entries, this.comparator)
+      await flush()
+    })
   }
 
   public async bulkLoad(entries: [K, V][]): Promise<void> {
-    await bulkLoadOpAsync(this._ops, this._ctx, entries, this.comparator)
+    return this.writeLock(async () => {
+      const { ops, flush } = this._createBufferedOps()
+      await bulkLoadOpAsync(ops, this._ctx, entries, this.comparator)
+      await flush()
+    })
   }
 
   // ─── Head Data ───────────────────────────────────────────────────
@@ -197,9 +290,13 @@ export class BPTreePureAsync<K, V> {
   }
 
   public async setHeadData(data: SerializableData): Promise<void> {
-    const head = await this._ops.readHead()
-    if (head === null) throw new Error('Head not found')
-    await this._ops.writeHead({ root: head.root, order: head.order, data })
+    return this.writeLock(async () => {
+      const { ops, flush } = this._createBufferedOps()
+      const head = await ops.readHead()
+      if (head === null) throw new Error('Head not found')
+      await ops.writeHead({ root: head.root, order: head.order, data })
+      await flush()
+    })
   }
 
   // ─── Static utilities ────────────────────────────────────────────
