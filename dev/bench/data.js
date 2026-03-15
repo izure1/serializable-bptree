@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1773494886675,
+  "lastUpdate": 1773573754700,
   "repoUrl": "https://github.com/izure1/serializable-bptree",
   "entries": {
     "Serializable B+Tree Benchmark": [
@@ -1241,6 +1241,100 @@ window.BENCHMARK_DATA = {
           {
             "name": "Async Pure queries",
             "value": 1204,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "izure@naver.com",
+            "name": "izure",
+            "username": "izure1"
+          },
+          "committer": {
+            "email": "izure@naver.com",
+            "name": "izure",
+            "username": "izure1"
+          },
+          "distinct": true,
+          "id": "c5ae8f2409ea1a308b7a8d768c0d3192707b49ab",
+          "message": "performance: BPTreePure 클래스는 이제 내부적으로 업데이트, 삭제 버퍼를 가지며 메서드가 끝날 때 버퍼를 flush 합니다. 버퍼의 생명주기는 사용자가 호출하는 각 공개 메서드이므로, 불변성을 더럽히지 않습니다",
+          "timestamp": "2026-03-15T20:17:49+09:00",
+          "tree_id": "7d4f1b3e378262cc1acd80eb37a0a3552a2b7738",
+          "url": "https://github.com/izure1/serializable-bptree/commit/c5ae8f2409ea1a308b7a8d768c0d3192707b49ab"
+        },
+        "date": 1773573753801,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Async Stream Scan",
+            "value": 344,
+            "unit": "ms"
+          },
+          {
+            "name": "Point Query latency",
+            "value": 14,
+            "unit": "ms"
+          },
+          {
+            "name": "Sync Where latency",
+            "value": 23,
+            "unit": "ms"
+          },
+          {
+            "name": "MVCC Conflict overhead",
+            "value": 125,
+            "unit": "ms"
+          },
+          {
+            "name": "Individual Insert",
+            "value": 70,
+            "unit": "ms"
+          },
+          {
+            "name": "Batch Insert",
+            "value": 21,
+            "unit": "ms"
+          },
+          {
+            "name": "bulkLoad (2.5M)",
+            "value": 4310,
+            "unit": "ms"
+          },
+          {
+            "name": "batchInsert (2.5M)",
+            "value": 7988,
+            "unit": "ms"
+          },
+          {
+            "name": "Sync MVCC bulkLoad",
+            "value": 45,
+            "unit": "ms"
+          },
+          {
+            "name": "Sync MVCC queries",
+            "value": 927,
+            "unit": "ms"
+          },
+          {
+            "name": "Sync Pure bulkLoad",
+            "value": 16,
+            "unit": "ms"
+          },
+          {
+            "name": "Sync Pure queries",
+            "value": 716,
+            "unit": "ms"
+          },
+          {
+            "name": "Async Pure bulkLoad",
+            "value": 49,
+            "unit": "ms"
+          },
+          {
+            "name": "Async Pure queries",
+            "value": 1124,
             "unit": "ms"
           }
         ]
