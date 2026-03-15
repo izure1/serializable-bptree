@@ -300,7 +300,8 @@ export async function* getPairsGeneratorAsync<K, V>(
     // Read-ahead
     if (direction === 1) {
       if (node.next) nextNodePromise = ops.getNode(node.next)
-    } else {
+    }
+    else {
       if (node.prev) nextNodePromise = ops.getNode(node.prev)
     }
 
@@ -313,7 +314,8 @@ export async function* getPairsGeneratorAsync<K, V>(
           yield [keys[j], nValue]
         }
       }
-    } else {
+    }
+    else {
       let i = len
       while (i--) {
         const nValue = node.values[i]
@@ -326,7 +328,8 @@ export async function* getPairsGeneratorAsync<K, V>(
     if (nextNodePromise) {
       node = await nextNodePromise as BPTreeLeafNode<K, V>
       nextNodePromise = null
-    } else {
+    }
+    else {
       break
     }
   }
@@ -348,13 +351,15 @@ export async function insertAtLeafAsync<K, V>(
         leaf.keys[i].push(key as K)
         await ops.updateNode(leaf)
         return leaf
-      } else if (comparator.isLower(value, nValue)) {
+      }
+      else if (comparator.isLower(value, nValue)) {
         leaf = cloneNode(leaf)
         leaf.values.splice(i, 0, value)
         leaf.keys.splice(i, 0, [key as K])
         await ops.updateNode(leaf)
         return leaf
-      } else if (i + 1 === leaf.values.length) {
+      }
+      else if (i + 1 === leaf.values.length) {
         leaf = cloneNode(leaf)
         leaf.values.push(value)
         leaf.keys.push([key as K])
@@ -362,7 +367,8 @@ export async function insertAtLeafAsync<K, V>(
         return leaf
       }
     }
-  } else {
+  }
+  else {
     leaf = cloneNode(leaf)
     leaf.values = [value]
     leaf.keys = [[key as K]]
@@ -488,10 +494,12 @@ export async function deleteEntryAsync<K, V>(
     await ops.writeHead({ root: newRoot.id, order: ctx.order, data: ctx.headData() })
     ctx.rootId = newRoot.id
     return node
-  } else if (ctx.rootId === node.id) {
+  }
+  else if (ctx.rootId === node.id) {
     await ops.writeHead({ root: node.id, order: ctx.order, data: ctx.headData() })
     return node
-  } else if (
+  }
+  else if (
     (node.keys.length < Math.ceil(ctx.order / 2) && !node.leaf) ||
     (node.values.length < Math.ceil((ctx.order - 1) / 2) && node.leaf)
   ) {
@@ -552,7 +560,8 @@ export async function deleteEntryAsync<K, V>(
       await ops.deleteNode(node)
       await ops.updateNode(siblingNode)
       await deleteEntryAsync(ops, ctx, await ops.getNode(node.parent!), node.id, comparator)
-    } else {
+    }
+    else {
       if (isPredecessor) {
         let pointerPm, pointerKm
         if (!node.leaf) {
@@ -563,7 +572,8 @@ export async function deleteEntryAsync<K, V>(
           parentNode = cloneNode(await ops.getNode(node.parent!)) as BPTreeInternalNode<K, V>
           const ni = parentNode.keys.indexOf(node.id)
           if (ni > 0) { parentNode.values[ni - 1] = pointerKm; await ops.updateNode(parentNode) }
-        } else {
+        }
+        else {
           pointerPm = siblingNode.keys.splice(-1)[0] as unknown as K[]
           pointerKm = siblingNode.values.splice(-1)[0]
           node.keys = [pointerPm, ...node.keys]
@@ -574,7 +584,8 @@ export async function deleteEntryAsync<K, V>(
         }
         await ops.updateNode(node)
         await ops.updateNode(siblingNode)
-      } else {
+      }
+      else {
         let pointerP0, pointerK0
         if (!node.leaf) {
           pointerP0 = siblingNode.keys.splice(0, 1)[0]
@@ -584,7 +595,8 @@ export async function deleteEntryAsync<K, V>(
           parentNode = cloneNode(await ops.getNode(node.parent!)) as BPTreeInternalNode<K, V>
           const pi = parentNode.keys.indexOf(siblingNode.id)
           if (pi > 0) { parentNode.values[pi - 1] = pointerK0; await ops.updateNode(parentNode) }
-        } else {
+        }
+        else {
           pointerP0 = siblingNode.keys.splice(0, 1)[0] as unknown as K[]
           pointerK0 = siblingNode.values.splice(0, 1)[0]
           node.keys = [...node.keys, pointerP0]
@@ -615,7 +627,8 @@ export async function deleteEntryAsync<K, V>(
         }
       }
     }
-  } else {
+  }
+  else {
     await ops.updateNode(cloneNode(node))
   }
   return node
@@ -676,7 +689,8 @@ export async function batchInsertOpAsync<K, V>(
     if (cachedLeafId !== null && cachedLeafMaxValue !== null && currentLeaf !== null &&
       (comparator.isLower(value, cachedLeafMaxValue) || comparator.isSame(value, cachedLeafMaxValue))) {
       targetLeaf = currentLeaf
-    } else {
+    }
+    else {
       targetLeaf = await locateLeafAsync(ops, ctx.rootId, value, comparator)
     }
 
@@ -728,7 +742,8 @@ export async function bulkLoadOpAsync<K, V>(
     const last = grouped[grouped.length - 1]
     if (last && comparator.isSame(last.value, value)) {
       if (!last.keys.includes(key)) last.keys.push(key)
-    } else { grouped.push({ keys: [key], value }) }
+    }
+    else { grouped.push({ keys: [key], value }) }
   }
   await ops.deleteNode(root)
   const maxLeafSize = ctx.order - 1
@@ -811,7 +826,8 @@ export async function* whereStreamOpAsync<K, V>(
   if (resolved.startKey) {
     const startConfig = searchConfigs[resolved.startKey][order]
     startNode = await startConfig.start(rootId, ops, resolved.startValues) as BPTreeLeafNode<K, V> | null
-  } else {
+  }
+  else {
     startNode = order === 'asc'
       ? await leftestNodeAsync(ops, rootId)
       : await rightestNodeAsync(ops, rootId)
@@ -872,7 +888,8 @@ export async function initOpAsync<K, V>(
     const root = await ops.createNode(true, [], [])
     await ops.writeHead({ root: root.id, order: ctx.order, data: strategyHead.data })
     ctx.rootId = root.id
-  } else {
+  }
+  else {
     const { root, order } = head
     setStrategyHead(head)
     ctx.order = order
