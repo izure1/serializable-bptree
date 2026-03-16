@@ -56,9 +56,14 @@ export class BPTreePureAsync<K, V> {
 
   private _createReadOps(): BPTreeNodeOpsAsync<K, V> {
     const strategy = this.strategy
+    const readBuffer = new Map<string, BPTreeUnknownNode<K, V>>()
     return {
       async getNode(id: string): Promise<BPTreeUnknownNode<K, V>> {
-        return await strategy.read(id) as BPTreeUnknownNode<K, V>
+        const buffered = readBuffer.get(id)
+        if (buffered) return buffered
+        const node = await strategy.read(id) as BPTreeUnknownNode<K, V>
+        readBuffer.set(id, node)
+        return node
       },
       async createNode(
         leaf: boolean,
@@ -83,6 +88,7 @@ export class BPTreePureAsync<K, V> {
 
   private _createBufferedOps(): { ops: BPTreeNodeOpsAsync<K, V>, flush: () => Promise<void> } {
     const strategy = this.strategy
+    const readBuffer = new Map<string, BPTreeUnknownNode<K, V>>()
     const writeBuffer = new Map<string, BPTreeUnknownNode<K, V>>()
     const deleteBuffer = new Set<string>()
     let headBuffer: SerializeStrategyHead | null = null
@@ -91,7 +97,11 @@ export class BPTreePureAsync<K, V> {
       async getNode(id: string): Promise<BPTreeUnknownNode<K, V>> {
         const buffered = writeBuffer.get(id)
         if (buffered) return buffered
-        return await strategy.read(id) as BPTreeUnknownNode<K, V>
+        const read = readBuffer.get(id)
+        if (read) return read
+        const node = await strategy.read(id) as BPTreeUnknownNode<K, V>
+        readBuffer.set(id, node)
+        return node
       },
       async createNode(
         leaf: boolean,
@@ -132,6 +142,10 @@ export class BPTreePureAsync<K, V> {
       if (headBuffer) {
         await strategy.writeHead(headBuffer)
       }
+      readBuffer.clear()
+      writeBuffer.clear()
+      deleteBuffer.clear()
+      headBuffer = null
     }
 
     return { ops, flush }

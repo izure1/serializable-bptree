@@ -54,9 +54,14 @@ export class BPTreePureSync<K, V> {
 
   private _createReadOps(): BPTreeNodeOps<K, V> {
     const strategy = this.strategy
+    const readBuffer = new Map<string, BPTreeUnknownNode<K, V>>()
     return {
       getNode(id: string): BPTreeUnknownNode<K, V> {
-        return strategy.read(id) as BPTreeUnknownNode<K, V>
+        const buffered = readBuffer.get(id)
+        if (buffered) return buffered
+        const node = strategy.read(id) as BPTreeUnknownNode<K, V>
+        readBuffer.set(id, node)
+        return node
       },
       createNode(
         leaf: boolean,
@@ -81,6 +86,7 @@ export class BPTreePureSync<K, V> {
 
   private _createBufferedOps(): { ops: BPTreeNodeOps<K, V>, flush: () => void } {
     const strategy = this.strategy
+    const readBuffer = new Map<string, BPTreeUnknownNode<K, V>>()
     const writeBuffer = new Map<string, BPTreeUnknownNode<K, V>>()
     const deleteBuffer = new Set<string>()
     let headBuffer: SerializeStrategyHead | null = null
@@ -89,7 +95,11 @@ export class BPTreePureSync<K, V> {
       getNode(id: string): BPTreeUnknownNode<K, V> {
         const buffered = writeBuffer.get(id)
         if (buffered) return buffered
-        return strategy.read(id) as BPTreeUnknownNode<K, V>
+        const read = readBuffer.get(id)
+        if (read) return read
+        const node = strategy.read(id) as BPTreeUnknownNode<K, V>
+        readBuffer.set(id, node)
+        return node
       },
       createNode(
         leaf: boolean,
@@ -130,6 +140,10 @@ export class BPTreePureSync<K, V> {
       if (headBuffer) {
         strategy.writeHead(headBuffer)
       }
+      readBuffer.clear()
+      writeBuffer.clear()
+      deleteBuffer.clear()
+      headBuffer = null
     }
 
     return { ops, flush }
