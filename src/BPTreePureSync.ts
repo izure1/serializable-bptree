@@ -30,8 +30,6 @@ export class BPTreePureSync<K, V> {
   protected readonly comparator: ValueComparator<V>
   protected readonly option: BPTreeConstructorOption
   private readonly _cachedRegexp: Map<string, RegExp> = new Map()
-  private _ctx!: BPTreeAlgoContext<K, V>
-  private _ops!: BPTreeNodeOps<K, V>
 
   private readonly _verifierMap: ReturnType<typeof createVerifierMap<V>>
   private readonly _searchConfigs: ReturnType<typeof createSearchConfigs<K, V>>
@@ -54,7 +52,7 @@ export class BPTreePureSync<K, V> {
     return Array.isArray(v) ? v : [v]
   }
 
-  private _createOps(): BPTreeNodeOps<K, V> {
+  private _createReadOps(): BPTreeNodeOps<K, V> {
     const strategy = this.strategy
     return {
       getNode(id: string): BPTreeUnknownNode<K, V> {
@@ -137,9 +135,30 @@ export class BPTreePureSync<K, V> {
     return { ops, flush }
   }
 
+  private _readCtx(): { rootId: string, order: number } {
+    const head = this.strategy.readHead()
+    if (head === null) {
+      throw new Error('Tree not initialized. Call init() first.')
+    }
+    return { rootId: head.root!, order: head.order }
+  }
+
+  private _createCtx(): BPTreeAlgoContext<K, V> {
+    const strategy = this.strategy
+    const head = strategy.readHead()
+    if (head === null) {
+      throw new Error('Tree not initialized. Call init() first.')
+    }
+    return {
+      rootId: head.root!,
+      order: head.order,
+      headData: () => strategy.head.data,
+    }
+  }
+
   public init(): void {
     const { ops, flush } = this._createBufferedOps()
-    this._ctx = {
+    const ctx: BPTreeAlgoContext<K, V> = {
       rootId: '',
       order: this.strategy.order,
       headData: () => this.strategy.head.data,
@@ -147,27 +166,26 @@ export class BPTreePureSync<K, V> {
 
     initOp(
       ops,
-      this._ctx,
+      ctx,
       this.strategy.order,
       this.strategy.head,
       (head) => { this.strategy.head = head },
     )
     flush()
-    this._ops = this._createOps()
   }
 
   /**
    * Returns the ID of the root node.
    */
   public getRootId(): string {
-    return this._ctx.rootId
+    return this._readCtx().rootId
   }
 
   /**
    * Returns the order of the B+Tree.
    */
   public getOrder(): number {
-    return this._ctx.order
+    return this._readCtx().order
   }
 
   /**
@@ -187,19 +205,22 @@ export class BPTreePureSync<K, V> {
   // ─── Query ───────────────────────────────────────────────────────
 
   public get(key: K): V | undefined {
-    return getOp(this._ops, this._ctx.rootId, key)
+    const { rootId } = this._readCtx()
+    return getOp(this._createReadOps(), rootId, key)
   }
 
   public exists(key: K, value: V): boolean {
-    return existsOp(this._ops, this._ctx.rootId, key, value, this.comparator)
+    const { rootId } = this._readCtx()
+    return existsOp(this._createReadOps(), rootId, key, value, this.comparator)
   }
 
   public *keysStream(
     condition: BPTreeCondition<V>,
     options?: BPTreeSearchOption<K>,
   ): Generator<K> {
+    const { rootId } = this._readCtx()
     yield* keysStreamOp(
-      this._ops, this._ctx.rootId, condition,
+      this._createReadOps(), rootId, condition,
       this.comparator, this._verifierMap, this._searchConfigs,
       this._ensureValues, options,
     )
@@ -209,8 +230,9 @@ export class BPTreePureSync<K, V> {
     condition: BPTreeCondition<V>,
     options?: BPTreeSearchOption<K>,
   ): Generator<[K, V]> {
+    const { rootId } = this._readCtx()
     yield* whereStreamOp(
-      this._ops, this._ctx.rootId, condition,
+      this._createReadOps(), rootId, condition,
       this.comparator, this._verifierMap, this._searchConfigs,
       this._ensureValues, options,
     )
@@ -236,32 +258,36 @@ export class BPTreePureSync<K, V> {
 
   public insert(key: K, value: V): void {
     const { ops, flush } = this._createBufferedOps()
-    insertOp(ops, this._ctx, key, value, this.comparator)
+    const ctx = this._createCtx()
+    insertOp(ops, ctx, key, value, this.comparator)
     flush()
   }
 
   public delete(key: K, value?: V): void {
     const { ops, flush } = this._createBufferedOps()
-    deleteOp(ops, this._ctx, key, this.comparator, value)
+    const ctx = this._createCtx()
+    deleteOp(ops, ctx, key, this.comparator, value)
     flush()
   }
 
   public batchInsert(entries: [K, V][]): void {
     const { ops, flush } = this._createBufferedOps()
-    batchInsertOp(ops, this._ctx, entries, this.comparator)
+    const ctx = this._createCtx()
+    batchInsertOp(ops, ctx, entries, this.comparator)
     flush()
   }
 
   public bulkLoad(entries: [K, V][]): void {
     const { ops, flush } = this._createBufferedOps()
-    bulkLoadOp(ops, this._ctx, entries, this.comparator)
+    const ctx = this._createCtx()
+    bulkLoadOp(ops, ctx, entries, this.comparator)
     flush()
   }
 
   // ─── Head Data ───────────────────────────────────────────────────
 
   public getHeadData(): SerializableData {
-    const head = this._ops.readHead()
+    const head = this.strategy.readHead()
     if (head === null) {
       throw new Error('Head not found')
     }

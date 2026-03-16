@@ -32,8 +32,6 @@ export class BPTreePureAsync<K, V> {
   protected readonly option: BPTreeConstructorOption
   protected readonly lock: Ryoiki = new Ryoiki()
   private readonly _cachedRegexp: Map<string, RegExp> = new Map()
-  private _ctx!: BPTreeAlgoContext<K, V>
-  private _ops!: BPTreeNodeOpsAsync<K, V>
 
   private readonly _verifierMap: ReturnType<typeof createVerifierMap<V>>
   private readonly _searchConfigs: ReturnType<typeof createSearchConfigsAsync<K, V>>
@@ -56,7 +54,7 @@ export class BPTreePureAsync<K, V> {
     return Array.isArray(v) ? v : [v]
   }
 
-  private _createOps(): BPTreeNodeOpsAsync<K, V> {
+  private _createReadOps(): BPTreeNodeOpsAsync<K, V> {
     const strategy = this.strategy
     return {
       async getNode(id: string): Promise<BPTreeUnknownNode<K, V>> {
@@ -139,6 +137,27 @@ export class BPTreePureAsync<K, V> {
     return { ops, flush }
   }
 
+  private async _readCtx(): Promise<{ rootId: string, order: number }> {
+    const head = await this.strategy.readHead()
+    if (head === null) {
+      throw new Error('Tree not initialized. Call init() first.')
+    }
+    return { rootId: head.root!, order: head.order }
+  }
+
+  private async _createCtx(): Promise<BPTreeAlgoContext<K, V>> {
+    const strategy = this.strategy
+    const head = await strategy.readHead()
+    if (head === null) {
+      throw new Error('Tree not initialized. Call init() first.')
+    }
+    return {
+      rootId: head.root!,
+      order: head.order,
+      headData: () => strategy.head.data,
+    }
+  }
+
   protected async writeLock<T>(fn: () => Promise<T>): Promise<T> {
     let lockId: string
     return this.lock.writeLock(async (_lockId: string) => {
@@ -152,7 +171,7 @@ export class BPTreePureAsync<K, V> {
   public async init(): Promise<void> {
     return this.writeLock(async () => {
       const { ops, flush } = this._createBufferedOps()
-      this._ctx = {
+      const ctx: BPTreeAlgoContext<K, V> = {
         rootId: '',
         order: this.strategy.order,
         headData: () => this.strategy.head.data,
@@ -160,22 +179,21 @@ export class BPTreePureAsync<K, V> {
 
       await initOpAsync(
         ops,
-        this._ctx,
+        ctx,
         this.strategy.order,
         this.strategy.head,
         (head) => { this.strategy.head = head },
       )
       await flush()
-      this._ops = this._createOps()
     })
   }
 
-  public getRootId(): string {
-    return this._ctx.rootId
+  public async getRootId(): Promise<string> {
+    return (await this._readCtx()).rootId
   }
 
-  public getOrder(): number {
-    return this._ctx.order
+  public async getOrder(): Promise<number> {
+    return (await this._readCtx()).order
   }
 
   public verify(nodeValue: V, condition: BPTreeCondition<V>): boolean {
@@ -190,11 +208,13 @@ export class BPTreePureAsync<K, V> {
   // ─── Query ───────────────────────────────────────────────────────
 
   public async get(key: K): Promise<V | undefined> {
-    return getOpAsync(this._ops, this._ctx.rootId, key)
+    const { rootId } = await this._readCtx()
+    return getOpAsync(this._createReadOps(), rootId, key)
   }
 
   public async exists(key: K, value: V): Promise<boolean> {
-    return existsOpAsync(this._ops, this._ctx.rootId, key, value, this.comparator)
+    const { rootId } = await this._readCtx()
+    return existsOpAsync(this._createReadOps(), rootId, key, value, this.comparator)
   }
 
   public async *keysStream(
@@ -204,8 +224,9 @@ export class BPTreePureAsync<K, V> {
     let lockId: string | undefined
     try {
       lockId = (await this.lock.readLock([0, 0.1], async (id: string) => id)) as string
+      const { rootId } = await this._readCtx()
       yield* keysStreamOpAsync(
-        this._ops, this._ctx.rootId, condition,
+        this._createReadOps(), rootId, condition,
         this.comparator, this._verifierMap, this._searchConfigs,
         this._ensureValues, options,
       )
@@ -221,8 +242,9 @@ export class BPTreePureAsync<K, V> {
     let lockId: string | undefined
     try {
       lockId = (await this.lock.readLock([0, 0.1], async (id: string) => id)) as string
+      const { rootId } = await this._readCtx()
       yield* whereStreamOpAsync(
-        this._ops, this._ctx.rootId, condition,
+        this._createReadOps(), rootId, condition,
         this.comparator, this._verifierMap, this._searchConfigs,
         this._ensureValues, options,
       )
@@ -252,7 +274,8 @@ export class BPTreePureAsync<K, V> {
   public async insert(key: K, value: V): Promise<void> {
     return this.writeLock(async () => {
       const { ops, flush } = this._createBufferedOps()
-      await insertOpAsync(ops, this._ctx, key, value, this.comparator)
+      const ctx = await this._createCtx()
+      await insertOpAsync(ops, ctx, key, value, this.comparator)
       await flush()
     })
   }
@@ -260,7 +283,8 @@ export class BPTreePureAsync<K, V> {
   public async delete(key: K, value?: V): Promise<void> {
     return this.writeLock(async () => {
       const { ops, flush } = this._createBufferedOps()
-      await deleteOpAsync(ops, this._ctx, key, this.comparator, value)
+      const ctx = await this._createCtx()
+      await deleteOpAsync(ops, ctx, key, this.comparator, value)
       await flush()
     })
   }
@@ -268,7 +292,8 @@ export class BPTreePureAsync<K, V> {
   public async batchInsert(entries: [K, V][]): Promise<void> {
     return this.writeLock(async () => {
       const { ops, flush } = this._createBufferedOps()
-      await batchInsertOpAsync(ops, this._ctx, entries, this.comparator)
+      const ctx = await this._createCtx()
+      await batchInsertOpAsync(ops, ctx, entries, this.comparator)
       await flush()
     })
   }
@@ -276,7 +301,8 @@ export class BPTreePureAsync<K, V> {
   public async bulkLoad(entries: [K, V][]): Promise<void> {
     return this.writeLock(async () => {
       const { ops, flush } = this._createBufferedOps()
-      await bulkLoadOpAsync(ops, this._ctx, entries, this.comparator)
+      const ctx = await this._createCtx()
+      await bulkLoadOpAsync(ops, ctx, entries, this.comparator)
       await flush()
     })
   }
@@ -284,7 +310,7 @@ export class BPTreePureAsync<K, V> {
   // ─── Head Data ───────────────────────────────────────────────────
 
   public async getHeadData(): Promise<SerializableData> {
-    const head = await this._ops.readHead()
+    const head = await this.strategy.readHead()
     if (head === null) throw new Error('Head not found')
     return head.data
   }
