@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1773635026316,
+  "lastUpdate": 1773665918123,
   "repoUrl": "https://github.com/izure1/serializable-bptree",
   "entries": {
     "Serializable B+Tree Benchmark": [
@@ -1711,6 +1711,100 @@ window.BENCHMARK_DATA = {
           {
             "name": "Async Pure queries",
             "value": 1225,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "izure@naver.com",
+            "name": "izure",
+            "username": "izure1"
+          },
+          "committer": {
+            "email": "izure@naver.com",
+            "name": "izure",
+            "username": "izure1"
+          },
+          "distinct": true,
+          "id": "216b83a0d20b895e8bb4c5f7b424d54bd0b6f1e7",
+          "message": "performance: deleteEntry 성능 최적화",
+          "timestamp": "2026-03-16T21:57:58+09:00",
+          "tree_id": "840c36ebaf3f9c3e67c7e8f786843feb1955c604",
+          "url": "https://github.com/izure1/serializable-bptree/commit/216b83a0d20b895e8bb4c5f7b424d54bd0b6f1e7"
+        },
+        "date": 1773665917644,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Async Stream Scan",
+            "value": 364,
+            "unit": "ms"
+          },
+          {
+            "name": "Point Query latency",
+            "value": 19,
+            "unit": "ms"
+          },
+          {
+            "name": "Sync Where latency",
+            "value": 26,
+            "unit": "ms"
+          },
+          {
+            "name": "MVCC Conflict overhead",
+            "value": 159,
+            "unit": "ms"
+          },
+          {
+            "name": "Individual Insert",
+            "value": 93,
+            "unit": "ms"
+          },
+          {
+            "name": "Batch Insert",
+            "value": 21,
+            "unit": "ms"
+          },
+          {
+            "name": "bulkLoad (2.5M)",
+            "value": 4702,
+            "unit": "ms"
+          },
+          {
+            "name": "batchInsert (2.5M)",
+            "value": 8508,
+            "unit": "ms"
+          },
+          {
+            "name": "Sync MVCC bulkLoad",
+            "value": 59,
+            "unit": "ms"
+          },
+          {
+            "name": "Sync MVCC queries",
+            "value": 966,
+            "unit": "ms"
+          },
+          {
+            "name": "Sync Pure bulkLoad",
+            "value": 16,
+            "unit": "ms"
+          },
+          {
+            "name": "Sync Pure queries",
+            "value": 767,
+            "unit": "ms"
+          },
+          {
+            "name": "Async Pure bulkLoad",
+            "value": 32,
+            "unit": "ms"
+          },
+          {
+            "name": "Async Pure queries",
+            "value": 1243,
             "unit": "ms"
           }
         ]
