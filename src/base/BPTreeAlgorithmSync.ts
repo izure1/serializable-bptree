@@ -735,14 +735,7 @@ export function deleteEntry<K, V>(
   comparator: ValueComparator<V>,
 ): BPTreeUnknownNode<K, V> {
   if (!node.leaf) {
-    let keyIndex = -1
-    for (let i = 0, len = node.keys.length; i < len; i++) {
-      if (node.keys[i] === key) {
-        keyIndex = i
-        break
-      }
-    }
-
+    let keyIndex = node.keys.indexOf(key as string)
     if (keyIndex !== -1) {
       node = cloneNode(node)
       node.keys.splice(keyIndex, 1)
@@ -788,17 +781,15 @@ export function deleteEntry<K, V>(
     let prevValue: V | null = null
     let postValue: V | null = null
 
-    for (let i = 0, len = parentNode.keys.length; i < len; i++) {
-      const nKey = parentNode.keys[i]
-      if (nKey === node.id) {
-        if (i > 0) {
-          prevNode = ops.getNode(parentNode.keys[i - 1]) as BPTreeInternalNode<K, V>
-          prevValue = parentNode.values[i - 1]
-        }
-        if (i < parentNode.keys.length - 1) {
-          nextNode = ops.getNode(parentNode.keys[i + 1]) as BPTreeInternalNode<K, V>
-          postValue = parentNode.values[i]
-        }
+    let keyIndex = parentNode.keys.indexOf(node.id as string)
+    if (keyIndex !== -1) {
+      if (keyIndex > 0) {
+        prevNode = ops.getNode(parentNode.keys[keyIndex - 1]) as BPTreeInternalNode<K, V>
+        prevValue = parentNode.values[keyIndex - 1]
+      }
+      if (keyIndex < parentNode.keys.length - 1) {
+        nextNode = ops.getNode(parentNode.keys[keyIndex + 1]) as BPTreeInternalNode<K, V>
+        postValue = parentNode.values[keyIndex]
       }
     }
 
@@ -837,7 +828,7 @@ export function deleteEntry<K, V>(
         siblingNode = node as BPTreeInternalNode<K, V>
         node = pTemp
       }
-      siblingNode.keys.push(...node.keys as any)
+      siblingNode.keys = siblingNode.keys.concat(node.keys as any)
       if (!node.leaf) {
         siblingNode.values.push(guess!)
       }
@@ -849,7 +840,7 @@ export function deleteEntry<K, V>(
           ops.updateNode(n)
         }
       }
-      siblingNode.values.push(...node.values)
+      siblingNode.values = siblingNode.values.concat(node.values)
 
       if (!siblingNode.leaf) {
         const keys = siblingNode.keys
@@ -902,8 +893,8 @@ export function deleteEntry<K, V>(
         if (!node.leaf) {
           pointerP0 = siblingNode.keys.splice(0, 1)[0]
           pointerK0 = siblingNode.values.splice(0, 1)[0]
-          node.keys = [...node.keys, pointerP0]
-          node.values = [...node.values, guess!]
+          node.keys = node.keys.concat(pointerP0)
+          node.values = node.values.concat(guess!)
           parentNode = cloneNode(ops.getNode(node.parent!)) as BPTreeInternalNode<K, V>
           const pointerIndex = parentNode.keys.indexOf(siblingNode.id)
           if (pointerIndex > 0) {
@@ -914,8 +905,8 @@ export function deleteEntry<K, V>(
         else {
           pointerP0 = siblingNode.keys.splice(0, 1)[0] as unknown as K[]
           pointerK0 = siblingNode.values.splice(0, 1)[0]
-          node.keys = [...node.keys, pointerP0]
-          node.values = [...node.values, pointerK0]
+          node.keys = node.keys.concat(pointerP0)
+          node.values = node.values.concat(pointerK0)
           parentNode = cloneNode(ops.getNode(node.parent!)) as BPTreeInternalNode<K, V>
           const pointerIndex = parentNode.keys.indexOf(siblingNode.id)
           if (pointerIndex > 0) {

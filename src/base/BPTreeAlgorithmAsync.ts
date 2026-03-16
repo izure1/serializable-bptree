@@ -472,10 +472,7 @@ export async function deleteEntryAsync<K, V>(
   node: BPTreeUnknownNode<K, V>, key: BPTreeNodeKey<K>, comparator: ValueComparator<V>,
 ): Promise<BPTreeUnknownNode<K, V>> {
   if (!node.leaf) {
-    let keyIndex = -1
-    for (let i = 0, len = node.keys.length; i < len; i++) {
-      if (node.keys[i] === key) { keyIndex = i; break }
-    }
+    let keyIndex = node.keys.indexOf(key as string)
     if (keyIndex !== -1) {
       node = cloneNode(node)
       node.keys.splice(keyIndex, 1)
@@ -511,16 +508,15 @@ export async function deleteEntryAsync<K, V>(
     let prevValue: V | null = null
     let postValue: V | null = null
 
-    for (let i = 0, len = parentNode.keys.length; i < len; i++) {
-      if (parentNode.keys[i] === node.id) {
-        if (i > 0) {
-          prevNode = await ops.getNode(parentNode.keys[i - 1]) as BPTreeInternalNode<K, V>
-          prevValue = parentNode.values[i - 1]
-        }
-        if (i < parentNode.keys.length - 1) {
-          nextNode = await ops.getNode(parentNode.keys[i + 1]) as BPTreeInternalNode<K, V>
-          postValue = parentNode.values[i]
-        }
+    let keyIndex = parentNode.keys.indexOf(node.id as string)
+    if (keyIndex !== -1) {
+      if (keyIndex > 0) {
+        prevNode = await ops.getNode(parentNode.keys[keyIndex - 1]) as BPTreeInternalNode<K, V>
+        prevValue = parentNode.values[keyIndex - 1]
+      }
+      if (keyIndex < parentNode.keys.length - 1) {
+        nextNode = await ops.getNode(parentNode.keys[keyIndex + 1]) as BPTreeInternalNode<K, V>
+        postValue = parentNode.values[keyIndex]
       }
     }
 
@@ -538,8 +534,12 @@ export async function deleteEntryAsync<K, V>(
     siblingNode = cloneNode(siblingNode)
 
     if (node.values.length + siblingNode.values.length < ctx.order) {
-      if (!isPredecessor) { const t = siblingNode; siblingNode = node as any; node = t }
-      siblingNode.keys.push(...node.keys as any)
+      if (!isPredecessor) {
+        const pTemp = siblingNode
+        siblingNode = node as BPTreeInternalNode<K, V>
+        node = pTemp
+      }
+      siblingNode.keys = siblingNode.keys.concat(node.keys as any)
       if (!node.leaf) { siblingNode.values.push(guess!) }
       else {
         siblingNode.next = node.next
@@ -549,7 +549,7 @@ export async function deleteEntryAsync<K, V>(
           await ops.updateNode(n)
         }
       }
-      siblingNode.values.push(...node.values)
+      siblingNode.values = siblingNode.values.concat(node.values)
       if (!siblingNode.leaf) {
         for (let i = 0, len = siblingNode.keys.length; i < len; i++) {
           const n = cloneNode(await ops.getNode(siblingNode.keys[i]))
@@ -590,8 +590,8 @@ export async function deleteEntryAsync<K, V>(
         if (!node.leaf) {
           pointerP0 = siblingNode.keys.splice(0, 1)[0]
           pointerK0 = siblingNode.values.splice(0, 1)[0]
-          node.keys = [...node.keys, pointerP0]
-          node.values = [...node.values, guess!]
+          node.keys = node.keys.concat(pointerP0)
+          node.values = node.values.concat(guess!)
           parentNode = cloneNode(await ops.getNode(node.parent!)) as BPTreeInternalNode<K, V>
           const pi = parentNode.keys.indexOf(siblingNode.id)
           if (pi > 0) { parentNode.values[pi - 1] = pointerK0; await ops.updateNode(parentNode) }
@@ -599,8 +599,8 @@ export async function deleteEntryAsync<K, V>(
         else {
           pointerP0 = siblingNode.keys.splice(0, 1)[0] as unknown as K[]
           pointerK0 = siblingNode.values.splice(0, 1)[0]
-          node.keys = [...node.keys, pointerP0]
-          node.values = [...node.values, pointerK0]
+          node.keys = node.keys.concat(pointerP0)
+          node.values = node.values.concat(pointerK0)
           parentNode = cloneNode(await ops.getNode(node.parent!)) as BPTreeInternalNode<K, V>
           const pi = parentNode.keys.indexOf(siblingNode.id)
           if (pi > 0) { parentNode.values[pi - 1] = siblingNode.values[0]; await ops.updateNode(parentNode) }
