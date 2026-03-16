@@ -146,6 +146,10 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
     })
   }
 
+  public async getRootNode(): Promise<BPTreeUnknownNode<K, V>> {
+    return this.getNode(this.rootId)
+  }
+
   // ─── Legacy protected methods (delegating to ops) ────────────────
 
   protected async getNode(id: string): Promise<BPTreeUnknownNode<K, V>> {

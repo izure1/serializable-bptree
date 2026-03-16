@@ -133,6 +133,10 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
     this._searchConfigsCached = createSearchConfigs(this.comparator, ensureValues)
   }
 
+  public getRootNode(): BPTreeUnknownNode<K, V> {
+    return this.getNode(this.rootId)
+  }
+
   // ─── Legacy protected methods (delegating to ops) ────────────────
 
   protected getNode(id: string): BPTreeUnknownNode<K, V> {

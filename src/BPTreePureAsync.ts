@@ -8,6 +8,7 @@ import type {
   SerializeStrategyHead
 } from './types'
 import type { BPTreeNodeOpsAsync, BPTreeAlgoContext } from './base/BPTreeNodeOps'
+import { Ryoiki } from 'ryoiki'
 import {
   createVerifierMap,
   createSearchConfigsAsync,
@@ -24,7 +25,6 @@ import {
 import { SerializeStrategyAsync } from './SerializeStrategyAsync'
 import { ValueComparator } from './base/ValueComparator'
 import { BPTreeTransaction } from './base/BPTreeTransaction'
-import { Ryoiki } from 'ryoiki'
 
 export class BPTreePureAsync<K, V> {
   protected readonly strategy: SerializeStrategyAsync<K, V>
@@ -188,12 +188,19 @@ export class BPTreePureAsync<K, V> {
     })
   }
 
+  public async getRootNode(): Promise<BPTreeUnknownNode<K, V>> {
+    const ctx = await this._readCtx()
+    return await this.strategy.read(ctx.rootId) as BPTreeUnknownNode<K, V>
+  }
+
   public async getRootId(): Promise<string> {
-    return (await this._readCtx()).rootId
+    const ctx = await this._readCtx()
+    return ctx.rootId
   }
 
   public async getOrder(): Promise<number> {
-    return (await this._readCtx()).order
+    const ctx = await this._readCtx()
+    return ctx.order
   }
 
   public verify(nodeValue: V, condition: BPTreeCondition<V>): boolean {
@@ -208,13 +215,13 @@ export class BPTreePureAsync<K, V> {
   // ─── Query ───────────────────────────────────────────────────────
 
   public async get(key: K): Promise<V | undefined> {
-    const { rootId } = await this._readCtx()
-    return getOpAsync(this._createReadOps(), rootId, key)
+    const ctx = await this._readCtx()
+    return getOpAsync(this._createReadOps(), ctx.rootId, key)
   }
 
   public async exists(key: K, value: V): Promise<boolean> {
-    const { rootId } = await this._readCtx()
-    return existsOpAsync(this._createReadOps(), rootId, key, value, this.comparator)
+    const ctx = await this._readCtx()
+    return existsOpAsync(this._createReadOps(), ctx.rootId, key, value, this.comparator)
   }
 
   public async *keysStream(
@@ -224,9 +231,9 @@ export class BPTreePureAsync<K, V> {
     let lockId: string | undefined
     try {
       lockId = (await this.lock.readLock([0, 0.1], async (id: string) => id)) as string
-      const { rootId } = await this._readCtx()
+      const ctx = await this._readCtx()
       yield* keysStreamOpAsync(
-        this._createReadOps(), rootId, condition,
+        this._createReadOps(), ctx.rootId, condition,
         this.comparator, this._verifierMap, this._searchConfigs,
         this._ensureValues, options,
       )
@@ -242,9 +249,9 @@ export class BPTreePureAsync<K, V> {
     let lockId: string | undefined
     try {
       lockId = (await this.lock.readLock([0, 0.1], async (id: string) => id)) as string
-      const { rootId } = await this._readCtx()
+      const ctx = await this._readCtx()
       yield* whereStreamOpAsync(
-        this._createReadOps(), rootId, condition,
+        this._createReadOps(), ctx.rootId, condition,
         this.comparator, this._verifierMap, this._searchConfigs,
         this._ensureValues, options,
       )

@@ -174,23 +174,21 @@ export class BPTreePureSync<K, V> {
     flush()
   }
 
-  /**
-   * Returns the ID of the root node.
-   */
+  public getRootNode(): BPTreeUnknownNode<K, V> {
+    const ctx = this._readCtx()
+    return this.strategy.read(ctx.rootId) as BPTreeUnknownNode<K, V>
+  }
+
   public getRootId(): string {
-    return this._readCtx().rootId
+    const ctx = this._readCtx()
+    return ctx.rootId
   }
 
-  /**
-   * Returns the order of the B+Tree.
-   */
   public getOrder(): number {
-    return this._readCtx().order
+    const ctx = this._readCtx()
+    return ctx.order
   }
 
-  /**
-   * Verified if the value satisfies the condition.
-   */
   public verify(nodeValue: V, condition: BPTreeCondition<V>): boolean {
     for (const key in condition) {
       const verifyFn = this._verifierMap[key as keyof BPTreeCondition<V>]
@@ -205,22 +203,22 @@ export class BPTreePureSync<K, V> {
   // ─── Query ───────────────────────────────────────────────────────
 
   public get(key: K): V | undefined {
-    const { rootId } = this._readCtx()
-    return getOp(this._createReadOps(), rootId, key)
+    const ctx = this._readCtx()
+    return getOp(this._createReadOps(), ctx.rootId, key)
   }
 
   public exists(key: K, value: V): boolean {
-    const { rootId } = this._readCtx()
-    return existsOp(this._createReadOps(), rootId, key, value, this.comparator)
+    const ctx = this._readCtx()
+    return existsOp(this._createReadOps(), ctx.rootId, key, value, this.comparator)
   }
 
   public *keysStream(
     condition: BPTreeCondition<V>,
     options?: BPTreeSearchOption<K>,
   ): Generator<K> {
-    const { rootId } = this._readCtx()
+    const ctx = this._readCtx()
     yield* keysStreamOp(
-      this._createReadOps(), rootId, condition,
+      this._createReadOps(), ctx.rootId, condition,
       this.comparator, this._verifierMap, this._searchConfigs,
       this._ensureValues, options,
     )
@@ -230,9 +228,9 @@ export class BPTreePureSync<K, V> {
     condition: BPTreeCondition<V>,
     options?: BPTreeSearchOption<K>,
   ): Generator<[K, V]> {
-    const { rootId } = this._readCtx()
+    const ctx = this._readCtx()
     yield* whereStreamOp(
-      this._createReadOps(), rootId, condition,
+      this._createReadOps(), ctx.rootId, condition,
       this.comparator, this._verifierMap, this._searchConfigs,
       this._ensureValues, options,
     )

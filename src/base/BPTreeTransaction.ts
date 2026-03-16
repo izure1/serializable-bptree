@@ -361,6 +361,12 @@ export abstract class BPTreeTransaction<K, V> {
   }
 
   /**
+   * Returns the root node of the B+Tree.
+   * @returns The root node.
+   */
+  public abstract getRootNode(): Deferred<BPTreeUnknownNode<K, V>>
+
+  /**
    * Returns the ID of the root node.
    * @returns The root node ID.
    */
