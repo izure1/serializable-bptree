@@ -12,6 +12,7 @@ import {
   InMemoryStoreStrategyAsync,
   InMemoryStoreStrategySync
 } from '../src'
+import { findLowerBoundLeaf } from '../src/base/BPTreeAlgorithmSync'
 
 class ComplexComparator extends ValueComparator<{ id: number, data: string }> {
   asc(a: { id: number, data: string }, b: { id: number, data: string }): number {
@@ -403,6 +404,93 @@ async function runPureBenchmark(): Promise<BenchmarkResult[]> {
   return results
 }
 
+async function runBatchDeletePureBenchmark(): Promise<BenchmarkResult[]> {
+  console.log('\n--- BPTreePure batchDelete Benchmark (10,000 items) ---')
+  const order = 100
+  const totalItems = 10_000
+  const entries: [number, number][] = []
+
+  for (let i = 0; i < totalItems; i++) {
+    entries.push([i, i])
+  }
+
+  const toDelete = entries.slice(0, 5000)
+  const results: BenchmarkResult[] = []
+
+  // Pure Sync Benchmark
+  {
+    const strategyIndiv = new NoCopyStoreStrategySync<number, number>(order)
+    const treeIndiv = new BPTreePureSync<number, number>(strategyIndiv, new NumericComparator())
+    treeIndiv.init()
+    treeIndiv.bulkLoad(entries)
+
+    const startIndiv = Date.now()
+    for (const [key, value] of toDelete) {
+      try {
+        treeIndiv.delete(key, value)
+      } catch (e: any) {
+        console.log('\n--- ERROR DURING DELETE ---')
+        console.log('Error at key:', key, 'value:', value)
+        console.log('Exception:', e.message)
+
+        // Let's locate the leaf node to see what's wrong with its keys
+        const ctx = (treeIndiv as any)._createCtx()
+        const node = findLowerBoundLeaf((treeIndiv as any)._createBufferedOps().ops, ctx.rootId, value, new NumericComparator())
+        console.log('Leaf Node ID:', node.id)
+        console.dir(node.keys, { depth: null })
+        throw e
+      }
+    }
+    const timeIndiv = Date.now() - startIndiv
+
+    const strategyBatch = new NoCopyStoreStrategySync<number, number>(order)
+    const treeBatch = new BPTreePureSync<number, number>(strategyBatch, new NumericComparator())
+    treeBatch.init()
+    treeBatch.bulkLoad(entries)
+
+    const startBatch = Date.now()
+    treeBatch.batchDelete(toDelete)
+    const timeBatch = Date.now() - startBatch
+
+    console.log(`Pure Sync - Individual Delete: ${timeIndiv} ms, batchDelete: ${timeBatch} ms`)
+    console.log(`Performance Improvement: ${((1 - timeBatch / timeIndiv) * 100).toFixed(1)}% `)
+
+    results.push({ name: 'Sync Pure Individual Delete', unit: 'ms', value: timeIndiv })
+    results.push({ name: 'Sync Pure Batch Delete', unit: 'ms', value: timeBatch })
+  }
+
+  // Pure Async Benchmark
+  {
+    const strategyIndiv = new NoCopyStoreStrategyAsync<number, number>(order)
+    const treeIndiv = new BPTreePureAsync<number, number>(strategyIndiv, new NumericComparator())
+    await treeIndiv.init()
+    await treeIndiv.bulkLoad(entries)
+
+    const startIndiv = Date.now()
+    for (const [key, value] of toDelete) {
+      await treeIndiv.delete(key, value)
+    }
+    const timeIndiv = Date.now() - startIndiv
+
+    const strategyBatch = new NoCopyStoreStrategyAsync<number, number>(order)
+    const treeBatch = new BPTreePureAsync<number, number>(strategyBatch, new NumericComparator())
+    await treeBatch.init()
+    await treeBatch.bulkLoad(entries)
+
+    const startBatch = Date.now()
+    await treeBatch.batchDelete(toDelete)
+    const timeBatch = Date.now() - startBatch
+
+    console.log(`Pure Async - Individual Delete: ${timeIndiv} ms, batchDelete: ${timeBatch} ms`)
+    console.log(`Performance Improvement: ${((1 - timeBatch / timeIndiv) * 100).toFixed(1)}% `)
+
+    results.push({ name: 'Async Pure Individual Delete', unit: 'ms', value: timeIndiv })
+    results.push({ name: 'Async Pure Batch Delete', unit: 'ms', value: timeBatch })
+  }
+
+  return results
+}
+
 async function main() {
   const args = process.argv.slice(2)
   const isJson = args.includes('json')
@@ -418,6 +506,7 @@ async function main() {
     batch: runBatchBenchmark,
     bulkload: runBulkLoadBenchmark,
     pure: runPureBenchmark,
+    batchdelete: runBatchDeletePureBenchmark,
   }
 
   if (!type) {

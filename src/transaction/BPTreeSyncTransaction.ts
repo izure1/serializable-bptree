@@ -17,6 +17,7 @@ import {
   insertOp,
   deleteOp,
   batchInsertOp,
+  batchDeleteOp,
   bulkLoadOp,
   existsOp,
   getOp,
@@ -327,6 +328,10 @@ export class BPTreeSyncTransaction<K, V> extends BPTreeTransaction<K, V> {
 
   public delete(key: K, value?: V): void {
     deleteOp(this._ops, this._ctx, key, this.comparator, value)
+  }
+
+  public batchDelete(entries: [K, V?][]): void {
+    batchDeleteOp(this._ops, this._ctx, entries, this.comparator)
   }
 
   // ─── Head Data ───────────────────────────────────────────────────

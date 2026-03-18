@@ -60,6 +60,15 @@ export class BPTreeSync<K, V> extends BPTreeSyncTransaction<K, V> {
     }
   }
 
+  public batchDelete(entries: [K, V?][]): void {
+    const tx = this.createTransaction()
+    tx.batchDelete(entries)
+    const result = tx.commit()
+    if (!result.success) {
+      throw new Error(`Transaction failed: ${result.error || 'Commit failed due to conflict'}`)
+    }
+  }
+
   public batchInsert(entries: [K, V][]): void {
     const tx = this.createTransaction()
     tx.batchInsert(entries)

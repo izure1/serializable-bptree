@@ -18,6 +18,7 @@ import {
   insertOpAsync,
   deleteOpAsync,
   batchInsertOpAsync,
+  batchDeleteOpAsync,
   bulkLoadOpAsync,
   existsOpAsync,
   getOpAsync,
@@ -355,6 +356,13 @@ export class BPTreeAsyncTransaction<K, V> extends BPTreeTransaction<K, V> {
   public async delete(key: K, value?: V): Promise<void> {
     return this.writeLock(0, async () => {
       await deleteOpAsync(this._ops, this._ctx, key, this.comparator, value)
+    })
+  }
+
+  public async batchDelete(entries: [K, V?][]): Promise<void> {
+    if (entries.length === 0) return
+    return this.writeLock(0, async () => {
+      await batchDeleteOpAsync(this._ops, this._ctx, entries, this.comparator)
     })
   }
 

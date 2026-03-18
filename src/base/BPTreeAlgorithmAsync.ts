@@ -670,6 +670,21 @@ export async function deleteOpAsync<K, V>(
   }
 }
 
+// ─── Mutation: batchDelete (async) ───────────────────────────────────
+
+export async function batchDeleteOpAsync<K, V>(
+  ops: BPTreeNodeOpsAsync<K, V>,
+  ctx: BPTreeAlgoContext<K, V>,
+  entries: [K, V?][],
+  comparator: ValueComparator<V>,
+): Promise<void> {
+  if (entries.length === 0) return
+  for (let i = 0, len = entries.length; i < len; i++) {
+    const [key, value] = entries[i]
+    await deleteOpAsync(ops, ctx, key, comparator, value)
+  }
+}
+
 // ─── Mutation: batchInsert (async) ───────────────────────────────────
 
 export async function batchInsertOpAsync<K, V>(

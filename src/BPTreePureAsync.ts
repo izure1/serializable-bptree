@@ -16,6 +16,7 @@ import {
   insertOpAsync,
   deleteOpAsync,
   batchInsertOpAsync,
+  batchDeleteOpAsync,
   bulkLoadOpAsync,
   existsOpAsync,
   getOpAsync,
@@ -312,6 +313,15 @@ export class BPTreePureAsync<K, V> implements IBPTree<K, V> {
       const { ops, flush } = this._createBufferedOps()
       const ctx = await this._createCtx()
       await batchInsertOpAsync(ops, ctx, entries, this.comparator)
+      await flush()
+    })
+  }
+
+  public async batchDelete(entries: [K, V?][]): Promise<void> {
+    return this.writeLock(async () => {
+      const { ops, flush } = this._createBufferedOps()
+      const ctx = await this._createCtx()
+      await batchDeleteOpAsync(ops, ctx, entries, this.comparator)
       await flush()
     })
   }

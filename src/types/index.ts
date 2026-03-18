@@ -251,6 +251,13 @@ export interface IBPTree<K, V> {
   delete(key: K, value?: V): Deferred<void>
 
   /**
+   * Deletes multiple key-value pairs from the tree in a single batch operation.
+   * This is more efficient than calling delete() multiple times.
+   * @param entries Array of [key, value?] pairs to delete. If value is omitted, a full scan will be performed.
+   */
+  batchDelete(entries: [K, V?][]): Deferred<void>
+
+  /**
    * It returns whether there is a value in the tree.
    * @param key The key value to search for. This key must be unique.
    * @param value The value to search for.

@@ -541,6 +541,7 @@ export abstract class BPTreeTransaction<K, V> implements IBPTree<K, V> {
   public abstract batchInsert(entries: [K, V][]): Deferred<void>
   public abstract bulkLoad(entries: [K, V][]): Deferred<void>
   public abstract delete(key: K, value?: V): Deferred<void>
+  public abstract batchDelete(entries: [K, V?][]): Deferred<void>
   public abstract exists(key: K, value: V): Deferred<boolean>
   public abstract setHeadData(data: SerializableData): Deferred<void>
   abstract getHeadData(): Deferred<SerializableData>

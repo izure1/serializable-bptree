@@ -15,6 +15,7 @@ import {
   insertOp,
   deleteOp,
   batchInsertOp,
+  batchDeleteOp,
   bulkLoadOp,
   existsOp,
   getOp,
@@ -281,6 +282,13 @@ export class BPTreePureSync<K, V> implements IBPTree<K, V> {
     const { ops, flush } = this._createBufferedOps()
     const ctx = this._createCtx()
     deleteOp(ops, ctx, key, this.comparator, value)
+    flush()
+  }
+
+  public batchDelete(entries: [K, V?][]): void {
+    const { ops, flush } = this._createBufferedOps()
+    const ctx = this._createCtx()
+    batchDeleteOp(ops, ctx, entries, this.comparator)
     flush()
   }
 

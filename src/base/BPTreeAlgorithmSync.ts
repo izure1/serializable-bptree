@@ -997,6 +997,21 @@ export function deleteOp<K, V>(
   }
 }
 
+// ─── Mutation: batchDelete ───────────────────────────────────────────
+
+export function batchDeleteOp<K, V>(
+  ops: BPTreeNodeOps<K, V>,
+  ctx: BPTreeAlgoContext<K, V>,
+  entries: [K, V?][],
+  comparator: ValueComparator<V>,
+): void {
+  if (entries.length === 0) return
+  for (let i = 0, len = entries.length; i < len; i++) {
+    const [key, value] = entries[i]
+    deleteOp(ops, ctx, key, comparator, value)
+  }
+}
+
 // ─── Mutation: batchInsert ───────────────────────────────────────────
 
 export function batchInsertOp<K, V>(
