@@ -133,6 +133,7 @@ export class BPTreePureSync<K, V> implements IBPTree<K, V> {
 
     function flush(): void {
       for (const id of deleteBuffer) {
+        writeBuffer.delete(id)
         strategy.delete(id)
       }
       for (const [id, node] of writeBuffer) {

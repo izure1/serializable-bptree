@@ -131,6 +131,7 @@ export class BPTreePureAsync<K, V> implements IBPTree<K, V> {
 
     async function flush(): Promise<void> {
       for (const id of deleteBuffer) {
+        writeBuffer.delete(id)
         await strategy.delete(id)
       }
       for (const [id, node] of writeBuffer) {
