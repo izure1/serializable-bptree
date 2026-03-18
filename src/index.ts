@@ -9,7 +9,8 @@ export type {
   BPTreeCondition,
   BPTreeTransactionResult,
   SerializeStrategyHead,
-  SerializableData
+  SerializableData,
+  IBPTree,
 } from './types'
 export { ValueComparator, NumericComparator, StringComparator } from './base/ValueComparator'
 export { BPTreeSync } from './BPTreeSync'

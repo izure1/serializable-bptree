@@ -5,7 +5,8 @@ import type {
   BPTreeSearchOption,
   BPTreeUnknownNode,
   SerializableData,
-  SerializeStrategyHead
+  SerializeStrategyHead,
+  IBPTree,
 } from './types'
 import type { BPTreeNodeOps, BPTreeAlgoContext } from './base/BPTreeNodeOps'
 import {
@@ -25,7 +26,7 @@ import { SerializeStrategySync } from './SerializeStrategySync'
 import { ValueComparator } from './base/ValueComparator'
 import { BPTreeTransaction } from './base/BPTreeTransaction'
 
-export class BPTreePureSync<K, V> {
+export class BPTreePureSync<K, V> implements IBPTree<K, V> {
   protected readonly strategy: SerializeStrategySync<K, V>
   protected readonly comparator: ValueComparator<V>
   protected readonly option: BPTreeConstructorOption

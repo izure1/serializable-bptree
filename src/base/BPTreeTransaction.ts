@@ -11,12 +11,13 @@ import type {
   BPTreeNode,
   BPTreeMVCC,
   BPTreeSearchOption,
+  IBPTree,
 } from '../types'
 import { MVCCTransaction } from 'mvcc-api'
 import { ValueComparator } from './ValueComparator'
 import { SerializeStrategy } from './SerializeStrategy'
 
-export abstract class BPTreeTransaction<K, V> {
+export abstract class BPTreeTransaction<K, V> implements IBPTree<K, V> {
   protected readonly _cachedRegexp: Map<string, RegExp> = new Map()
   protected readonly rootTx: BPTreeTransaction<K, V>
   protected readonly mvccRoot: BPTreeMVCC<K, V>
@@ -360,35 +361,16 @@ export abstract class BPTreeTransaction<K, V> {
     return MVCCTransaction.CheckConflicts(transactions.map(tx => tx.mvcc))
   }
 
-  /**
-   * Returns the root node of the B+Tree.
-   * @returns The root node.
-   */
   public abstract getRootNode(): Deferred<BPTreeUnknownNode<K, V>>
 
-  /**
-   * Returns the ID of the root node.
-   * @returns The root node ID.
-   */
   public getRootId(): string {
     return this.rootId
   }
 
-  /**
-   * Returns the order of the B+Tree.
-   * @returns The order of the tree.
-   */
   public getOrder(): number {
     return this.order
   }
 
-  /**
-   * Verified if the value satisfies the condition.
-   * 
-   * @param nodeValue The value to verify.
-   * @param condition The condition to verify against.
-   * @returns Returns true if the value satisfies the condition.
-   */
   public verify(nodeValue: V, condition: BPTreeCondition<V>): boolean {
     for (const key in condition) {
       const verify = this.verifierMap[key as keyof BPTreeCondition<V>]
@@ -548,104 +530,19 @@ export abstract class BPTreeTransaction<K, V> {
   protected abstract leftestNode(): Deferred<BPTreeLeafNode<K, V>>
   protected abstract rightestNode(): Deferred<BPTreeLeafNode<K, V>>
 
-  /**
-   * After creating a tree instance, it must be called.  
-   * This method is used to initialize the stored tree and recover data.
-   * If it is not called, the tree will not function.
-   */
   public abstract init(): Deferred<void>
-  /**
-   * Clears all in-memory caches and re-initializes the tree from storage.
-   * This is equivalent to calling `clear()` followed by `init()`, but reuses the same instance.
-   * Useful when the underlying storage has been modified externally and the tree needs to reflect current state.
-   */
   public abstract reload(): Deferred<void>
-  /**
-   * Retrieves the value associated with the given key.
-   * @param key The key to search for.
-   * @returns A Deferred that resolves to the value if found, or undefined if not found.
-   */
   public abstract get(key: K): Deferred<V | undefined>
-  /**
-   * Returns a generator that yields keys satisfying the given condition.
-   * This is a memory-efficient way to iterate through keys when dealing with large result sets.
-   * @param condition The search condition (e.g., gt, lt, equal, like).
-   * @param options Search options including filterValues, limit, and order.
-   * @returns An async or synchronous generator yielding keys of type K.
-   */
   public abstract keysStream(condition: BPTreeCondition<V>, options?: BPTreeSearchOption<K>): AsyncGenerator<K> | Generator<K>
-  /**
-   * Returns a generator that yields [key, value] pairs satisfying the given condition.
-   * This is a memory-efficient way to iterate through pairs when dealing with large result sets.
-   * @param condition The search condition (e.g., gt, lt, equal, like).
-   * @param options Search options including filterValues, limit, and order.
-   * @returns An async or synchronous generator yielding [K, V] tuples.
-   */
   public abstract whereStream(condition: BPTreeCondition<V>, options?: BPTreeSearchOption<K>): AsyncGenerator<[K, V]> | Generator<[K, V]>
-  /**
-   * It searches for a key within the tree. The result is returned as an array sorted in ascending order based on the value.  
-   * The result is key set instance, and you can use the `gt`, `lt`, `gte`, `lte`, `equal`, `notEqual`, `like` condition statements.
-   * This method operates much faster than first searching with `where` and then retrieving only the key list.
-   * @param condition You can use the `gt`, `lt`, `gte`, `lte`, `equal`, `notEqual`, `like` condition statements.
-   * @param options Search options including filterValues, limit, and order.
-   */
   public abstract keys(condition: BPTreeCondition<V>, options?: BPTreeSearchOption<K>): Deferred<Set<K>>
-  /**
-   * It searches for a value within the tree. The result is returned as an array sorted in ascending order based on the value.  
-   * The result includes the key and value attributes, and you can use the `gt`, `lt`, `gte`, `lte`, `equal`, `notEqual`, `like` condition statements.
-   * @param condition You can use the `gt`, `lt`, `gte`, `lte`, `equal`, `notEqual`, `like` condition statements.
-   * @param options Search options including filterValues, limit, and order.
-   */
   public abstract where(condition: BPTreeCondition<V>, options?: BPTreeSearchOption<K>): Deferred<BPTreePair<K, V>>
-  /**
-   * You enter the key and value as a pair. You can later search for the pair by value.
-   * This data is stored in the tree, sorted in ascending order of value.
-   * @param key The key of the pair. This key must be unique.
-   * @param value The value of the pair.
-   */
   public abstract insert(key: K, value: V): Deferred<void>
-  /**
-   * Inserts multiple key-value pairs into the tree in a single batch operation.
-   * Entries are sorted by value before insertion to optimize tree traversal.
-   * This is more efficient than calling insert() multiple times.
-   * @param entries Array of [key, value] pairs to insert.
-   */
   public abstract batchInsert(entries: [K, V][]): Deferred<void>
-  /**
-   * Builds a B+Tree from scratch using bulk loading (bottom-up construction).
-   * This is significantly faster than batchInsert for initial tree construction,
-   * as it avoids top-down traversal and creates nodes directly.
-   * 
-   * **Precondition**: The tree must be empty. If the tree already contains data,
-   * an error will be thrown. Use batchInsert for adding data to an existing tree.
-   * 
-   * @param entries Array of [key, value] pairs to bulk load.
-   * @throws Error if the tree is not empty.
-   */
   public abstract bulkLoad(entries: [K, V][]): Deferred<void>
-  /**
-   * Deletes the pair that matches the key and value.
-   * @param key The key of the pair. This key must be unique.
-   * @param value The value of the pair.
-   * @warning If the 'value' is not specified, a full scan will be performed to find the value associated with the key, which may lead to performance degradation.
-   */
   public abstract delete(key: K, value?: V): Deferred<void>
-  /**
-   * It returns whether there is a value in the tree.
-   * @param key The key value to search for. This key must be unique.
-   * @param value The value to search for.
-   */
   public abstract exists(key: K, value: V): Deferred<boolean>
-  /**
-  * Inserts user-defined data into the head of the tree.
-  * This feature is useful when you need to store separate, non-volatile information in the tree.
-  * For example, you can store information such as the last update time and the number of insertions.
-  * @param data User-defined data to be stored in the head of the tree.
-  */
   public abstract setHeadData(data: SerializableData): Deferred<void>
-  /**
-   * Returns the user-defined data stored in the head of the tree.
-   */
   abstract getHeadData(): Deferred<SerializableData>
   /**
    * Commits the transaction and returns the result.
