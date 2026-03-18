@@ -426,20 +426,7 @@ async function runBatchDeletePureBenchmark(): Promise<BenchmarkResult[]> {
 
     const startIndiv = Date.now()
     for (const [key, value] of toDelete) {
-      try {
-        treeIndiv.delete(key, value)
-      } catch (e: any) {
-        console.log('\n--- ERROR DURING DELETE ---')
-        console.log('Error at key:', key, 'value:', value)
-        console.log('Exception:', e.message)
-
-        // Let's locate the leaf node to see what's wrong with its keys
-        const ctx = (treeIndiv as any)._createCtx()
-        const node = findLowerBoundLeaf((treeIndiv as any)._createBufferedOps().ops, ctx.rootId, value, new NumericComparator())
-        console.log('Leaf Node ID:', node.id)
-        console.dir(node.keys, { depth: null })
-        throw e
-      }
+      treeIndiv.delete(key, value)
     }
     const timeIndiv = Date.now() - startIndiv
 

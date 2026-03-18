@@ -599,8 +599,8 @@ export async function deleteEntryAsync<K, V>(
         else {
           pointerP0 = siblingNode.keys.splice(0, 1)[0] as unknown as K[]
           pointerK0 = siblingNode.values.splice(0, 1)[0]
-          node.keys = node.keys.concat(pointerP0)
-          node.values = node.values.concat(pointerK0)
+          node.keys = [...node.keys, pointerP0]
+          node.values = [...node.values, pointerK0]
           parentNode = cloneNode(await ops.getNode(node.parent!)) as BPTreeInternalNode<K, V>
           const pi = parentNode.keys.indexOf(siblingNode.id)
           if (pi > 0) { parentNode.values[pi - 1] = siblingNode.values[0]; await ops.updateNode(parentNode) }
